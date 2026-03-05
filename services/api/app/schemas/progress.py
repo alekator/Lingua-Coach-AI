@@ -94,3 +94,15 @@ class ProgressWeeklyReviewResponse(BaseModel):
     top_weak_area: str | None = None
     wins: list[str]
     next_focus: str
+
+
+class ProgressOutcomesResponse(BaseModel):
+    user_id: int
+    current_level: str
+    estimated_level_from_skills: str
+    avg_skill_score: float
+    improvement_7d_points: float
+    weekly_sessions: int
+    streak_days: int
+    confidence: str
+    recommendations: list[str]

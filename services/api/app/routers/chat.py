@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import ChatSession, Homework, LearnerProfile, Message, Mistake, User, VocabItem
+from app.models import ChatSession, Homework, LearnerProfile, Message, Mistake, SkillSnapshot, User, VocabItem
 from app.schemas.chat import (
     ChatEndRequest,
     ChatEndResponse,
@@ -22,6 +22,7 @@ from app.services.teacher import (
     build_teacher_payload,
     default_teacher_responder,
 )
+from app.services.mastery import next_skill_snapshot_from_chat
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -165,6 +166,19 @@ def chat_message(
         )
 
     _upsert_auto_drill_homework(db, session.user_id, teacher_output.corrections)
+
+    latest_snapshot = db.scalars(
+        select(SkillSnapshot)
+        .where(SkillSnapshot.user_id == session.user_id)
+        .order_by(SkillSnapshot.created_at.desc())
+    ).first()
+    rubric_score = teacher_output.rubric.overall_score if teacher_output.rubric else None
+    next_snapshot = next_skill_snapshot_from_chat(
+        latest_snapshot,
+        teacher_output.corrections,
+        rubric_score,
+    )
+    db.add(SkillSnapshot(user_id=session.user_id, **next_snapshot))
 
     db.commit()
     return teacher_output

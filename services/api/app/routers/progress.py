@@ -17,6 +17,7 @@ from app.schemas.progress import (
     ProgressStreakResponse,
     ProgressSummaryResponse,
     ProgressWeeklyReviewResponse,
+    ProgressOutcomesResponse,
     RewardClaimRequest,
     RewardItem,
     WeeklyGoalResponse,
@@ -141,6 +142,20 @@ def _get_or_create_user(db: Session, user_id: int) -> User:
     return user
 
 
+def _score_to_cefr_from_skills(score: float) -> str:
+    if score < 25:
+        return "A1"
+    if score < 40:
+        return "A2"
+    if score < 55:
+        return "B1"
+    if score < 70:
+        return "B2"
+    if score < 85:
+        return "C1"
+    return "C2"
+
+
 @router.get("/skill-map", response_model=ProgressSkillMapResponse)
 def progress_skill_map(user_id: int, db: Session = Depends(get_db)) -> ProgressSkillMapResponse:
     snapshot = db.scalars(
@@ -242,6 +257,83 @@ def progress_weekly_review(user_id: int, db: Session = Depends(get_db)) -> Progr
         top_weak_area=top_weak_area,
         wins=wins,
         next_focus=next_focus,
+    )
+
+
+@router.get("/outcomes", response_model=ProgressOutcomesResponse)
+def progress_outcomes(user_id: int, db: Session = Depends(get_db)) -> ProgressOutcomesResponse:
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    current_level = profile.level if profile else "A1"
+
+    snapshots = db.scalars(
+        select(SkillSnapshot).where(SkillSnapshot.user_id == user_id).order_by(SkillSnapshot.created_at.asc())
+    ).all()
+    if snapshots:
+        latest = snapshots[-1]
+        avg_skill = round(
+            (latest.speaking + latest.listening + latest.grammar + latest.vocab + latest.reading + latest.writing)
+            / 6.0,
+            2,
+        )
+    else:
+        avg_skill = 0.0
+
+    cutoff = datetime.now(UTC) - timedelta(days=7)
+    week_snapshots = [s for s in snapshots if s.created_at and _to_utc_datetime(s.created_at) >= cutoff]
+    if len(week_snapshots) >= 2:
+        first_week = week_snapshots[0]
+        last_week = week_snapshots[-1]
+        first_avg = (
+            first_week.speaking
+            + first_week.listening
+            + first_week.grammar
+            + first_week.vocab
+            + first_week.reading
+            + first_week.writing
+        ) / 6.0
+        last_avg = (
+            last_week.speaking
+            + last_week.listening
+            + last_week.grammar
+            + last_week.vocab
+            + last_week.reading
+            + last_week.writing
+        ) / 6.0
+        improvement_7d = round(last_avg - first_avg, 2)
+    else:
+        improvement_7d = 0.0
+
+    journal = progress_journal(user_id=user_id, db=db)
+    streak = progress_streak(user_id=user_id, db=db)
+    estimated_level = _score_to_cefr_from_skills(avg_skill)
+
+    if len(snapshots) >= 6 and journal.weekly_sessions >= 3:
+        confidence = "high"
+    elif len(snapshots) >= 3:
+        confidence = "medium"
+    else:
+        confidence = "low"
+
+    recommendations: list[str] = []
+    if improvement_7d <= 0:
+        recommendations.append("Keep daily 5-minute consistency to rebuild improvement trend.")
+    if journal.weak_areas:
+        recommendations.append(f"Prioritize one focused drill for: {journal.weak_areas[0]}.")
+    if streak.streak_days < 2:
+        recommendations.append("Aim for a 2-day streak this week before increasing intensity.")
+    if not recommendations:
+        recommendations.append("Good trajectory. Keep current pace and increase complexity gradually.")
+
+    return ProgressOutcomesResponse(
+        user_id=user_id,
+        current_level=current_level,
+        estimated_level_from_skills=estimated_level,
+        avg_skill_score=avg_skill,
+        improvement_7d_points=improvement_7d,
+        weekly_sessions=journal.weekly_sessions,
+        streak_days=streak.streak_days,
+        confidence=confidence,
+        recommendations=recommendations[:3],
     )
 
 

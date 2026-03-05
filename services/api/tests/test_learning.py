@@ -121,7 +121,7 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert "vocab" in plan_body["focus"]
         assert "due cards:" in plan_body["tasks"][0]
         assert "targeted correction drill (grammar)" in plan_body["tasks"][1]
-        assert "Low recent consistency detected" in plan_body["adaptation_notes"][0]
+        assert any("Low recent consistency detected" in note for note in plan_body["adaptation_notes"])
 
         session = client.get("/coach/session/today", params={"user_id": 1, "time_budget_minutes": 20})
         assert session.status_code == 200

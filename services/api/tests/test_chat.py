@@ -79,6 +79,9 @@ def test_chat_flow_with_memory_updates(
         assert hw_items[0]["title"] == "Auto Drill: grammar"
         assert hw_items[0]["tasks"][0]["type"] == "rewrite"
         assert "I did a mistake" in hw_items[0]["tasks"][0]["prompt"]
+        skill_after_msg1 = client.get("/progress/skill-map", params={"user_id": 7})
+        assert skill_after_msg1.status_code == 200
+        assert skill_after_msg1.json()["grammar"] > 0
 
         msg2 = client.post("/chat/message", json={"session_id": session_id, "text": "Thanks, understood"})
         assert msg2.status_code == 200
@@ -99,6 +102,9 @@ def test_chat_flow_with_memory_updates(
         homework_after_msg2 = client.get("/homework", params={"user_id": 7})
         assert homework_after_msg2.status_code == 200
         assert len(homework_after_msg2.json()["items"]) == 1
+        outcomes = client.get("/progress/outcomes", params={"user_id": 7})
+        assert outcomes.status_code == 200
+        assert outcomes.json()["confidence"] in {"low", "medium", "high"}
 
 
 def test_chat_end_blocks_future_messages(

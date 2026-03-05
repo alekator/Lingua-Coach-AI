@@ -100,6 +100,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `GET /progress/skill-map`
   - `GET /progress/streak`
   - `GET /progress/journal`
+  - `GET /progress/weekly-goal`
+  - `GET /progress/weekly-review`
+  - `GET /progress/outcomes`
+  - `GET /progress/rewards`
+  - `GET /coach/daily-challenge`
+  - `GET /coach/reactivation`
 
 ## API Contract Notes
 
@@ -130,6 +136,15 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - `weak_areas[]`
     - `next_actions[]`
     - `entries[]` (recent sessions with mode, message count, completion)
+
+- `GET /progress/outcomes`
+  - learning-outcome snapshot (not only activity):
+    - `current_level`
+    - `estimated_level_from_skills`
+    - `avg_skill_score`
+    - `improvement_7d_points`
+    - `confidence`
+    - `recommendations[]`
 
 ## Quality / Platform Features
 
@@ -238,4 +253,12 @@ Dry run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\e2e-key-paths.ps1 -DryRun
+```
+
+## Eval Harness (P0 Quality Checks)
+
+Runs focused quality guardrails for teacher behavior and scenario content quality:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\eval-harness.ps1
 ```
