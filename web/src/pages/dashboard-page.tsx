@@ -46,6 +46,9 @@ export function DashboardPage() {
         <article className="panel">
           <h3>Today Coaching Plan ({plan.data.time_budget_minutes} min)</h3>
           <p>Focus pillars: {plan.data.focus.join(", ")}</p>
+          {plan.data.adaptation_notes.map((note) => (
+            <p key={note}>Adaptation: {note}</p>
+          ))}
           {plan.data.tasks.map((task) => (
             <p key={task}>- {task}</p>
           ))}

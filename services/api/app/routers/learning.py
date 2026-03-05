@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import ChatSession, LearnerProfile, Message, Mistake, SrsState, User, VocabItem
+from app.models import ChatSession, LearnerProfile, Message, Mistake, SkillSnapshot, SrsState, User, VocabItem
 from app.schemas.learning import (
     CoachSessionTodayResponse,
     ExercisesGenerateRequest,
@@ -28,11 +30,24 @@ from app.services.learning import (
     generate_exercises,
     grade_exercises,
 )
+from app.services.progress import compute_streak_days
 from app.services.srs import utcnow
 from app.services.translate import TranslatorFn, TtsSynthesizerFn
 from app.services.voice import AsrTranscriberFn
 
 router = APIRouter(tags=["learning"])
+
+
+def _to_utc_date(dt: datetime) -> datetime.date:
+    if dt.tzinfo is None:
+        return dt.date()
+    return dt.astimezone(UTC).date()
+
+
+def _to_utc_datetime(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 @router.post("/translate/voice", response_model=TranslateVoiceResponse)
@@ -109,6 +124,9 @@ def plan_today(
     db: Session = Depends(get_db),
 ) -> PlanTodayResponse:
     profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    snapshot = db.scalar(
+        select(SkillSnapshot).where(SkillSnapshot.user_id == user_id).order_by(SkillSnapshot.created_at.desc())
+    )
 
     recent_mistakes = db.scalars(
         select(Mistake)
@@ -128,13 +146,35 @@ def plan_today(
         .join(ChatSession, ChatSession.id == Message.session_id)
         .where(ChatSession.user_id == user_id, Message.role == "user")
     )
+    sessions = db.scalars(select(ChatSession).where(ChatSession.user_id == user_id)).all()
+    active_dates = sorted({_to_utc_date(s.started_at) for s in sessions if s.started_at})
+    streak_days = compute_streak_days(active_dates)
+    cutoff = datetime.now(UTC) - timedelta(days=7)
+    weekly_sessions = len([s for s in sessions if s.started_at and _to_utc_datetime(s.started_at) >= cutoff])
 
-    focus, tasks = build_adaptive_plan(
+    weakest_skill: str | None = None
+    weakest_skill_score: float | None = None
+    if snapshot:
+        skill_values = {
+            "speaking": snapshot.speaking,
+            "listening": snapshot.listening,
+            "grammar": snapshot.grammar,
+            "vocab": snapshot.vocab,
+            "reading": snapshot.reading,
+            "writing": snapshot.writing,
+        }
+        weakest_skill, weakest_skill_score = min(skill_values.items(), key=lambda item: item[1])
+
+    focus, tasks, adaptation_notes = build_adaptive_plan(
         goal=profile.goal if profile else None,
         time_budget_minutes=time_budget_minutes,
         recent_mistake_categories=[m.category for m in recent_mistakes],
         due_vocab_count=int(due_vocab_count or 0),
         recent_user_messages_count=int(recent_user_messages_count or 0),
+        streak_days=streak_days,
+        weekly_sessions=weekly_sessions,
+        weakest_skill=weakest_skill,
+        weakest_skill_score=weakest_skill_score,
     )
 
     return PlanTodayResponse(
@@ -142,6 +182,7 @@ def plan_today(
         time_budget_minutes=time_budget_minutes,
         focus=focus,
         tasks=tasks,
+        adaptation_notes=adaptation_notes,
     )
 
 

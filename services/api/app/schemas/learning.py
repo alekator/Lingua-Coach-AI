@@ -62,6 +62,7 @@ class PlanTodayResponse(BaseModel):
     time_budget_minutes: int
     focus: list[str]
     tasks: list[str]
+    adaptation_notes: list[str] = Field(default_factory=list)
 
 
 class CoachSessionStep(BaseModel):

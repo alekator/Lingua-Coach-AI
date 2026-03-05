@@ -75,8 +75,13 @@ def build_adaptive_plan(
     recent_mistake_categories: list[str],
     due_vocab_count: int,
     recent_user_messages_count: int,
-) -> tuple[list[str], list[str]]:
+    streak_days: int,
+    weekly_sessions: int,
+    weakest_skill: str | None,
+    weakest_skill_score: float | None,
+) -> tuple[list[str], list[str], list[str]]:
     ranked_mistakes = Counter(c for c in recent_mistake_categories if c).most_common()
+    adaptation_notes: list[str] = []
 
     focus: list[str] = []
     if goal:
@@ -96,12 +101,32 @@ def build_adaptive_plan(
         focus.append("vocab")
     if recent_user_messages_count < 3 and "speaking" not in focus:
         focus.append("speaking")
+    if weakest_skill and weakest_skill not in focus and len(focus) < 3:
+        focus.append(weakest_skill)
+    if weakest_skill and weakest_skill_score is not None and weakest_skill_score < 50:
+        adaptation_notes.append(f"Priority skill: {weakest_skill} ({int(weakest_skill_score)}/100).")
+
+    if weekly_sessions < 3 or streak_days < 2:
+        adaptation_notes.append("Low recent consistency detected; plan uses shorter high-impact blocks.")
+    elif weekly_sessions >= 5 and streak_days >= 4:
+        adaptation_notes.append("Strong consistency detected; plan includes one challenge block.")
+    else:
+        adaptation_notes.append("Balanced consistency detected; plan keeps steady progression.")
 
     # Keep compact and stable output shape.
     focus = (focus + ["grammar", "speaking", "vocab"])[:3]
 
-    review_minutes = max(4, min(8, round(time_budget_minutes * 0.3)))
-    coach_minutes = max(4, min(10, round(time_budget_minutes * 0.35)))
+    review_ratio = 0.3
+    coach_ratio = 0.35
+    if weekly_sessions < 3:
+        review_ratio = 0.35
+        coach_ratio = 0.3
+    elif weekly_sessions >= 5 and streak_days >= 4:
+        review_ratio = 0.25
+        coach_ratio = 0.4
+
+    review_minutes = max(4, min(8, round(time_budget_minutes * review_ratio)))
+    coach_minutes = max(4, min(10, round(time_budget_minutes * coach_ratio)))
     scenario_minutes = max(3, time_budget_minutes - review_minutes - coach_minutes)
 
     first_focus = focus[0]
@@ -113,9 +138,14 @@ def build_adaptive_plan(
     if ranked_mistakes:
         top_mistake = ranked_mistakes[0][0]
         coach_task = f"{coach_minutes} min: targeted correction drill ({top_mistake})"
+    elif weakest_skill:
+        coach_task = f"{coach_minutes} min: targeted correction drill ({weakest_skill})"
 
     scenario_task = f"{scenario_minutes} min: scenario practice ({focus[2]})"
-    return focus, [review_task, coach_task, scenario_task]
+    if weekly_sessions >= 5 and streak_days >= 4:
+        scenario_task = f"{scenario_minutes} min: stretch scenario challenge ({focus[2]})"
+
+    return focus, [review_task, coach_task, scenario_task], adaptation_notes
 
 
 def build_today_session_steps(focus: list[str], time_budget_minutes: int) -> list[CoachSessionStep]:

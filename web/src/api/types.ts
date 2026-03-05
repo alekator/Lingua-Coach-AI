@@ -64,6 +64,7 @@ export type PlanTodayResponse = {
   time_budget_minutes: number;
   focus: string[];
   tasks: string[];
+  adaptation_notes: string[];
 };
 
 export type CoachSessionTodayResponse = {
