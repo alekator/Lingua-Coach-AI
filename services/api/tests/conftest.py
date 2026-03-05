@@ -20,6 +20,8 @@ def client_factory() -> Callable[..., TestClient]:
         teacher_responder: Callable[[dict[str, Any]], ChatMessageResponse] | None = None,
         translator: Callable[[str, str, str], str] | None = None,
         tts_synthesizer: Callable[[str, str, str], str] | None = None,
+        asr_transcriber: Callable[[bytes, str, str, str], dict[str, str]] | None = None,
+        voice_teacher: Callable[[str, Any, str], str] | None = None,
     ) -> TestClient:
         engine = create_engine(
             "sqlite://",
@@ -42,6 +44,8 @@ def client_factory() -> Callable[..., TestClient]:
             teacher_responder=teacher_responder,
             translator=translator,
             tts_synthesizer=tts_synthesizer,
+            asr_transcriber=asr_transcriber,
+            voice_teacher=voice_teacher,
         )
         app.dependency_overrides[get_db] = override_get_db
         return TestClient(app)

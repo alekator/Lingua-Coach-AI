@@ -13,12 +13,19 @@ from app.db import init_db
 from app.routers.chat import router as chat_router
 from app.routers.profile import router as profile_router
 from app.routers.translate import router as translate_router
+from app.routers.voice import router as voice_router
 from app.services.teacher import TeacherResponder, default_teacher_responder
 from app.services.translate import (
     TranslatorFn,
     TtsSynthesizerFn,
     default_translator,
     default_tts_synthesizer,
+)
+from app.services.voice import (
+    AsrTranscriberFn,
+    VoiceTeacherFn,
+    default_asr_transcriber,
+    default_voice_teacher,
 )
 
 
@@ -58,12 +65,16 @@ def create_app(
     teacher_responder: TeacherResponder | None = None,
     translator: TranslatorFn | None = None,
     tts_synthesizer: TtsSynthesizerFn | None = None,
+    asr_transcriber: AsrTranscriberFn | None = None,
+    voice_teacher: VoiceTeacherFn | None = None,
 ) -> FastAPI:
     app = FastAPI(title="LinguaCoach API", version="0.1.0", lifespan=app_lifespan)
     probe = openai_probe or default_openai_probe
     app.state.teacher_responder = teacher_responder or default_teacher_responder
     app.state.translator = translator or default_translator
     app.state.tts_synthesizer = tts_synthesizer or default_tts_synthesizer
+    app.state.asr_transcriber = asr_transcriber or default_asr_transcriber
+    app.state.voice_teacher = voice_teacher or default_voice_teacher
 
     @app.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
@@ -99,6 +110,7 @@ def create_app(
     app.include_router(profile_router)
     app.include_router(chat_router)
     app.include_router(translate_router)
+    app.include_router(voice_router)
 
     return app
 
