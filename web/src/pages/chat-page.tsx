@@ -87,8 +87,28 @@ export function ChatPage() {
           {reply.corrections.map((c, idx) => (
             <p key={`${c.type}-${idx}`}>
               {c.bad} {"->"} {c.good}
+              {c.explanation ? ` (${c.explanation})` : ""}
             </p>
           ))}
+          {reply.rubric && (
+            <section className="stack">
+              <h3>Coach rubric</h3>
+              <p>
+                Overall score: {reply.rubric.overall_score}/100 ({reply.rubric.level_band})
+              </p>
+              <p>Grammar: {reply.rubric.grammar_accuracy.score}/5</p>
+              <p>Lexical range: {reply.rubric.lexical_range.score}/5</p>
+              <p>Fluency/coherence: {reply.rubric.fluency_coherence.score}/5</p>
+              <p>Task completion: {reply.rubric.task_completion.score}/5</p>
+              {reply.rubric.strengths.map((item, idx) => (
+                <p key={`strength-${idx}`}>Strength: {item}</p>
+              ))}
+              {reply.rubric.priority_fixes.map((item, idx) => (
+                <p key={`fix-${idx}`}>Fix: {item}</p>
+              ))}
+              {reply.rubric.next_drill && <p>Next drill: {reply.rubric.next_drill}</p>}
+            </section>
+          )}
         </article>
       )}
     </section>

@@ -17,6 +17,23 @@ class NewWord(BaseModel):
     phonetics: str | None = None
 
 
+class ChatRubricDimension(BaseModel):
+    score: int = Field(ge=1, le=5)
+    feedback: str
+
+
+class ChatRubric(BaseModel):
+    overall_score: int = Field(ge=0, le=100)
+    level_band: str
+    grammar_accuracy: ChatRubricDimension
+    lexical_range: ChatRubricDimension
+    fluency_coherence: ChatRubricDimension
+    task_completion: ChatRubricDimension
+    strengths: list[str] = Field(default_factory=list)
+    priority_fixes: list[str] = Field(default_factory=list)
+    next_drill: str | None = None
+
+
 class ChatStartRequest(BaseModel):
     user_id: int = Field(ge=1)
     mode: str = Field(default="chat", min_length=2, max_length=32)
@@ -38,6 +55,7 @@ class ChatMessageResponse(BaseModel):
     corrections: list[Correction] = Field(default_factory=list)
     new_words: list[NewWord] = Field(default_factory=list)
     homework_suggestions: list[str] = Field(default_factory=list)
+    rubric: ChatRubric | None = None
 
 
 class ChatEndRequest(BaseModel):

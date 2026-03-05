@@ -7,10 +7,76 @@ from typing import Any, Callable
 from openai import OpenAI
 
 from app.models import LearnerProfile, Message, Mistake, VocabItem
-from app.schemas.chat import ChatMessageResponse
+from app.schemas.chat import ChatMessageResponse, ChatRubric, ChatRubricDimension
 
 
 TeacherResponder = Callable[[dict[str, Any]], ChatMessageResponse]
+
+
+def _rubric_band(score: int) -> str:
+    if score >= 85:
+        return "strong"
+    if score >= 70:
+        return "developing"
+    return "foundation"
+
+
+def build_fallback_rubric(user_text: str, response: ChatMessageResponse) -> ChatRubric:
+    words = max(1, len(user_text.split()))
+    corrections_count = len(response.corrections)
+    base_score = 78 if words >= 6 else 68
+    penalty = min(18, corrections_count * 7)
+    overall_score = max(35, min(95, base_score - penalty))
+
+    grammar_score = max(1, min(5, 5 - corrections_count))
+    lexical_score = 4 if words >= 10 else 3 if words >= 5 else 2
+    fluency_score = 4 if words >= 8 else 3 if words >= 4 else 2
+    task_score = 4 if words >= 5 else 2
+
+    strengths: list[str] = []
+    if words >= 6:
+        strengths.append("Good attempt to express a complete thought.")
+    if response.new_words:
+        strengths.append("You can reuse new vocabulary from this turn.")
+    if not strengths:
+        strengths.append("You are practicing consistently.")
+
+    priority_fixes = [
+        f"{c.bad} -> {c.good}" if not c.explanation else f"{c.bad} -> {c.good}: {c.explanation}"
+        for c in response.corrections[:2]
+    ]
+    if not priority_fixes:
+        priority_fixes = ["Keep sentence structure simple and accurate."]
+
+    next_drill: str | None = None
+    if response.corrections:
+        next_drill = f"Write 3 short sentences applying the {response.corrections[0].type} fix."
+    elif response.homework_suggestions:
+        next_drill = response.homework_suggestions[0]
+
+    return ChatRubric(
+        overall_score=overall_score,
+        level_band=_rubric_band(overall_score),
+        grammar_accuracy=ChatRubricDimension(
+            score=grammar_score,
+            feedback="Focus on one grammar pattern from the latest correction.",
+        ),
+        lexical_range=ChatRubricDimension(
+            score=lexical_score,
+            feedback="Reuse target vocabulary in your next 2-3 sentences.",
+        ),
+        fluency_coherence=ChatRubricDimension(
+            score=fluency_score,
+            feedback="Keep replies in one clear idea per sentence.",
+        ),
+        task_completion=ChatRubricDimension(
+            score=task_score,
+            feedback="Answer directly and add one useful detail.",
+        ),
+        strengths=strengths,
+        priority_fixes=priority_fixes,
+        next_drill=next_drill,
+    )
 
 
 def build_learner_profile_block(profile: LearnerProfile | None) -> dict[str, Any]:
@@ -78,6 +144,7 @@ def build_teacher_payload(
             "must_reference_goal": True,
             "must_consider_weak_topics": True,
             "must_keep_reply_short_for_low_levels": True,
+            "must_return_rubric": True,
         },
         "schema": {
             "assistant_text": "string",
@@ -98,6 +165,17 @@ def build_teacher_payload(
                 }
             ],
             "homework_suggestions": ["string"],
+            "rubric": {
+                "overall_score": "integer 0..100",
+                "level_band": "foundation|developing|strong",
+                "grammar_accuracy": {"score": "integer 1..5", "feedback": "string"},
+                "lexical_range": {"score": "integer 1..5", "feedback": "string"},
+                "fluency_coherence": {"score": "integer 1..5", "feedback": "string"},
+                "task_completion": {"score": "integer 1..5", "feedback": "string"},
+                "strengths": ["string"],
+                "priority_fixes": ["string"],
+                "next_drill": "string",
+            },
         },
     }
 
@@ -107,7 +185,7 @@ def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
     learner_profile = payload["learner_profile"]
     api_key = __import__("os").getenv("OPENAI_API_KEY")
     if not api_key:
-        return ChatMessageResponse(
+        fallback = ChatMessageResponse(
             assistant_text=(
                 f"Practice ({learner_profile['level']}): {user_text}. "
                 "I corrected one small item and added one useful word."
@@ -116,6 +194,8 @@ def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
             new_words=[],
             homework_suggestions=["Write 3 short sentences using today's topic."],
         )
+        fallback.rubric = build_fallback_rubric(user_text, fallback)
+        return fallback
 
     system_prompt = (
         "You are LinguaCoach AI, a concise language coach. "
@@ -140,4 +220,7 @@ def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
     )
     text = response.output_text
     parsed = json.loads(text)
-    return ChatMessageResponse.model_validate(parsed)
+    result = ChatMessageResponse.model_validate(parsed)
+    if result.rubric is None:
+        result.rubric = build_fallback_rubric(user_text, result)
+    return result

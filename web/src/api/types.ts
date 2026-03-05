@@ -155,6 +155,17 @@ export type ChatMessageResponse = {
   corrections: Array<{ type: string; bad: string; good: string; explanation?: string | null }>;
   new_words: Array<{ word: string; translation: string; example?: string | null; phonetics?: string | null }>;
   homework_suggestions: string[];
+  rubric?: {
+    overall_score: number;
+    level_band: string;
+    grammar_accuracy: { score: number; feedback: string };
+    lexical_range: { score: number; feedback: string };
+    fluency_coherence: { score: number; feedback: string };
+    task_completion: { score: number; feedback: string };
+    strengths: string[];
+    priority_fixes: string[];
+    next_drill?: string | null;
+  } | null;
 };
 
 export type VoiceMessageResponse = {
