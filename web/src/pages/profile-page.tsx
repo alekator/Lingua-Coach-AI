@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { getErrorMessage } from "../lib/errors";
@@ -7,14 +8,23 @@ import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
 export function ProfilePage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const userId = useAppStore((s) => s.userId) ?? 1;
+  const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
+  const setBootstrapState = useAppStore((s) => s.setBootstrapState);
   const [nativeLang, setNativeLang] = useState("");
   const [targetLang, setTargetLang] = useState("");
   const [level, setLevel] = useState("");
   const [goal, setGoal] = useState("");
+  const [newNativeLang, setNewNativeLang] = useState("");
+  const [newTargetLang, setNewTargetLang] = useState("");
+  const [newGoal, setNewGoal] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [workspaceError, setWorkspaceError] = useState("");
   const [placementError, setPlacementError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [retakeOpen, setRetakeOpen] = useState(false);
   const [retakeSessionId, setRetakeSessionId] = useState<number | null>(null);
   const [retakeQuestion, setRetakeQuestion] = useState("");
@@ -39,6 +49,10 @@ export function ProfilePage() {
     queryKey: ["progress-journal", userId],
     queryFn: () => api.progressJournal(userId),
   });
+  const workspaces = useQuery({
+    queryKey: ["workspaces"],
+    queryFn: api.workspacesList,
+  });
 
   useEffect(() => {
     if (!profile.data) return;
@@ -47,6 +61,20 @@ export function ProfilePage() {
     setLevel(profile.data.level);
     setGoal(profile.data.goal ?? "");
   }, [profile.data]);
+
+  async function syncBootstrapContext() {
+    const bootstrap = await api.bootstrap();
+    queryClient.setQueryData(["bootstrap"], bootstrap);
+    setBootstrapState({
+      userId: bootstrap.user_id,
+      hasProfile: bootstrap.has_profile,
+      ownerUserId: bootstrap.owner_user_id,
+      activeWorkspaceId: bootstrap.active_workspace_id ?? null,
+    });
+    if (bootstrap.needs_onboarding) {
+      navigate("/", { replace: true });
+    }
+  }
 
   async function onSave(event: FormEvent) {
     event.preventDefault();
@@ -69,6 +97,51 @@ export function ProfilePage() {
       pushToast("error", msg);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onCreateWorkspace(event: FormEvent) {
+    event.preventDefault();
+    setWorkspaceBusy(true);
+    try {
+      await api.workspaceCreate({
+        native_lang: newNativeLang,
+        target_lang: newTargetLang,
+        goal: newGoal || null,
+        make_active: true,
+      });
+      setWorkspaceError("");
+      setNewNativeLang("");
+      setNewTargetLang("");
+      setNewGoal("");
+      await queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      await syncBootstrapContext();
+      pushToast("success", "New learning space created");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setWorkspaceError(msg);
+      pushToast("error", msg);
+    } finally {
+      setWorkspaceBusy(false);
+    }
+  }
+
+  async function onSwitchWorkspace(workspaceId: number) {
+    if (!workspaceId) return;
+    setWorkspaceBusy(true);
+    try {
+      await api.workspaceSwitch({ workspace_id: workspaceId });
+      await queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      await syncBootstrapContext();
+      await Promise.all([profile.refetch(), skillMap.refetch(), streak.refetch(), journal.refetch()]);
+      setWorkspaceError("");
+      pushToast("success", "Learning space switched");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setWorkspaceError(msg);
+      pushToast("error", msg);
+    } finally {
+      setWorkspaceBusy(false);
     }
   }
 
@@ -144,25 +217,80 @@ export function ProfilePage() {
     <section className="panel stack">
       <h2>Coach Profile & Progress</h2>
       <p>Set your learning preferences and track coach signals for steady progress.</p>
+      <article className="panel stack">
+        <h3>Learning Spaces</h3>
+        <p>Each language pair keeps isolated progress, sessions, and recommendations.</p>
+        {workspaces.isPending && <LoadingState text="Loading learning spaces..." />}
+        {workspaces.isError && <ErrorState text="Failed to load learning spaces." />}
+        {workspaces.isSuccess && (
+          <>
+            <label>
+              Switch active space
+              <select
+                value={activeWorkspaceId ?? workspaces.data.active_workspace_id ?? ""}
+                onChange={(e) => onSwitchWorkspace(Number(e.target.value))}
+                disabled={workspaceBusy}
+              >
+                {workspaces.data.items.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.native_lang} {"->"} {item.target_lang}
+                    {item.is_active ? " (active)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <form className="stack" onSubmit={onCreateWorkspace}>
+              <h4>Create new space</h4>
+              <label>
+                Native language
+                <input
+                  aria-label="New native language"
+                  value={newNativeLang}
+                  onChange={(e) => setNewNativeLang(e.target.value)}
+                />
+              </label>
+              <label>
+                Target language
+                <input
+                  aria-label="New target language"
+                  value={newTargetLang}
+                  onChange={(e) => setNewTargetLang(e.target.value)}
+                />
+              </label>
+              <label>
+                Goal
+                <input aria-label="New space goal" value={newGoal} onChange={(e) => setNewGoal(e.target.value)} />
+              </label>
+              <button
+                type="submit"
+                disabled={workspaceBusy || !newNativeLang.trim() || !newTargetLang.trim()}
+              >
+                {workspaceBusy ? "Creating..." : "Create and switch space"}
+              </button>
+            </form>
+          </>
+        )}
+        {workspaceError && <ErrorState text={workspaceError} />}
+      </article>
       {profile.isPending && <LoadingState text="Loading profile settings..." />}
       {profile.isError && <ErrorState text="Failed to load profile settings." />}
       {profile.isSuccess && (
         <form className="stack" onSubmit={onSave}>
           <label>
             Native language
-            <input value={nativeLang} onChange={(e) => setNativeLang(e.target.value)} />
+            <input value={nativeLang} disabled />
           </label>
           <label>
             Target language
-            <input value={targetLang} onChange={(e) => setTargetLang(e.target.value)} />
+            <input value={targetLang} disabled />
           </label>
           <label>
             CEFR level
-            <input value={level} onChange={(e) => setLevel(e.target.value)} />
+            <input aria-label="Profile CEFR level" value={level} onChange={(e) => setLevel(e.target.value)} />
           </label>
           <label>
             Goal
-            <input value={goal} onChange={(e) => setGoal(e.target.value)} />
+            <input aria-label="Profile goal" value={goal} onChange={(e) => setGoal(e.target.value)} />
           </label>
           <button type="submit" disabled={saving}>
             {saving ? "Saving..." : "Save settings"}

@@ -5,6 +5,10 @@ import { ProfilePage } from "./profile-page";
 const mocks = vi.hoisted(() => ({
   profileGet: vi.fn(),
   profileSetup: vi.fn(),
+  bootstrap: vi.fn(),
+  workspacesList: vi.fn(),
+  workspaceCreate: vi.fn(),
+  workspaceSwitch: vi.fn(),
   placementStart: vi.fn(),
   placementAnswer: vi.fn(),
   placementFinish: vi.fn(),
@@ -12,12 +16,26 @@ const mocks = vi.hoisted(() => ({
   progressStreak: vi.fn(),
   progressJournal: vi.fn(),
   pushToast: vi.fn(),
+  navigate: vi.fn(),
+  setBootstrapState: vi.fn(),
 }));
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mocks.navigate,
+  };
+});
 
 vi.mock("../api/client", () => ({
   api: {
     profileGet: mocks.profileGet,
     profileSetup: mocks.profileSetup,
+    bootstrap: mocks.bootstrap,
+    workspacesList: mocks.workspacesList,
+    workspaceCreate: mocks.workspaceCreate,
+    workspaceSwitch: mocks.workspaceSwitch,
     placementStart: mocks.placementStart,
     placementAnswer: mocks.placementAnswer,
     placementFinish: mocks.placementFinish,
@@ -28,7 +46,14 @@ vi.mock("../api/client", () => ({
 }));
 
 vi.mock("../store/app-store", () => ({
-  useAppStore: (selector: (state: { userId: number }) => unknown) => selector({ userId: 1 }),
+  useAppStore: (
+    selector: (state: {
+      userId: number;
+      activeWorkspaceId: number;
+      setBootstrapState: typeof mocks.setBootstrapState;
+    }) => unknown,
+  ) =>
+    selector({ userId: 1, activeWorkspaceId: 1, setBootstrapState: mocks.setBootstrapState }),
 }));
 
 vi.mock("../store/toast-store", () => ({
@@ -86,6 +111,29 @@ describe("ProfilePage", () => {
       ],
     });
     mocks.profileSetup.mockResolvedValue({});
+    mocks.bootstrap.mockResolvedValue({
+      user_id: 1,
+      has_profile: true,
+      needs_onboarding: false,
+      next_step: "dashboard",
+      owner_user_id: 1,
+      active_workspace_id: 1,
+    });
+    mocks.workspacesList.mockResolvedValue({
+      owner_user_id: 1,
+      active_workspace_id: 1,
+      items: [{ id: 1, native_lang: "ru", target_lang: "en", goal: "work", is_active: true }],
+    });
+    mocks.workspaceCreate.mockResolvedValue({
+      id: 2,
+      native_lang: "de",
+      target_lang: "en",
+      goal: "job",
+      is_active: true,
+      created_at: "2026-03-06T00:00:00Z",
+      updated_at: "2026-03-06T00:00:00Z",
+    });
+    mocks.workspaceSwitch.mockResolvedValue({ active_workspace_id: 1, active_user_id: 1 });
     mocks.placementStart.mockResolvedValue({
       session_id: 11,
       question_index: 0,
@@ -115,7 +163,7 @@ describe("ProfilePage", () => {
       expect(screen.getByText("Weekly Journal")).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByLabelText("Goal"), { target: { value: "travel" } });
+    fireEvent.change(screen.getByLabelText("Profile goal"), { target: { value: "travel" } });
     fireEvent.click(screen.getByRole("button", { name: "Save settings" }));
 
     await waitFor(() => {
@@ -159,6 +207,48 @@ describe("ProfilePage", () => {
         }),
       );
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Placement updated: B2");
+    });
+  });
+
+  it("creates a new learning space and syncs bootstrap context", async () => {
+    mocks.bootstrap.mockResolvedValue({
+      user_id: 22,
+      has_profile: false,
+      needs_onboarding: true,
+      next_step: "onboarding",
+      owner_user_id: 1,
+      active_workspace_id: 2,
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Learning Spaces" })).toBeInTheDocument();
+      expect(screen.getByLabelText("New native language")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("New native language"), { target: { value: "de" } });
+    fireEvent.change(screen.getByLabelText("New target language"), { target: { value: "en" } });
+    fireEvent.change(screen.getByLabelText("New space goal"), { target: { value: "job" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create and switch space" }));
+
+    await waitFor(() => {
+      expect(mocks.workspaceCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          native_lang: "de",
+          target_lang: "en",
+          goal: "job",
+          make_active: true,
+        }),
+      );
+      expect(mocks.setBootstrapState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 22,
+          hasProfile: false,
+          activeWorkspaceId: 2,
+        }),
+      );
+      expect(mocks.navigate).toHaveBeenCalledWith("/", { replace: true });
     });
   });
 });

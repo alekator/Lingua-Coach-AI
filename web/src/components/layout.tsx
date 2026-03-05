@@ -1,4 +1,5 @@
 import { Link, Outlet } from "react-router-dom";
+import { WorkspaceSwitcher } from "./workspace-switcher";
 
 const links = [
   ["/app", "Dashboard"],
@@ -20,6 +21,7 @@ export function AppLayout() {
       <header className="topbar">
         <h1>LinguaCoach AI</h1>
         <p>Plan - Practice - Feedback - Progress</p>
+        <WorkspaceSwitcher />
         <nav>
           {links.map(([to, label]) => (
             <Link key={to} to={to}>

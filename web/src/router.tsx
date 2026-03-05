@@ -31,6 +31,8 @@ function BootstrapGate() {
     setBootstrapState({
       userId: bootstrap.data.user_id,
       hasProfile: bootstrap.data.has_profile,
+      ownerUserId: bootstrap.data.owner_user_id,
+      activeWorkspaceId: bootstrap.data.active_workspace_id ?? null,
     });
   }, [bootstrap.data, setBootstrapState]);
 
