@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { getErrorMessage } from "../lib/errors";
 import { languageLabelByCode } from "../lib/languages";
+import { syncWorkspaceContext } from "../lib/workspace-context";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
@@ -18,18 +19,7 @@ export function WorkspaceSwitcher() {
   const switchWorkspace = useMutation({
     mutationFn: (workspaceId: number) => api.workspaceSwitch({ workspace_id: workspaceId }),
     onSuccess: async () => {
-      const bootstrap = await api.bootstrap();
-      queryClient.setQueryData(["bootstrap"], bootstrap);
-      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
-      setBootstrapState({
-        userId: bootstrap.user_id,
-        hasProfile: bootstrap.has_profile,
-        ownerUserId: bootstrap.owner_user_id,
-        activeWorkspaceId: bootstrap.active_workspace_id ?? null,
-        activeWorkspaceNativeLang: bootstrap.active_workspace_native_lang ?? null,
-        activeWorkspaceTargetLang: bootstrap.active_workspace_target_lang ?? null,
-        activeWorkspaceGoal: bootstrap.active_workspace_goal ?? null,
-      });
+      await syncWorkspaceContext(queryClient, setBootstrapState);
       pushToast("success", "Learning space switched");
     },
     onError: (err) => {

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { api } from "./api/client";
 import { AppLayout } from "./components/layout";
+import { toBootstrapStorePayload } from "./lib/workspace-context";
 import { ChatPage } from "./pages/chat-page";
 import { DashboardPage } from "./pages/dashboard-page";
 import { ExercisesPage } from "./pages/exercises-page";
@@ -28,15 +29,7 @@ function BootstrapGate() {
 
   useEffect(() => {
     if (!bootstrap.data) return;
-    setBootstrapState({
-      userId: bootstrap.data.user_id,
-      hasProfile: bootstrap.data.has_profile,
-      ownerUserId: bootstrap.data.owner_user_id,
-      activeWorkspaceId: bootstrap.data.active_workspace_id ?? null,
-      activeWorkspaceNativeLang: bootstrap.data.active_workspace_native_lang ?? null,
-      activeWorkspaceTargetLang: bootstrap.data.active_workspace_target_lang ?? null,
-      activeWorkspaceGoal: bootstrap.data.active_workspace_goal ?? null,
-    });
+    setBootstrapState(toBootstrapStorePayload(bootstrap.data));
   }, [bootstrap.data, setBootstrapState]);
 
   if (bootstrap.isPending) {

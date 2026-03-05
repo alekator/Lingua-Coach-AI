@@ -6,6 +6,7 @@ import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { LanguagePairSelector } from "../components/language-pair-selector";
 import { getErrorMessage } from "../lib/errors";
 import { languageLabelByCode, normalizeLanguageCode } from "../lib/languages";
+import { syncWorkspaceContext } from "../lib/workspace-context";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
@@ -75,17 +76,7 @@ export function ProfilePage() {
   }, [workspaces.data]);
 
   async function syncBootstrapContext() {
-    const bootstrap = await api.bootstrap();
-    queryClient.setQueryData(["bootstrap"], bootstrap);
-    setBootstrapState({
-      userId: bootstrap.user_id,
-      hasProfile: bootstrap.has_profile,
-      ownerUserId: bootstrap.owner_user_id,
-      activeWorkspaceId: bootstrap.active_workspace_id ?? null,
-      activeWorkspaceNativeLang: bootstrap.active_workspace_native_lang ?? null,
-      activeWorkspaceTargetLang: bootstrap.active_workspace_target_lang ?? null,
-      activeWorkspaceGoal: bootstrap.active_workspace_goal ?? null,
-    });
+    const bootstrap = await syncWorkspaceContext(queryClient, setBootstrapState);
     if (bootstrap.needs_onboarding) {
       navigate("/", { replace: true });
     }
@@ -154,9 +145,7 @@ export function ProfilePage() {
     setWorkspaceBusy(true);
     try {
       await api.workspaceSwitch({ workspace_id: workspaceId });
-      await queryClient.invalidateQueries({ queryKey: ["workspaces"] });
       await syncBootstrapContext();
-      await Promise.all([profile.refetch(), skillMap.refetch(), streak.refetch(), journal.refetch()]);
       setWorkspaceError("");
       pushToast("success", "Learning space switched");
     } catch (err) {
@@ -172,9 +161,7 @@ export function ProfilePage() {
     setWorkspaceBusy(true);
     try {
       await api.workspaceDelete(workspaceId);
-      await queryClient.invalidateQueries({ queryKey: ["workspaces"] });
       await syncBootstrapContext();
-      await Promise.all([profile.refetch(), skillMap.refetch(), streak.refetch(), journal.refetch()]);
       setWorkspaceError("");
       pushToast("success", "Learning space deleted");
     } catch (err) {
@@ -190,7 +177,7 @@ export function ProfilePage() {
     setWorkspaceBusy(true);
     try {
       await api.workspaceUpdate(workspaceId, { goal: goalDrafts[workspaceId] ?? null });
-      await queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      await syncWorkspaceContext(queryClient, setBootstrapState);
       setWorkspaceError("");
       pushToast("success", "Space goal updated");
     } catch (err) {

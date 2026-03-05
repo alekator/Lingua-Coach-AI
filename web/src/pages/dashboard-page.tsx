@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { getErrorMessage } from "../lib/errors";
+import { syncWorkspaceContext } from "../lib/workspace-context";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
@@ -80,21 +81,7 @@ export function DashboardPage() {
   async function onSwitchSpace(workspaceId: number) {
     try {
       await api.workspaceSwitch({ workspace_id: workspaceId });
-      const bootstrap = await api.bootstrap();
-      queryClient.setQueryData(["bootstrap"], bootstrap);
-      setBootstrapState({
-        userId: bootstrap.user_id,
-        hasProfile: bootstrap.has_profile,
-        ownerUserId: bootstrap.owner_user_id,
-        activeWorkspaceId: bootstrap.active_workspace_id ?? null,
-        activeWorkspaceNativeLang: bootstrap.active_workspace_native_lang ?? null,
-        activeWorkspaceTargetLang: bootstrap.active_workspace_target_lang ?? null,
-        activeWorkspaceGoal: bootstrap.active_workspace_goal ?? null,
-      });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["workspaces-overview"] }),
-        queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
-      ]);
+      const bootstrap = await syncWorkspaceContext(queryClient, setBootstrapState);
       pushToast("success", "Switched learning space");
       navigate(bootstrap.needs_onboarding ? "/" : "/app");
     } catch (err) {
