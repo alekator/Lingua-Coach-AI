@@ -1,0 +1,13 @@
+{
+  "name": "linguacoach-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "start:web": "set LINGUACOACH_WEB_URL=http://localhost:5173&& electron ."
+  },
+  "devDependencies": {
+    "electron": "^35.0.0"
+  }
+}

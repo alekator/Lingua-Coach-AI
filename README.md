@@ -25,6 +25,18 @@ Copy-Item .env.example .env
 docker compose up -d --build
 ```
 
+Dev mode with live reload for Python services:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+Prod-like mode:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
 3. Run database migrations (optional for local SQLite dev, required for Postgres flow):
 
 ```powershell
@@ -39,6 +51,13 @@ cd ..\..
 Invoke-WebRequest http://localhost:8000/health -UseBasicParsing
 Invoke-WebRequest http://localhost:8001/health -UseBasicParsing
 Invoke-WebRequest http://localhost:8002/health -UseBasicParsing
+```
+
+Compose config validation:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.dev.yml config > $null
+docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
 ```
 
 ## API Highlights
@@ -110,6 +129,15 @@ npm run build
 cd ..
 ```
 
+Desktop shell (`desktop`):
+
+```powershell
+cd desktop
+npm install
+npm run start:web
+cd ..
+```
+
 ## E2E Smoke (Manual)
 
 1. Start stack: `docker compose up -d --build`
@@ -135,4 +163,23 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8000/vocab/add -ContentType
 
 ```powershell
 Invoke-RestMethod -Method Get -Uri "http://localhost:8000/progress/summary?user_id=1"
+```
+
+## E2E Smoke (Script)
+
+End-to-end smoke flow script:
+- health check
+- bootstrap/onboarding placement flow
+- chat lesson
+- vocab add
+- progress summary validation
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-smoke.ps1 -BaseUrl http://localhost:8000 -UserId 1
+```
+
+Dry run (no network calls):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-smoke.ps1 -DryRun
 ```

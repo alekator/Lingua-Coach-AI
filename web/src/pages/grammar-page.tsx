@@ -1,15 +1,28 @@
 import { FormEvent, useState } from "react";
 import { api } from "../api/client";
+import { EmptyState, ErrorState } from "../components/feedback";
+import { getErrorMessage } from "../lib/errors";
 import type { GrammarAnalyzeResponse } from "../api/types";
+import { useToastStore } from "../store/toast-store";
 
 export function GrammarPage() {
   const [text, setText] = useState("I goed to school");
   const [result, setResult] = useState<GrammarAnalyzeResponse | null>(null);
+  const [error, setError] = useState("");
+  const pushToast = useToastStore((s) => s.push);
 
   async function onAnalyze(event: FormEvent) {
     event.preventDefault();
-    const response = await api.grammarAnalyze({ text, target_lang: "en" });
-    setResult(response);
+    try {
+      const response = await api.grammarAnalyze({ text, target_lang: "en" });
+      setResult(response);
+      setError("");
+      pushToast("success", "Grammar analysis completed");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setError(msg);
+      pushToast("error", msg);
+    }
   }
 
   return (
@@ -22,6 +35,8 @@ export function GrammarPage() {
         </label>
         <button type="submit">Analyze</button>
       </form>
+      {error && <ErrorState text={error} />}
+      {!result && <EmptyState text="Enter text and run analysis to get corrections." />}
       {result && (
         <>
           <p>Corrected: {result.corrected_text}</p>
