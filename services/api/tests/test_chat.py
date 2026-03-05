@@ -66,6 +66,9 @@ def test_chat_flow_with_memory_updates(
         assert payloads[0]["learner_profile"]["level"] == "A2"
         assert payloads[1]["history"][0]["role"] == "user"
         assert payloads[1]["history"][1]["role"] == "assistant"
+        assert "grammar" in payloads[1]["learner_profile"]["weak_topics"]
+        assert payloads[1]["recent_mistakes"][0]["category"] == "grammar"
+        assert any(word["word"] == "achieve" for word in payloads[1]["learner_profile"]["active_vocab"])
 
 
 def test_chat_end_blocks_future_messages(

@@ -56,13 +56,32 @@ def chat_message(
         select(Message).where(Message.session_id == session.id).order_by(Message.created_at.asc())
     ).all()
     profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == session.user_id))
+    recent_mistakes = db.scalars(
+        select(Mistake)
+        .where(Mistake.user_id == session.user_id)
+        .order_by(Mistake.created_at.desc())
+        .limit(20)
+    ).all()
+    active_vocab = db.scalars(
+        select(VocabItem)
+        .where(VocabItem.user_id == session.user_id)
+        .order_by(VocabItem.created_at.desc())
+        .limit(40)
+    ).all()
 
     db.add(Message(session_id=session.id, role="user", text=payload.text))
 
     teacher_responder: TeacherResponder = getattr(
         request.app.state, "teacher_responder", default_teacher_responder
     )
-    teacher_payload = build_teacher_payload(profile, session.mode, payload.text, history)
+    teacher_payload = build_teacher_payload(
+        profile,
+        session.mode,
+        payload.text,
+        history,
+        recent_mistakes=recent_mistakes,
+        active_vocab=active_vocab,
+    )
 
     try:
         teacher_output = teacher_responder(teacher_payload)
