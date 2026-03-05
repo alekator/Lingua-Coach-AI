@@ -91,6 +91,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `POST /exercises/grade`
   - `GET /plan/today`
   - `GET /coach/session/today`
+  - `GET /coach/error-bank`
   - `GET /coach/trajectory`
   - `GET /coach/roadmap`
   - `GET /coach/outcome-packs`
@@ -169,6 +170,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - `steps[].description`
     - `steps[].route`
     - `steps[].duration_minutes`
+
+- `GET /coach/error-bank`
+  - returns recurring correction patterns to drive targeted drills:
+    - `items[].category`
+    - `items[].occurrences`
+    - `items[].latest_bad`, `items[].latest_good`
+    - `items[].drill_prompt`
+    - `items[].suggested_route`
 
 - `POST /chat/message`
   - response includes coaching rubric in `rubric`:

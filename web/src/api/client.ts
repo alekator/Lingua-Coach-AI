@@ -8,6 +8,7 @@ import type {
   OpenAIKeyStatus,
   ProfileResponse,
   ChatMessageResponse,
+  CoachErrorBankResponse,
   CoachNextActionsResponse,
   CoachReactivationResponse,
   CoachDailyChallengeResponse,
@@ -187,6 +188,10 @@ export const api = {
     }),
   coachNextActions: (userId: number) =>
     request<CoachNextActionsResponse>(`/coach/next-actions?user_id=${encodeURIComponent(userId)}`),
+  coachErrorBank: (userId: number, limit = 5) =>
+    request<CoachErrorBankResponse>(
+      `/coach/error-bank?user_id=${encodeURIComponent(userId)}&limit=${encodeURIComponent(limit)}`,
+    ),
   coachReactivation: (userId: number) =>
     request<CoachReactivationResponse>(`/coach/reactivation?user_id=${encodeURIComponent(userId)}`),
   coachDailyChallenge: (userId: number) =>

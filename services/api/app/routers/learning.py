@@ -21,6 +21,8 @@ from app.models import (
 )
 from app.schemas.learning import (
     CoachDailyChallengeResponse,
+    CoachErrorBankItem,
+    CoachErrorBankResponse,
     CoachNextAction,
     CoachNextActionsResponse,
     CoachSessionProgressResponse,
@@ -89,6 +91,66 @@ def _reactivation_gap_days(sessions: list[ChatSession]) -> int:
     last_active = active_dates[-1]
     today = datetime.now(UTC).date()
     return max(0, (today - last_active).days)
+
+
+def _build_error_bank_items(db: Session, user_id: int, limit: int = 5) -> list[CoachErrorBankItem]:
+    mistakes = db.scalars(
+        select(Mistake)
+        .where(Mistake.user_id == user_id)
+        .order_by(Mistake.created_at.desc())
+        .limit(150)
+    ).all()
+    if not mistakes:
+        return []
+
+    grouped: dict[str, dict[str, object]] = {}
+    for item in mistakes:
+        category = (item.category or "").strip().lower() or "general"
+        if category not in grouped:
+            grouped[category] = {
+                "occurrences": 0,
+                "last_seen_at": item.created_at,
+                "latest_bad": item.bad,
+                "latest_good": item.good,
+                "latest_explanation": item.explanation,
+            }
+        grouped_item = grouped[category]
+        grouped_item["occurrences"] = int(grouped_item["occurrences"]) + 1
+        current_seen = grouped_item["last_seen_at"]
+        if isinstance(current_seen, datetime):
+            if item.created_at > current_seen:
+                grouped_item["last_seen_at"] = item.created_at
+                grouped_item["latest_bad"] = item.bad
+                grouped_item["latest_good"] = item.good
+                grouped_item["latest_explanation"] = item.explanation
+
+    ranked = sorted(
+        grouped.items(),
+        key=lambda kv: (-int(kv[1]["occurrences"]), -int(_to_utc_datetime(kv[1]["last_seen_at"]).timestamp())),
+    )
+    items: list[CoachErrorBankItem] = []
+    for category, data in ranked[: max(1, min(20, limit))]:
+        latest_bad = str(data["latest_bad"]).strip()
+        latest_good = str(data["latest_good"]).strip()
+        latest_explanation = (
+            str(data["latest_explanation"]).strip() if data["latest_explanation"] is not None else None
+        )
+        drill = f"Rewrite 3 short lines fixing '{latest_bad}' -> '{latest_good}'."
+        if latest_explanation:
+            drill = f"{drill} Focus: {latest_explanation}"
+        items.append(
+            CoachErrorBankItem(
+                category=category,
+                occurrences=int(data["occurrences"]),
+                latest_bad=latest_bad,
+                latest_good=latest_good,
+                latest_explanation=latest_explanation,
+                last_seen_at=_to_utc_datetime(data["last_seen_at"]),
+                drill_prompt=drill,
+                suggested_route="/app/exercises",
+            )
+        )
+    return items
 
 
 @router.post("/translate/voice", response_model=TranslateVoiceResponse)
@@ -351,6 +413,15 @@ def coach_session_progress_upsert(
     )
 
 
+@router.get("/coach/error-bank", response_model=CoachErrorBankResponse)
+def coach_error_bank(user_id: int, limit: int = 5, db: Session = Depends(get_db)) -> CoachErrorBankResponse:
+    safe_limit = max(1, min(20, limit))
+    return CoachErrorBankResponse(
+        user_id=user_id,
+        items=_build_error_bank_items(db=db, user_id=user_id, limit=safe_limit),
+    )
+
+
 @router.get("/coach/next-actions", response_model=CoachNextActionsResponse)
 def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNextActionsResponse:
     profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
@@ -440,6 +511,18 @@ def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNext
                 reason="Most frequent recent weak area.",
                 route="/app/exercises",
                 priority=4,
+            )
+        )
+    error_bank = _build_error_bank_items(db=db, user_id=user_id, limit=1)
+    if error_bank:
+        bank_top = error_bank[0]
+        items.append(
+            CoachNextAction(
+                id="error-bank-top",
+                title=f"Fix recurring {bank_top.category} pattern ({bank_top.occurrences}x)",
+                reason=bank_top.drill_prompt,
+                route=bank_top.suggested_route,
+                priority=2,
             )
         )
     if not items:

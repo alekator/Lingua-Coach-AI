@@ -163,6 +163,20 @@ export type CoachNextActionsResponse = {
   }>;
 };
 
+export type CoachErrorBankResponse = {
+  user_id: number;
+  items: Array<{
+    category: string;
+    occurrences: number;
+    latest_bad: string;
+    latest_good: string;
+    latest_explanation?: string | null;
+    last_seen_at: string;
+    drill_prompt: string;
+    suggested_route: string;
+  }>;
+};
+
 export type CoachReactivationResponse = {
   user_id: number;
   eligible: boolean;

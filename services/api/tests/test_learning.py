@@ -296,3 +296,62 @@ def test_coach_session_progress_lifecycle(client: TestClient) -> None:
     )
     assert invalid.status_code == 400
     assert invalid.json()["detail"] == "Invalid step_id for today's session"
+
+
+def test_coach_error_bank_and_next_actions(client_factory: Callable[..., TestClient]) -> None:
+    def fake_teacher(_: dict[str, Any]) -> ChatMessageResponse:
+        return ChatMessageResponse(
+            assistant_text="Let's fix this pattern.",
+            corrections=[
+                Correction(
+                    type="grammar",
+                    bad="I goed home",
+                    good="I went home",
+                    explanation="Use irregular past form 'went'.",
+                ),
+                Correction(
+                    type="grammar",
+                    bad="I goed yesterday",
+                    good="I went yesterday",
+                    explanation="Past form must be 'went'.",
+                ),
+            ],
+            new_words=[],
+            homework_suggestions=[],
+        )
+
+    with client_factory(teacher_responder=fake_teacher) as client:
+        setup = client.post(
+            "/profile/setup",
+            json={
+                "user_id": 1,
+                "native_lang": "de",
+                "target_lang": "en",
+                "level": "A2",
+                "goal": "travel",
+                "preferences": {},
+            },
+        )
+        assert setup.status_code == 200
+        workspace_user_id = setup.json()["user_id"]
+
+        started = client.post("/chat/start", json={"user_id": workspace_user_id, "mode": "chat"})
+        assert started.status_code == 200
+        session_id = started.json()["session_id"]
+        sent = client.post("/chat/message", json={"session_id": session_id, "text": "I goed home"})
+        assert sent.status_code == 200
+
+        bank = client.get("/coach/error-bank", params={"user_id": workspace_user_id})
+        assert bank.status_code == 200
+        body = bank.json()
+        assert body["user_id"] == workspace_user_id
+        assert len(body["items"]) >= 1
+        top = body["items"][0]
+        assert top["category"] == "grammar"
+        assert top["occurrences"] >= 2
+        assert "Rewrite 3 short lines" in top["drill_prompt"]
+
+        next_actions = client.get("/coach/next-actions", params={"user_id": workspace_user_id})
+        assert next_actions.status_code == 200
+        actions = next_actions.json()["items"]
+        assert any(item["id"] == "error-bank-top" for item in actions)

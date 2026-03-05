@@ -110,6 +110,22 @@ class CoachSessionProgressUpsertRequest(BaseModel):
     time_budget_minutes: int = Field(default=15, ge=5, le=120)
 
 
+class CoachErrorBankItem(BaseModel):
+    category: str
+    occurrences: int
+    latest_bad: str
+    latest_good: str
+    latest_explanation: str | None = None
+    last_seen_at: datetime
+    drill_prompt: str
+    suggested_route: str = "/app/exercises"
+
+
+class CoachErrorBankResponse(BaseModel):
+    user_id: int
+    items: list[CoachErrorBankItem]
+
+
 class CoachNextAction(BaseModel):
     id: str
     title: str
