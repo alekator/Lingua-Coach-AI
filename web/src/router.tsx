@@ -4,8 +4,12 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { api } from "./api/client";
 import { AppLayout } from "./components/layout";
 import { DashboardPage } from "./pages/dashboard-page";
+import { ExercisesPage } from "./pages/exercises-page";
+import { GrammarPage } from "./pages/grammar-page";
 import { OnboardingPage } from "./pages/onboarding-page";
 import { PlaceholderPage } from "./pages/placeholder-page";
+import { ScenariosPage } from "./pages/scenarios-page";
+import { TranslatePage } from "./pages/translate-page";
 import { useAppStore } from "./store/app-store";
 
 function BootstrapGate() {
@@ -57,7 +61,15 @@ function RoutesMap() {
         />
         <Route
           path="translate"
-          element={<PlaceholderPage title="Translate" description="Translator page wiring goes here." />}
+          element={<TranslatePage />}
+        />
+        <Route
+          path="exercises"
+          element={<ExercisesPage />}
+        />
+        <Route
+          path="scenarios"
+          element={<ScenariosPage />}
         />
         <Route
           path="vocab"
@@ -65,7 +77,7 @@ function RoutesMap() {
         />
         <Route
           path="grammar"
-          element={<PlaceholderPage title="Grammar" description="Grammar analyzer UI goes here." />}
+          element={<GrammarPage />}
         />
         <Route
           path="homework"

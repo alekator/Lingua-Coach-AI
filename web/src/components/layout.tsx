@@ -6,6 +6,8 @@ const links = [
   ["/app/voice", "Voice"],
   ["/app/translate", "Translate"],
   ["/app/vocab", "Vocab"],
+  ["/app/exercises", "Exercises"],
+  ["/app/scenarios", "Scenarios"],
   ["/app/grammar", "Grammar"],
   ["/app/homework", "Homework"],
   ["/app/profile", "Progress"],

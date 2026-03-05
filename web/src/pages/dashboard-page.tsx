@@ -8,6 +8,10 @@ export function DashboardPage() {
     queryKey: ["summary", userId],
     queryFn: () => api.progressSummary(userId),
   });
+  const plan = useQuery({
+    queryKey: ["plan-today", userId],
+    queryFn: () => api.planToday(userId, 15),
+  });
 
   return (
     <section className="panel">
@@ -28,6 +32,15 @@ export function DashboardPage() {
             <p>{summary.data.words_learned}</p>
           </article>
         </div>
+      )}
+      {plan.isSuccess && (
+        <article className="panel">
+          <h3>Today Plan ({plan.data.time_budget_minutes} min)</h3>
+          <p>Focus: {plan.data.focus.join(", ")}</p>
+          {plan.data.tasks.map((task) => (
+            <p key={task}>- {task}</p>
+          ))}
+        </article>
       )}
     </section>
   );

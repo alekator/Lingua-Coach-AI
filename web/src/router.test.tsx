@@ -38,4 +38,55 @@ describe("AppRouter bootstrap gate", () => {
       expect(screen.getByText("First Launch Setup")).toBeInTheDocument();
     });
   });
+
+  it("redirects to dashboard when profile exists", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/app/bootstrap")) {
+          return {
+            ok: true,
+            json: async () => ({
+              user_id: 1,
+              has_profile: true,
+              needs_onboarding: false,
+              next_step: "dashboard",
+            }),
+          };
+        }
+        if (url.includes("/progress/summary")) {
+          return {
+            ok: true,
+            json: async () => ({
+              streak_days: 2,
+              minutes_practiced: 16,
+              words_learned: 10,
+              speaking: 50,
+              listening: 52,
+              grammar: 48,
+              vocab: 55,
+              reading: 53,
+              writing: 47,
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            user_id: 1,
+            time_budget_minutes: 15,
+            focus: ["grammar", "speaking", "vocab"],
+            tasks: ["A", "B", "C"],
+          }),
+        };
+      }),
+    );
+
+    renderRouter("/");
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    });
+  });
 });
