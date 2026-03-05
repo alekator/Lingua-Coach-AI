@@ -7,6 +7,7 @@ type AppState = {
   strictness: "low" | "medium" | "high";
   setBootstrapState: (payload: { userId: number; hasProfile: boolean }) => void;
   setCoachPrefs: (payload: { dailyMinutes: number; strictness: "low" | "medium" | "high" }) => void;
+  setDailyMinutes: (minutes: number) => void;
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -20,4 +21,5 @@ export const useAppStore = create<AppState>((set) => ({
       dailyMinutes: payload.dailyMinutes,
       strictness: payload.strictness,
     }),
+  setDailyMinutes: (minutes) => set({ dailyMinutes: Math.max(5, Math.min(120, minutes)) }),
 }));

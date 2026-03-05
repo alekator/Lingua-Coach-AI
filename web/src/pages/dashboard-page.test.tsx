@@ -9,8 +9,11 @@ const mocks = vi.hoisted(() => ({
   progressWeeklyGoal: vi.fn(),
   progressWeeklyGoalSet: vi.fn(),
   coachNextActions: vi.fn(),
+  progressStreak: vi.fn(),
+  progressJournal: vi.fn(),
   planToday: vi.fn(),
   pushToast: vi.fn(),
+  setDailyMinutes: vi.fn(),
 }));
 
 vi.mock("../api/client", () => ({
@@ -19,12 +22,15 @@ vi.mock("../api/client", () => ({
     progressWeeklyGoal: mocks.progressWeeklyGoal,
     progressWeeklyGoalSet: mocks.progressWeeklyGoalSet,
     coachNextActions: mocks.coachNextActions,
+    progressStreak: mocks.progressStreak,
+    progressJournal: mocks.progressJournal,
     planToday: mocks.planToday,
   },
 }));
 
 vi.mock("../store/app-store", () => ({
-  useAppStore: (selector: (state: { userId: number }) => unknown) => selector({ userId: 1 }),
+  useAppStore: (selector: (state: { userId: number; setDailyMinutes: (minutes: number) => void }) => unknown) =>
+    selector({ userId: 1, setDailyMinutes: mocks.setDailyMinutes }),
 }));
 
 vi.mock("../store/toast-store", () => ({
@@ -94,6 +100,17 @@ describe("DashboardPage", () => {
         },
       ],
     });
+    mocks.progressStreak.mockResolvedValue({
+      streak_days: 0,
+      active_dates: ["2026-03-03"],
+    });
+    mocks.progressJournal.mockResolvedValue({
+      weekly_minutes: 24,
+      weekly_sessions: 3,
+      weak_areas: ["grammar"],
+      next_actions: ["Run one targeted drill for: grammar."],
+      entries: [],
+    });
   });
 
   it("renders adaptive notes in today plan and updates weekly goal", async () => {
@@ -107,13 +124,23 @@ describe("DashboardPage", () => {
       expect(screen.getByText("Weekly Goal Tracker")).toBeInTheDocument();
       expect(screen.getByText("Progress: 24/120 min (20%)")).toBeInTheDocument();
       expect(screen.getByText("Coach Next Actions")).toBeInTheDocument();
-      expect(screen.getByText("Complete 96 more weekly minutes")).toBeInTheDocument();
+      expect(screen.getAllByText("Complete 96 more weekly minutes").length).toBeGreaterThan(0);
+      expect(screen.getByText("Today one step:")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Do next best action" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start 5-minute mode" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Save weekly goal" }));
     await waitFor(() => {
       expect(mocks.progressWeeklyGoalSet).toHaveBeenCalledWith({ user_id: 1, target_minutes: 120 });
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Weekly goal updated");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start 5-minute mode" }));
+    await waitFor(() => {
+      expect(mocks.setDailyMinutes).toHaveBeenCalledWith(5);
+      expect(mocks.pushToast).toHaveBeenCalledWith("info", "5-minute mode enabled for today");
+      expect(screen.getByText(/Reactivation:/)).toBeInTheDocument();
     });
   });
 });

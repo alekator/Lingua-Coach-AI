@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { getErrorMessage } from "../lib/errors";
@@ -8,7 +8,9 @@ import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const userId = useAppStore((s) => s.userId) ?? 1;
+  const setDailyMinutes = useAppStore((s) => s.setDailyMinutes);
   const pushToast = useToastStore((s) => s.push);
   const [goalMinutes, setGoalMinutes] = useState(120);
   const [goalError, setGoalError] = useState("");
@@ -28,6 +30,14 @@ export function DashboardPage() {
     queryKey: ["coach-next-actions", userId],
     queryFn: () => api.coachNextActions(userId),
   });
+  const streak = useQuery({
+    queryKey: ["streak", userId],
+    queryFn: () => api.progressStreak(userId),
+  });
+  const journal = useQuery({
+    queryKey: ["progress-journal", userId],
+    queryFn: () => api.progressJournal(userId),
+  });
 
   async function onSaveGoal() {
     try {
@@ -41,6 +51,28 @@ export function DashboardPage() {
       pushToast("error", msg);
     }
   }
+
+  function computeReactivation() {
+    if (!streak.data || streak.data.active_dates.length === 0) return null;
+    const lastActiveRaw = streak.data.active_dates[streak.data.active_dates.length - 1];
+    const lastActiveUtc = new Date(`${lastActiveRaw}T00:00:00Z`);
+    const now = new Date();
+    const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const lastUtc = Date.UTC(lastActiveUtc.getUTCFullYear(), lastActiveUtc.getUTCMonth(), lastActiveUtc.getUTCDate());
+    const gapDays = Math.floor((todayUtc - lastUtc) / (24 * 60 * 60 * 1000));
+    if (gapDays < 2) return null;
+    const weakArea = journal.data?.weak_areas?.[0] ?? "grammar";
+    return `You had a ${gapDays}-day pause. Easy return: 5 min on ${weakArea}, then one short coach chat.`;
+  }
+
+  function startFiveMinuteMode() {
+    setDailyMinutes(5);
+    pushToast("info", "5-minute mode enabled for today");
+    navigate("/app/session");
+  }
+
+  const nextBestAction = nextActions.data?.items?.[0] ?? null;
+  const reactivationMsg = computeReactivation();
 
   return (
     <section className="panel">
@@ -102,6 +134,21 @@ export function DashboardPage() {
       {nextActions.isSuccess && (
         <article className="panel stack">
           <h3>Coach Next Actions</h3>
+          {nextBestAction && (
+            <div className="panel stack">
+              <p>
+                <strong>Today one step:</strong> {nextBestAction.title}
+              </p>
+              <p>{nextBestAction.reason}</p>
+              <Link to={nextBestAction.route}>
+                <button type="button">Do next best action</button>
+              </Link>
+              <button type="button" onClick={startFiveMinuteMode}>
+                Start 5-minute mode
+              </button>
+              {reactivationMsg && <p>Reactivation: {reactivationMsg}</p>}
+            </div>
+          )}
           {nextActions.data.items.map((item) => (
             <div key={item.id} className="panel stack">
               <p>
