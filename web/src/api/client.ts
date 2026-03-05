@@ -22,6 +22,8 @@ import type {
   ProgressStreak,
   ProgressSummary,
   ScenarioSelectResponse,
+  ScenarioScriptResponse,
+  ScenarioTurnResponse,
   ScenariosResponse,
   TranslateResponse,
   TranslateVoiceResponse,
@@ -122,6 +124,13 @@ export const api = {
   scenarios: () => request<ScenariosResponse>("/scenarios"),
   selectScenario: (payload: { user_id: number; scenario_id: string }) =>
     request<ScenarioSelectResponse>("/scenarios/select", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  scenarioScript: (scenarioId: string) =>
+    request<ScenarioScriptResponse>(`/scenarios/script?scenario_id=${encodeURIComponent(scenarioId)}`),
+  scenarioTurn: (payload: { user_id: number; scenario_id: string; step_id: string; user_text: string }) =>
+    request<ScenarioTurnResponse>("/scenarios/turn", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

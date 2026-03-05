@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   scenarios: vi.fn(),
   coachSessionToday: vi.fn(),
   selectScenario: vi.fn(),
+  scenarioScript: vi.fn(),
+  scenarioTurn: vi.fn(),
   pushToast: vi.fn(),
 }));
 
@@ -14,6 +16,8 @@ vi.mock("../api/client", () => ({
     scenarios: mocks.scenarios,
     coachSessionToday: mocks.coachSessionToday,
     selectScenario: mocks.selectScenario,
+    scenarioScript: mocks.scenarioScript,
+    scenarioTurn: mocks.scenarioTurn,
   },
 }));
 
@@ -57,9 +61,33 @@ describe("ScenariosPage", () => {
       session_id: 88,
       mode: "scenario:job-interview",
     });
+    mocks.scenarioScript.mockResolvedValue({
+      scenario_id: "job-interview",
+      title: "Job Interview",
+      description: "Interview practice.",
+      steps: [
+        {
+          id: "intro",
+          coach_prompt: "Introduce yourself in 2-3 sentences for this role.",
+          expected_keywords: ["experience", "role", "skills"],
+          tip: "Keep structure.",
+        },
+      ],
+    });
+    mocks.scenarioTurn.mockResolvedValue({
+      scenario_id: "job-interview",
+      step_id: "intro",
+      score: 2,
+      max_score: 3,
+      feedback: "Good attempt: add one more concrete detail from the prompt.",
+      next_step_id: null,
+      next_prompt: null,
+      done: true,
+      suggested_reply: "Try again using: experience, role",
+    });
   });
 
-  it("shows recommended scenario and starts coached roleplay", async () => {
+  it("shows recommended scenario and runs roleplay turn flow", async () => {
     renderPage();
 
     await waitFor(() => {
@@ -72,6 +100,21 @@ describe("ScenariosPage", () => {
     await waitFor(() => {
       expect(mocks.selectScenario).toHaveBeenCalledWith({ user_id: 1, scenario_id: "job-interview" });
       expect(screen.getByText(/Coach session ready:/i)).toBeInTheDocument();
+      expect(screen.getByText("Active Roleplay Step")).toBeInTheDocument();
+      expect(screen.getByText("Introduce yourself in 2-3 sentences for this role.")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("Your response"), { target: { value: "I have experience in support role" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit roleplay turn" }));
+
+    await waitFor(() => {
+      expect(mocks.scenarioTurn).toHaveBeenCalledWith({
+        user_id: 1,
+        scenario_id: "job-interview",
+        step_id: "intro",
+        user_text: "I have experience in support role",
+      });
+      expect(screen.getByText("Step score: 2/3")).toBeInTheDocument();
     });
   });
 });

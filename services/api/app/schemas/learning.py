@@ -98,3 +98,36 @@ class ScenarioSelectRequest(BaseModel):
 class ScenarioSelectResponse(BaseModel):
     session_id: int
     mode: str
+
+
+class ScenarioScriptStep(BaseModel):
+    id: str
+    coach_prompt: str
+    expected_keywords: list[str]
+    tip: str
+
+
+class ScenarioScriptResponse(BaseModel):
+    scenario_id: str
+    title: str
+    description: str
+    steps: list[ScenarioScriptStep]
+
+
+class ScenarioTurnRequest(BaseModel):
+    user_id: int = Field(ge=1)
+    scenario_id: str = Field(min_length=2, max_length=64)
+    step_id: str = Field(min_length=2, max_length=64)
+    user_text: str = Field(min_length=1, max_length=4000)
+
+
+class ScenarioTurnResponse(BaseModel):
+    scenario_id: str
+    step_id: str
+    score: float
+    max_score: float
+    feedback: str
+    next_step_id: str | None = None
+    next_prompt: str | None = None
+    done: bool
+    suggested_reply: str | None = None

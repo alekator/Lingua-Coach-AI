@@ -11,6 +11,13 @@ export function ScenariosPage() {
   const dailyMinutes = useAppStore((s) => s.dailyMinutes);
   const [selectionResult, setSelectionResult] = useState("");
   const [actionError, setActionError] = useState("");
+  const [activeScenarioId, setActiveScenarioId] = useState("");
+  const [activeStepId, setActiveStepId] = useState("");
+  const [activePrompt, setActivePrompt] = useState("");
+  const [activeTip, setActiveTip] = useState("");
+  const [turnAnswer, setTurnAnswer] = useState("");
+  const [turnFeedback, setTurnFeedback] = useState("");
+  const [turnScore, setTurnScore] = useState("");
   const pushToast = useToastStore((s) => s.push);
   const scenarios = useQuery({
     queryKey: ["scenarios"],
@@ -33,10 +40,51 @@ export function ScenariosPage() {
 
   async function onSelect(scenarioId: string) {
     try {
-      const response = await api.selectScenario({ user_id: userId, scenario_id: scenarioId });
-      setSelectionResult(`Session ${response.session_id} started in mode ${response.mode}. Open Coach Chat next.`);
+      const [response, script] = await Promise.all([
+        api.selectScenario({ user_id: userId, scenario_id: scenarioId }),
+        api.scenarioScript(scenarioId),
+      ]);
+      const firstStep = script.steps[0];
+      setActiveScenarioId(scenarioId);
+      setActiveStepId(firstStep?.id ?? "");
+      setActivePrompt(firstStep?.coach_prompt ?? "");
+      setActiveTip(firstStep?.tip ?? "");
+      setTurnAnswer("");
+      setTurnFeedback("");
+      setTurnScore("");
+      setSelectionResult(`Session ${response.session_id} started in mode ${response.mode}.`);
       setActionError("");
       pushToast("success", "Scenario session started");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setActionError(msg);
+      pushToast("error", msg);
+    }
+  }
+
+  async function onSubmitTurn() {
+    if (!activeScenarioId || !activeStepId || !turnAnswer.trim()) return;
+    try {
+      const response = await api.scenarioTurn({
+        user_id: userId,
+        scenario_id: activeScenarioId,
+        step_id: activeStepId,
+        user_text: turnAnswer.trim(),
+      });
+      setTurnFeedback(response.feedback + (response.suggested_reply ? ` ${response.suggested_reply}` : ""));
+      setTurnScore(`Step score: ${response.score}/${response.max_score}`);
+      setTurnAnswer("");
+      if (response.done) {
+        setActiveStepId("");
+        setActivePrompt("Scenario completed. Great work.");
+        setActiveTip("Review feedback and replay scenario for fluency.");
+        pushToast("success", "Roleplay scenario completed");
+        return;
+      }
+      setActiveStepId(response.next_step_id ?? "");
+      setActivePrompt(response.next_prompt ?? "");
+      setActiveTip("Use one clear sentence, then add one detail.");
+      pushToast("info", "Move to next roleplay step");
     } catch (err) {
       const msg = getErrorMessage(err);
       setActionError(msg);
@@ -69,6 +117,22 @@ export function ScenariosPage() {
             </article>
           ))}
         </div>
+      )}
+      {activeScenarioId && (
+        <article className="panel stack">
+          <h3>Active Roleplay Step</h3>
+          <p>{activePrompt}</p>
+          {activeTip && <p>Coach tip: {activeTip}</p>}
+          <label>
+            Your response
+            <input value={turnAnswer} onChange={(e) => setTurnAnswer(e.target.value)} />
+          </label>
+          <button type="button" onClick={onSubmitTurn} disabled={!activeStepId || !turnAnswer.trim()}>
+            Submit roleplay turn
+          </button>
+          {turnScore && <p>{turnScore}</p>}
+          {turnFeedback && <p>{turnFeedback}</p>}
+        </article>
       )}
       {actionError && <ErrorState text={actionError} />}
       {selectionResult && <p>Coach session ready: {selectionResult}</p>}

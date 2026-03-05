@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from app.schemas.learning import CoachSessionStep, ExerciseItem, ScenarioItem
+from app.schemas.learning import CoachSessionStep, ExerciseItem, ScenarioItem, ScenarioScriptStep
 
 
 def default_scenarios() -> list[ScenarioItem]:
@@ -28,6 +28,112 @@ def default_scenarios() -> list[ScenarioItem]:
             description="Answer travel-control questions clearly under mild time pressure.",
         ),
     ]
+
+
+def scenario_scripts() -> dict[str, list[ScenarioScriptStep]]:
+    return {
+        "travel-hotel": [
+                ScenarioScriptStep(
+                    id="arrival",
+                    coach_prompt="You arrive at a hotel desk. Ask to check in with your reservation.",
+                    expected_keywords=["check", "reservation", "name"],
+                    tip="Use a polite opener and give one concrete detail.",
+                ),
+                ScenarioScriptStep(
+                    id="request",
+                    coach_prompt="Request one change: quiet room, higher floor, or late check-out.",
+                    expected_keywords=["room", "please", "late"],
+                    tip="State request + reason in one sentence.",
+                ),
+                ScenarioScriptStep(
+                    id="confirm",
+                    coach_prompt="Confirm the final details and thank the receptionist.",
+                    expected_keywords=["confirm", "thank", "nights"],
+                    tip="Repeat key details to avoid mistakes.",
+                ),
+            ],
+        "job-interview": [
+                ScenarioScriptStep(
+                    id="intro",
+                    coach_prompt="Introduce yourself in 2-3 sentences for this role.",
+                    expected_keywords=["experience", "role", "skills"],
+                    tip="Keep structure: who you are -> relevant experience -> value.",
+                ),
+                ScenarioScriptStep(
+                    id="strength",
+                    coach_prompt="Describe one strength with a practical example.",
+                    expected_keywords=["example", "project", "result"],
+                    tip="Use a mini STAR pattern: situation, action, result.",
+                ),
+                ScenarioScriptStep(
+                    id="question",
+                    coach_prompt="Ask one thoughtful question to the interviewer.",
+                    expected_keywords=["team", "goals", "question"],
+                    tip="Ask about goals, team process, or impact expectations.",
+                ),
+            ],
+        "coffee-shop": [
+                ScenarioScriptStep(
+                    id="order",
+                    coach_prompt="Place your drink order with size and one preference.",
+                    expected_keywords=["coffee", "size", "please"],
+                    tip="Order pattern: drink + size + adjustment.",
+                ),
+                ScenarioScriptStep(
+                    id="clarify",
+                    coach_prompt="Clarify payment method and if take-away is possible.",
+                    expected_keywords=["pay", "card", "take"],
+                    tip="Ask one short question at a time.",
+                ),
+                ScenarioScriptStep(
+                    id="smalltalk",
+                    coach_prompt="Add one short friendly small-talk line before leaving.",
+                    expected_keywords=["day", "thank", "nice"],
+                    tip="Keep it natural and brief.",
+                ),
+            ],
+        "airport-customs": [
+                ScenarioScriptStep(
+                    id="purpose",
+                    coach_prompt="State purpose of trip, destination, and duration.",
+                    expected_keywords=["travel", "days", "destination"],
+                    tip="Use simple factual statements.",
+                ),
+                ScenarioScriptStep(
+                    id="documents",
+                    coach_prompt="Explain where you will stay and show readiness with documents.",
+                    expected_keywords=["hotel", "booking", "documents"],
+                    tip="Answer directly without extra detail.",
+                ),
+                ScenarioScriptStep(
+                    id="close",
+                    coach_prompt="Close conversation politely and confirm next step.",
+                    expected_keywords=["thank", "next", "gate"],
+                    tip="Be polite and concise.",
+                ),
+            ],
+    }
+
+
+def evaluate_scenario_turn(
+    *,
+    expected_keywords: list[str],
+    user_text: str,
+) -> tuple[float, float, str]:
+    tokens = {w.strip(".,!?;:").lower() for w in user_text.split() if w.strip()}
+    if not expected_keywords:
+        return 1.0, 1.0, "Good response. Continue to next roleplay step."
+    matched = sum(1 for kw in expected_keywords if kw.lower() in tokens)
+    max_score = float(len(expected_keywords))
+    score = float(matched)
+    ratio = score / max_score
+    if ratio >= 0.8:
+        feedback = "Strong response: clear and complete for this step."
+    elif ratio >= 0.5:
+        feedback = "Good attempt: add one more concrete detail from the prompt."
+    else:
+        feedback = "Needs improvement: include key details from this roleplay step."
+    return score, max_score, feedback
 
 
 def generate_exercises(exercise_type: str, topic: str, count: int) -> list[ExerciseItem]:

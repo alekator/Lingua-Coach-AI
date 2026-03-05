@@ -95,6 +95,30 @@ export type ScenarioSelectResponse = {
   mode: string;
 };
 
+export type ScenarioScriptResponse = {
+  scenario_id: string;
+  title: string;
+  description: string;
+  steps: Array<{
+    id: string;
+    coach_prompt: string;
+    expected_keywords: string[];
+    tip: string;
+  }>;
+};
+
+export type ScenarioTurnResponse = {
+  scenario_id: string;
+  step_id: string;
+  score: number;
+  max_score: number;
+  feedback: string;
+  next_step_id?: string | null;
+  next_prompt?: string | null;
+  done: boolean;
+  suggested_reply?: string | null;
+};
+
 export type GrammarAnalyzeResponse = {
   corrected_text: string;
   errors: Array<{

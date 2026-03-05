@@ -20,6 +20,9 @@ from app.schemas.learning import (
     PlanTodayResponse,
     ScenarioSelectRequest,
     ScenarioSelectResponse,
+    ScenarioScriptResponse,
+    ScenarioTurnRequest,
+    ScenarioTurnResponse,
     ScenariosResponse,
     TranslateVoiceResponse,
 )
@@ -27,8 +30,10 @@ from app.services.learning import (
     build_adaptive_plan,
     build_today_session_steps,
     default_scenarios,
+    evaluate_scenario_turn,
     generate_exercises,
     grade_exercises,
+    scenario_scripts,
 )
 from app.services.progress import compute_streak_days
 from app.services.srs import utcnow
@@ -206,6 +211,22 @@ def scenarios() -> ScenariosResponse:
     return ScenariosResponse(items=default_scenarios())
 
 
+@router.get("/scenarios/script", response_model=ScenarioScriptResponse)
+def scenarios_script(scenario_id: str) -> ScenarioScriptResponse:
+    scenario_map = {item.id: item for item in default_scenarios()}
+    scenario = scenario_map.get(scenario_id)
+    scripts = scenario_scripts()
+    steps = scripts.get(scenario_id)
+    if not scenario or not steps:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    return ScenarioScriptResponse(
+        scenario_id=scenario_id,
+        title=scenario.title,
+        description=scenario.description,
+        steps=steps,
+    )
+
+
 @router.post("/scenarios/select", response_model=ScenarioSelectResponse)
 def scenarios_select(
     payload: ScenarioSelectRequest,
@@ -226,3 +247,35 @@ def scenarios_select(
     db.refresh(session)
 
     return ScenarioSelectResponse(session_id=session.id, mode=session.mode)
+
+
+@router.post("/scenarios/turn", response_model=ScenarioTurnResponse)
+def scenarios_turn(payload: ScenarioTurnRequest) -> ScenarioTurnResponse:
+    scripts = scenario_scripts()
+    steps = scripts.get(payload.scenario_id)
+    if not steps:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    step_index = next((idx for idx, s in enumerate(steps) if s.id == payload.step_id), -1)
+    if step_index < 0:
+        raise HTTPException(status_code=404, detail="Scenario step not found")
+
+    current = steps[step_index]
+    score, max_score, feedback = evaluate_scenario_turn(
+        expected_keywords=current.expected_keywords,
+        user_text=payload.user_text,
+    )
+    next_step = steps[step_index + 1] if step_index + 1 < len(steps) else None
+    done = next_step is None
+    suggested_reply = None if score >= max_score else f"Try again using: {', '.join(current.expected_keywords[:2])}"
+
+    return ScenarioTurnResponse(
+        scenario_id=payload.scenario_id,
+        step_id=current.id,
+        score=score,
+        max_score=max_score,
+        feedback=feedback,
+        next_step_id=None if done else next_step.id,
+        next_prompt=None if done else next_step.coach_prompt,
+        done=done,
+        suggested_reply=suggested_reply,
+    )
