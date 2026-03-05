@@ -3,9 +3,11 @@ import { api } from "../api/client";
 import { EmptyState, ErrorState } from "../components/feedback";
 import { getErrorMessage } from "../lib/errors";
 import type { GrammarAnalyzeResponse } from "../api/types";
+import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
 export function GrammarPage() {
+  const targetLang = useAppStore((s) => s.activeWorkspaceTargetLang) ?? "en";
   const [text, setText] = useState("I goed to school");
   const [result, setResult] = useState<GrammarAnalyzeResponse | null>(null);
   const [error, setError] = useState("");
@@ -14,7 +16,7 @@ export function GrammarPage() {
   async function onAnalyze(event: FormEvent) {
     event.preventDefault();
     try {
-      const response = await api.grammarAnalyze({ text, target_lang: "en" });
+      const response = await api.grammarAnalyze({ text, target_lang: targetLang });
       setResult(response);
       setError("");
       pushToast("success", "Grammar analysis completed");
@@ -28,6 +30,7 @@ export function GrammarPage() {
   return (
     <section className="panel stack">
       <h2>Grammar Analyzer</h2>
+      <p>Analyze writing in your study language: {targetLang.toUpperCase()}.</p>
       <form onSubmit={onAnalyze} className="stack">
         <label>
           Text

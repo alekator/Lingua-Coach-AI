@@ -22,6 +22,11 @@ vi.mock("../store/toast-store", () => ({
     selector({ push: mocks.pushToast }),
 }));
 
+vi.mock("../store/app-store", () => ({
+  useAppStore: (selector: (state: { activeWorkspaceTargetLang: string | null }) => unknown) =>
+    selector({ activeWorkspaceTargetLang: "fr" }),
+}));
+
 describe("GrammarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -49,6 +54,7 @@ describe("GrammarPage", () => {
       expect(screen.getByText("Corrected: I went to school")).toBeInTheDocument();
       expect(screen.getByText("Use irregular verb.")).toBeInTheDocument();
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Grammar analysis completed");
+      expect(mocks.grammarAnalyze).toHaveBeenCalledWith({ text: "I goed to school", target_lang: "fr" });
     });
   });
 

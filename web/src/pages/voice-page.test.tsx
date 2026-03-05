@@ -13,7 +13,8 @@ vi.mock("../api/client", () => ({
 }));
 
 vi.mock("../store/app-store", () => ({
-  useAppStore: (selector: (state: { userId: number }) => unknown) => selector({ userId: 1 }),
+  useAppStore: (selector: (state: { userId: number; activeWorkspaceTargetLang: string | null }) => unknown) =>
+    selector({ userId: 1, activeWorkspaceTargetLang: "de" }),
 }));
 
 vi.mock("../store/toast-store", () => ({
@@ -54,6 +55,13 @@ describe("VoicePage", () => {
       expect(screen.getByText("Coach feedback")).toBeInTheDocument();
       expect(screen.getByText("Transcript: I goed to school")).toBeInTheDocument();
       expect(screen.getByText(/Rubric: 56 \(developing\)/)).toBeInTheDocument();
+      expect(mocks.voiceMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: 1,
+          target_lang: "de",
+          language_hint: "de",
+        }),
+      );
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Use coach target for retry" }));

@@ -15,6 +15,7 @@ function extractCoachTarget(text: string): string {
 
 export function VoicePage() {
   const userId = useAppStore((s) => s.userId) ?? 1;
+  const targetLang = useAppStore((s) => s.activeWorkspaceTargetLang) ?? "en";
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<VoiceMessageResponse | null>(null);
   const [error, setError] = useState("");
@@ -29,8 +30,8 @@ export function VoicePage() {
       const response = await api.voiceMessage({
         file,
         user_id: userId,
-        target_lang: "en",
-        language_hint: "en",
+        target_lang: targetLang,
+        language_hint: targetLang,
       });
       setResult(response);
       setCoachTarget(extractCoachTarget(response.teacher_text));
@@ -46,6 +47,7 @@ export function VoicePage() {
   return (
     <section className="panel stack">
       <h2>Coach Voice Practice</h2>
+      <p>Practice language: {targetLang.toUpperCase()}</p>
       <p>Upload one short response, review feedback, then retry with one clear improvement.</p>
       <label>
         Practice phrase (optional retry line)

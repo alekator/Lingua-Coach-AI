@@ -1,18 +1,30 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { ErrorState } from "../components/feedback";
 import { getErrorMessage } from "../lib/errors";
+import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
 export function TranslatePage() {
+  const nativeLang = useAppStore((s) => s.activeWorkspaceNativeLang);
+  const workspaceTargetLang = useAppStore((s) => s.activeWorkspaceTargetLang);
   const [text, setText] = useState("Hello world");
-  const [sourceLang, setSourceLang] = useState("en");
-  const [targetLang, setTargetLang] = useState("es");
+  const [sourceLang, setSourceLang] = useState(nativeLang ?? "en");
+  const [targetLang, setTargetLang] = useState(workspaceTargetLang ?? "es");
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<string>("");
   const [voiceResult, setVoiceResult] = useState<string>("");
   const [error, setError] = useState("");
   const pushToast = useToastStore((s) => s.push);
+
+  useEffect(() => {
+    if (nativeLang) {
+      setSourceLang(nativeLang);
+    }
+    if (workspaceTargetLang) {
+      setTargetLang(workspaceTargetLang);
+    }
+  }, [nativeLang, workspaceTargetLang]);
 
   async function onTranslate(event: FormEvent) {
     event.preventDefault();
@@ -56,6 +68,10 @@ export function TranslatePage() {
   return (
     <section className="panel stack">
       <h2>Translate</h2>
+      <p>
+        Default pair from active space: {(nativeLang ?? sourceLang).toUpperCase()} {"->"}{" "}
+        {(workspaceTargetLang ?? targetLang).toUpperCase()}
+      </p>
       <form className="stack" onSubmit={onTranslate}>
         <label>
           Source
