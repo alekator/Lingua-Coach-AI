@@ -3,6 +3,8 @@ import type {
   PlacementAnswerResponse,
   PlacementFinishResponse,
   PlacementStartResponse,
+  OpenAIDebugResponse,
+  OpenAIKeyStatus,
   ProfileResponse,
   ChatMessageResponse,
   ChatStartResponse,
@@ -69,6 +71,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   bootstrap: () => request<AppBootstrapResponse>("/app/bootstrap"),
+  openaiKeyStatus: () => request<OpenAIKeyStatus>("/settings/openai-key"),
+  openaiKeySet: (payload: { api_key: string }) =>
+    request<OpenAIKeyStatus>("/settings/openai-key", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  debugOpenai: () => request<OpenAIDebugResponse>("/debug/openai"),
   profileSetup: (payload: {
     user_id: number;
     native_lang: string;

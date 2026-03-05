@@ -26,6 +26,7 @@ from app.routers.progress import router as progress_router
 from app.routers.translate import router as translate_router
 from app.routers.vocab import router as vocab_router
 from app.routers.voice import router as voice_router
+from app.routers.settings import router as settings_router
 from app.services.teacher import TeacherResponder, default_teacher_responder
 from app.services.translate import (
     TranslatorFn,
@@ -211,6 +212,7 @@ def create_app(
         }
 
     app.include_router(profile_router)
+    app.include_router(settings_router)
     app.include_router(app_state_router)
     app.include_router(chat_router)
     app.include_router(translate_router)

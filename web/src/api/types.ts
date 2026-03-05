@@ -36,6 +36,17 @@ export type ProfileResponse = {
   preferences: Record<string, unknown>;
 };
 
+export type OpenAIKeyStatus = {
+  configured: boolean;
+  source: string;
+  masked?: string | null;
+};
+
+export type OpenAIDebugResponse = {
+  status: string;
+  detail: string;
+};
+
 export type ProgressSummary = {
   streak_days: number;
   minutes_practiced: number;

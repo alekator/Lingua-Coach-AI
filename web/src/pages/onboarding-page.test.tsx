@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   placementAnswer: vi.fn(),
   placementFinish: vi.fn(),
   profileSetup: vi.fn(),
+  openaiKeyStatus: vi.fn(),
+  openaiKeySet: vi.fn(),
+  debugOpenai: vi.fn(),
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -27,23 +30,54 @@ vi.mock("../store/toast-store", () => ({
 
 vi.mock("../store/app-store", () => ({
   useAppStore: (
-    selector: (state: { userId: number; hasProfile: boolean; setBootstrapState: typeof mocks.setBootstrapState }) => unknown,
+    selector: (state: {
+      userId: number;
+      hasProfile: boolean;
+      setBootstrapState: typeof mocks.setBootstrapState;
+      setCoachPrefs: (...args: unknown[]) => void;
+    }) => unknown,
   ) =>
-    selector({ userId: 1, hasProfile: false, setBootstrapState: mocks.setBootstrapState }),
+    selector({
+      userId: 1,
+      hasProfile: false,
+      setBootstrapState: mocks.setBootstrapState,
+      setCoachPrefs: vi.fn(),
+    }),
 }));
 
-vi.mock("../api/client", () => ({
-  api: {
-    placementStart: mocks.placementStart,
-    placementAnswer: mocks.placementAnswer,
-    placementFinish: mocks.placementFinish,
-    profileSetup: mocks.profileSetup,
-  },
-}));
+vi.mock("../api/client", async () => {
+  const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
+  return {
+    ...actual,
+    api: {
+      openaiKeyStatus: mocks.openaiKeyStatus,
+      openaiKeySet: mocks.openaiKeySet,
+      debugOpenai: mocks.debugOpenai,
+      placementStart: mocks.placementStart,
+      placementAnswer: mocks.placementAnswer,
+      placementFinish: mocks.placementFinish,
+      profileSetup: mocks.profileSetup,
+    },
+  };
+});
 
 describe("OnboardingPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.openaiKeyStatus.mockResolvedValue({
+      configured: false,
+      source: "none",
+      masked: null,
+    });
+    mocks.openaiKeySet.mockResolvedValue({
+      configured: true,
+      source: "env",
+      masked: "sk-t...7890",
+    });
+    mocks.debugOpenai.mockResolvedValue({
+      status: "ok",
+      detail: "OpenAI reachable",
+    });
   });
 
   it("runs placement flow and navigates to app", async () => {
