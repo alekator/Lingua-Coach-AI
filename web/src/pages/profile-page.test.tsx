@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   bootstrap: vi.fn(),
   workspacesList: vi.fn(),
   workspaceCreate: vi.fn(),
+  workspaceUpdate: vi.fn(),
   workspaceSwitch: vi.fn(),
   workspaceDelete: vi.fn(),
   placementStart: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("../api/client", async () => {
       bootstrap: mocks.bootstrap,
       workspacesList: mocks.workspacesList,
       workspaceCreate: mocks.workspaceCreate,
+      workspaceUpdate: mocks.workspaceUpdate,
       workspaceSwitch: mocks.workspaceSwitch,
       workspaceDelete: mocks.workspaceDelete,
       placementStart: mocks.placementStart,
@@ -139,6 +141,15 @@ describe("ProfilePage", () => {
       target_lang: "en",
       goal: "job",
       is_active: true,
+      created_at: "2026-03-06T00:00:00Z",
+      updated_at: "2026-03-06T00:00:00Z",
+    });
+    mocks.workspaceUpdate.mockResolvedValue({
+      id: 2,
+      native_lang: "de",
+      target_lang: "en",
+      goal: "updated goal",
+      is_active: false,
       created_at: "2026-03-06T00:00:00Z",
       updated_at: "2026-03-06T00:00:00Z",
     });
@@ -308,6 +319,23 @@ describe("ProfilePage", () => {
     await waitFor(() => {
       expect(mocks.workspaceDelete).toHaveBeenCalledWith(2);
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Learning space deleted");
+    });
+  });
+
+  it("updates goal for a specific space", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Space goal 2")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("Space goal 2"), { target: { value: "relocation prep" } });
+    const saveGoalButtons = screen.getAllByRole("button", { name: "Save goal" });
+    fireEvent.click(saveGoalButtons[1]);
+
+    await waitFor(() => {
+      expect(mocks.workspaceUpdate).toHaveBeenCalledWith(2, { goal: "relocation prep" });
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Space goal updated");
     });
   });
 });

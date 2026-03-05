@@ -103,6 +103,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  workspaceUpdate: (workspaceId: number, payload: { goal?: string | null }) =>
+    request<LearningWorkspace>(`/workspaces/${encodeURIComponent(workspaceId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
   workspaceSwitch: (payload: { workspace_id: number }) =>
     request<WorkspaceSwitchResponse>("/workspaces/switch", {
       method: "POST",

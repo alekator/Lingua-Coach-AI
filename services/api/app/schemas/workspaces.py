@@ -22,6 +22,10 @@ class WorkspaceCreateRequest(BaseModel):
     make_active: bool = True
 
 
+class WorkspaceUpdateRequest(BaseModel):
+    goal: str | None = Field(default=None, max_length=255)
+
+
 class WorkspaceSwitchRequest(BaseModel):
     workspace_id: int = Field(ge=1)
 

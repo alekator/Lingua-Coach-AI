@@ -22,6 +22,7 @@ export function ProfilePage() {
   const [newNativeLang, setNewNativeLang] = useState("");
   const [newTargetLang, setNewTargetLang] = useState("");
   const [newGoal, setNewGoal] = useState("");
+  const [goalDrafts, setGoalDrafts] = useState<Record<number, string>>({});
   const [saveError, setSaveError] = useState("");
   const [workspaceError, setWorkspaceError] = useState("");
   const [placementError, setPlacementError] = useState("");
@@ -63,6 +64,15 @@ export function ProfilePage() {
     setLevel(profile.data.level);
     setGoal(profile.data.goal ?? "");
   }, [profile.data]);
+
+  useEffect(() => {
+    if (!workspaces.data?.items) return;
+    const next: Record<number, string> = {};
+    for (const item of workspaces.data.items) {
+      next[item.id] = item.goal ?? "";
+    }
+    setGoalDrafts(next);
+  }, [workspaces.data]);
 
   async function syncBootstrapContext() {
     const bootstrap = await api.bootstrap();
@@ -167,6 +177,22 @@ export function ProfilePage() {
       await Promise.all([profile.refetch(), skillMap.refetch(), streak.refetch(), journal.refetch()]);
       setWorkspaceError("");
       pushToast("success", "Learning space deleted");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setWorkspaceError(msg);
+      pushToast("error", msg);
+    } finally {
+      setWorkspaceBusy(false);
+    }
+  }
+
+  async function onSaveWorkspaceGoal(workspaceId: number) {
+    setWorkspaceBusy(true);
+    try {
+      await api.workspaceUpdate(workspaceId, { goal: goalDrafts[workspaceId] ?? null });
+      await queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      setWorkspaceError("");
+      pushToast("success", "Space goal updated");
     } catch (err) {
       const msg = getErrorMessage(err);
       setWorkspaceError(msg);
@@ -293,18 +319,37 @@ export function ProfilePage() {
             <article className="panel stack">
               <h4>Manage spaces</h4>
               {workspaces.data.items.map((item) => (
-                <div key={`manage-${item.id}`} className="row">
+                <div key={`manage-${item.id}`} className="stack">
                   <span>
                     {languageLabelByCode(item.native_lang)} {"->"} {languageLabelByCode(item.target_lang)}
                     {item.is_active ? " (active)" : ""}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteWorkspace(item.id)}
-                    disabled={workspaceBusy || workspaces.data.items.length <= 1}
-                  >
-                    Delete space
-                  </button>
+                  <label>
+                    Goal
+                    <input
+                      aria-label={`Space goal ${item.id}`}
+                      value={goalDrafts[item.id] ?? ""}
+                      onChange={(e) =>
+                        setGoalDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <div className="row">
+                    <button
+                      type="button"
+                      onClick={() => onSaveWorkspaceGoal(item.id)}
+                      disabled={workspaceBusy}
+                    >
+                      Save goal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteWorkspace(item.id)}
+                      disabled={workspaceBusy || workspaces.data.items.length <= 1}
+                    >
+                      Delete space
+                    </button>
+                  </div>
                 </div>
               ))}
               {workspaces.data.items.length <= 1 && (

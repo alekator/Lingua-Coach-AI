@@ -31,6 +31,7 @@ from app.schemas.workspaces import (
     WorkspaceOverviewResponse,
     WorkspaceSwitchRequest,
     WorkspaceSwitchResponse,
+    WorkspaceUpdateRequest,
 )
 from app.services.progress import compute_streak_days
 from app.services.workspaces import (
@@ -82,6 +83,25 @@ def workspace_create(payload: WorkspaceCreateRequest, db: Session = Depends(get_
         goal=payload.goal,
         make_active=payload.make_active,
     )
+    db.commit()
+    db.refresh(workspace)
+    return _workspace_to_schema(workspace)
+
+
+@router.patch("/{workspace_id}", response_model=WorkspaceBase)
+def workspace_update(
+    workspace_id: int, payload: WorkspaceUpdateRequest, db: Session = Depends(get_db)
+) -> WorkspaceBase:
+    owner = get_or_create_local_owner(db)
+    workspace = db.scalar(
+        select(LearningWorkspace).where(
+            LearningWorkspace.id == workspace_id,
+            LearningWorkspace.owner_user_id == owner.id,
+        )
+    )
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    workspace.goal = payload.goal
     db.commit()
     db.refresh(workspace)
     return _workspace_to_schema(workspace)

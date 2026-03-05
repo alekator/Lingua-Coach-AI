@@ -261,3 +261,23 @@ def test_workspace_delete_rejects_last_remaining_space(client: TestClient) -> No
     deleted = client.delete(f"/workspaces/{a_id}")
     assert deleted.status_code == 400
     assert deleted.json()["detail"] == "Cannot delete the last workspace"
+
+
+def test_workspace_update_goal(client: TestClient) -> None:
+    ws = client.post(
+        "/workspaces",
+        json={"native_lang": "ru", "target_lang": "en", "goal": "travel", "make_active": True},
+    )
+    assert ws.status_code == 200
+    workspace_id = ws.json()["id"]
+
+    updated = client.patch(f"/workspaces/{workspace_id}", json={"goal": "job interview"})
+    assert updated.status_code == 200
+    body = updated.json()
+    assert body["id"] == workspace_id
+    assert body["goal"] == "job interview"
+
+    listed = client.get("/workspaces")
+    assert listed.status_code == 200
+    item = next(item for item in listed.json()["items"] if item["id"] == workspace_id)
+    assert item["goal"] == "job interview"
