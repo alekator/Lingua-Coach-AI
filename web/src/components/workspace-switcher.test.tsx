@@ -6,7 +6,9 @@ const mocks = vi.hoisted(() => ({
   workspacesList: vi.fn(),
   workspaceSwitch: vi.fn(),
   bootstrap: vi.fn(),
+  getWorkspaceResumeRoute: vi.fn(),
   pushToast: vi.fn(),
+  navigate: vi.fn(),
   setBootstrapState: vi.fn(),
 }));
 
@@ -16,6 +18,14 @@ vi.mock("../api/client", () => ({
     workspaceSwitch: mocks.workspaceSwitch,
     bootstrap: mocks.bootstrap,
   },
+}));
+
+vi.mock("../lib/workspace-routes", () => ({
+  getWorkspaceResumeRoute: mocks.getWorkspaceResumeRoute,
+}));
+
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => mocks.navigate,
 }));
 
 vi.mock("../store/app-store", () => ({
@@ -50,6 +60,7 @@ function renderSwitcher() {
 describe("WorkspaceSwitcher", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getWorkspaceResumeRoute.mockReturnValue("/app/chat");
     mocks.workspacesList.mockResolvedValue({
       owner_user_id: 1,
       active_workspace_id: 1,
@@ -88,7 +99,35 @@ describe("WorkspaceSwitcher", () => {
           activeWorkspaceId: 2,
         }),
       );
+      expect(mocks.navigate).toHaveBeenCalledWith("/app/chat", { replace: true });
+    });
+  });
+
+  it("routes to onboarding for fresh space without profile", async () => {
+    mocks.bootstrap.mockResolvedValue({
+      user_id: 33,
+      has_profile: false,
+      needs_onboarding: true,
+      next_step: "onboarding",
+      owner_user_id: 1,
+      active_workspace_id: 2,
+    });
+
+    renderSwitcher();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Space")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("Space"), { target: { value: "2" } });
+
+    await waitFor(() => {
+      expect(mocks.workspaceSwitch).toHaveBeenCalledWith({ workspace_id: 2 });
+      expect(mocks.navigate).toHaveBeenCalledWith("/", { replace: true });
+      expect(mocks.pushToast).toHaveBeenCalledWith(
+        "info",
+        "This learning space is new. Complete placement to start.",
+      );
     });
   });
 });
-

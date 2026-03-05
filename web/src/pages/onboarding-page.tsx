@@ -53,6 +53,7 @@ export function OnboardingPage() {
   const [showWowResult, setShowWowResult] = useState(false);
   const [error, setError] = useState("");
   const pushToast = useToastStore((s) => s.push);
+  const firstTimeInCurrentSpace = Boolean(activeWorkspaceNativeLang && activeWorkspaceTargetLang);
 
   useEffect(() => {
     let active = true;
@@ -208,6 +209,12 @@ export function OnboardingPage() {
       )}
       {!sessionId && (
         <form className="stack" onSubmit={(event) => event.preventDefault()}>
+          {firstTimeInCurrentSpace && (
+            <article className="panel stack">
+              <h3>New learning space detected</h3>
+              <p>This language pair is new for you. Complete the short placement to unlock this space.</p>
+            </article>
+          )}
           <p>Let your coach calibrate your starting point. Set languages and complete a quick placement test.</p>
           <LanguagePairSelector
             nativeLang={nativeLang}

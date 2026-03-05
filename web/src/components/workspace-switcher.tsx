@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { getErrorMessage } from "../lib/errors";
 import { languageLabelByCode } from "../lib/languages";
+import { getWorkspaceResumeRoute } from "../lib/workspace-routes";
 import { syncWorkspaceContext } from "../lib/workspace-context";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
@@ -11,6 +13,7 @@ export function WorkspaceSwitcher() {
   const setBootstrapState = useAppStore((s) => s.setBootstrapState);
   const pushToast = useToastStore((s) => s.push);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const workspaces = useQuery({
     queryKey: ["workspaces"],
     queryFn: api.workspacesList,
@@ -19,7 +22,15 @@ export function WorkspaceSwitcher() {
   const switchWorkspace = useMutation({
     mutationFn: (workspaceId: number) => api.workspaceSwitch({ workspace_id: workspaceId }),
     onSuccess: async () => {
-      await syncWorkspaceContext(queryClient, setBootstrapState);
+      const bootstrap = await syncWorkspaceContext(queryClient, setBootstrapState);
+      if (bootstrap.needs_onboarding) {
+        pushToast("info", "This learning space is new. Complete placement to start.");
+        navigate("/", { replace: true });
+        return;
+      }
+      if (bootstrap.active_workspace_id) {
+        navigate(getWorkspaceResumeRoute(bootstrap.active_workspace_id) ?? "/app", { replace: true });
+      }
       pushToast("success", "Learning space switched");
     },
     onError: (err) => {

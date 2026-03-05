@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   pushToast: vi.fn(),
   setBootstrapState: vi.fn(),
+  setCoachPrefs: vi.fn(),
   placementStart: vi.fn(),
   placementAnswer: vi.fn(),
   placementFinish: vi.fn(),
@@ -19,6 +20,9 @@ const mocks = vi.hoisted(() => ({
   openaiKeyStatus: vi.fn(),
   openaiKeySet: vi.fn(),
   debugOpenai: vi.fn(),
+  activeWorkspaceNativeLang: null as string | null,
+  activeWorkspaceTargetLang: null as string | null,
+  activeWorkspaceGoal: null as string | null,
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -49,11 +53,11 @@ vi.mock("../store/app-store", () => ({
     selector({
       userId: 1,
       hasProfile: false,
-      activeWorkspaceNativeLang: null,
-      activeWorkspaceTargetLang: null,
-      activeWorkspaceGoal: null,
+      activeWorkspaceNativeLang: mocks.activeWorkspaceNativeLang,
+      activeWorkspaceTargetLang: mocks.activeWorkspaceTargetLang,
+      activeWorkspaceGoal: mocks.activeWorkspaceGoal,
       setBootstrapState: mocks.setBootstrapState,
-      setCoachPrefs: vi.fn(),
+      setCoachPrefs: mocks.setCoachPrefs,
     }),
 }));
 
@@ -77,6 +81,9 @@ vi.mock("../api/client", async () => {
 describe("OnboardingPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.activeWorkspaceNativeLang = null;
+    mocks.activeWorkspaceTargetLang = null;
+    mocks.activeWorkspaceGoal = null;
     mocks.openaiKeyStatus.mockResolvedValue({
       configured: false,
       source: "none",
@@ -204,5 +211,24 @@ describe("OnboardingPage", () => {
     fireEvent.click(screen.getByLabelText("Onboarding swap languages"));
     expect(screen.getByLabelText("Onboarding native language")).toHaveValue("en");
     expect(screen.getByLabelText("Onboarding target language")).toHaveValue("de");
+  });
+
+  it("shows first-time hint for a new active workspace", async () => {
+    mocks.activeWorkspaceNativeLang = "de";
+    mocks.activeWorkspaceTargetLang = "en";
+    mocks.activeWorkspaceGoal = "job";
+
+    render(
+      <MemoryRouter future={routerFuture}>
+        <OnboardingPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("New learning space detected")).toBeInTheDocument();
+      expect(
+        screen.getByText("This language pair is new for you. Complete the short placement to unlock this space."),
+      ).toBeInTheDocument();
+    });
   });
 });

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { api } from "./api/client";
 import { AppLayout } from "./components/layout";
+import { rememberWorkspaceRoute } from "./lib/workspace-routes";
 import { toBootstrapStorePayload } from "./lib/workspace-context";
 import { ChatPage } from "./pages/chat-page";
 import { DashboardPage } from "./pages/dashboard-page";
@@ -21,6 +22,7 @@ import { useAppStore } from "./store/app-store";
 function BootstrapGate() {
   const location = useLocation();
   const hasProfile = useAppStore((s) => s.hasProfile);
+  const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
   const setBootstrapState = useAppStore((s) => s.setBootstrapState);
   const bootstrap = useQuery({
     queryKey: ["bootstrap"],
@@ -31,6 +33,11 @@ function BootstrapGate() {
     if (!bootstrap.data) return;
     setBootstrapState(toBootstrapStorePayload(bootstrap.data));
   }, [bootstrap.data, setBootstrapState]);
+
+  useEffect(() => {
+    if (!activeWorkspaceId) return;
+    rememberWorkspaceRoute(activeWorkspaceId, location.pathname);
+  }, [activeWorkspaceId, location.pathname]);
 
   if (bootstrap.isPending) {
     return <p className="centered">Loading app state...</p>;

@@ -299,7 +299,10 @@ describe("DashboardPage", () => {
           activeWorkspaceId: 2,
         }),
       );
-      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Switched learning space");
+      expect(mocks.pushToast).toHaveBeenCalledWith(
+        "info",
+        "This learning space is new. Complete placement to start.",
+      );
     });
   });
 });

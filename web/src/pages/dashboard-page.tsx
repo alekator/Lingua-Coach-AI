@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { getErrorMessage } from "../lib/errors";
+import { getWorkspaceResumeRoute } from "../lib/workspace-routes";
 import { syncWorkspaceContext } from "../lib/workspace-context";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
@@ -82,8 +83,17 @@ export function DashboardPage() {
     try {
       await api.workspaceSwitch({ workspace_id: workspaceId });
       const bootstrap = await syncWorkspaceContext(queryClient, setBootstrapState);
+      if (bootstrap.needs_onboarding) {
+        pushToast("info", "This learning space is new. Complete placement to start.");
+        navigate("/", { replace: true });
+        return;
+      }
       pushToast("success", "Switched learning space");
-      navigate(bootstrap.needs_onboarding ? "/" : "/app");
+      if (bootstrap.active_workspace_id) {
+        navigate(getWorkspaceResumeRoute(bootstrap.active_workspace_id) ?? "/app", { replace: true });
+      } else {
+        navigate("/app", { replace: true });
+      }
     } catch (err) {
       pushToast("error", getErrorMessage(err));
     }
