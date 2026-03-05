@@ -188,6 +188,10 @@ describe("OnboardingPage", () => {
       </MemoryRouter>,
     );
 
+    await waitFor(() => {
+      expect(mocks.openaiKeyStatus).toHaveBeenCalled();
+    });
+
     fireEvent.click(screen.getByLabelText("Onboarding preset DE -> EN"));
     expect(screen.getByLabelText("Onboarding native language")).toHaveValue("de");
     expect(screen.getByLabelText("Onboarding target language")).toHaveValue("en");
