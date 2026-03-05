@@ -261,6 +261,25 @@ Dry run:
 powershell -ExecutionPolicy Bypass -File .\scripts\e2e-key-paths.ps1 -DryRun
 ```
 
+## E2E Workspace Journey (Script)
+
+Validates multi-space core behavior:
+- create second language-pair workspace
+- switch between spaces
+- isolated progress per workspace user
+- bootstrap context follows active workspace
+- previous workspace progress persists after return
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-workspace-journey.ps1 -BaseUrl http://localhost:8000 -UserId 1
+```
+
+Dry run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-workspace-journey.ps1 -DryRun
+```
+
 ## Eval Harness (P0 Quality Checks)
 
 Runs focused quality guardrails for teacher behavior and scenario content quality:
