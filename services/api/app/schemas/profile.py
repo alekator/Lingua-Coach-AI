@@ -21,6 +21,10 @@ class ProfileSetupResponse(BaseModel):
     preferences: dict
 
 
+class ProfileGetResponse(ProfileSetupResponse):
+    pass
+
+
 class PlacementStartRequest(BaseModel):
     user_id: int = Field(ge=1)
     native_lang: str = Field(min_length=2, max_length=32)

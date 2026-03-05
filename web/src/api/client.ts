@@ -3,6 +3,7 @@ import type {
   PlacementAnswerResponse,
   PlacementFinishResponse,
   PlacementStartResponse,
+  ProfileResponse,
   ChatMessageResponse,
   ChatStartResponse,
   ExercisesGenerateResponse,
@@ -80,6 +81,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  profileGet: (userId: number) => request<ProfileResponse>(`/profile?user_id=${encodeURIComponent(userId)}`),
   placementStart: (payload: { user_id: number; native_lang: string; target_lang: string }) =>
     request<PlacementStartResponse>("/profile/placement-test/start", {
       method: "POST",

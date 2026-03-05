@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import LearnerProfile, PlacementAnswer, PlacementSession, SkillSnapshot, User
 from app.schemas.profile import (
+    ProfileGetResponse,
     PlacementAnswerRequest,
     PlacementAnswerResponse,
     PlacementFinishRequest,
@@ -63,6 +64,21 @@ def profile_setup(payload: ProfileSetupRequest, db: Session = Depends(get_db)) -
     db.commit()
     db.refresh(profile)
     return ProfileSetupResponse(
+        user_id=profile.user_id,
+        native_lang=profile.native_lang,
+        target_lang=profile.target_lang,
+        level=profile.level,
+        goal=profile.goal,
+        preferences=profile.preferences,
+    )
+
+
+@router.get("", response_model=ProfileGetResponse)
+def profile_get(user_id: int, db: Session = Depends(get_db)) -> ProfileGetResponse:
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return ProfileGetResponse(
         user_id=profile.user_id,
         native_lang=profile.native_lang,
         target_lang=profile.target_lang,

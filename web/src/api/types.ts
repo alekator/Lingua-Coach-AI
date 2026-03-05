@@ -27,6 +27,15 @@ export type PlacementFinishResponse = {
   skill_map: Record<string, number>;
 };
 
+export type ProfileResponse = {
+  user_id: number;
+  native_lang: string;
+  target_lang: string;
+  level: string;
+  goal?: string | null;
+  preferences: Record<string, unknown>;
+};
+
 export type ProgressSummary = {
   streak_days: number;
   minutes_practiced: number;

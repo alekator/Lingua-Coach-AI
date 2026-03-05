@@ -35,6 +35,37 @@ def test_profile_setup_creates_and_updates_profile(client: TestClient) -> None:
     assert payload["preferences"]["strictness"] == "high"
 
 
+def test_profile_get_returns_saved_profile(client: TestClient) -> None:
+    created = client.post(
+        "/profile/setup",
+        json={
+            "user_id": 303,
+            "native_lang": "ru",
+            "target_lang": "en",
+            "level": "B1",
+            "goal": "work",
+            "preferences": {"strictness": "high"},
+        },
+    )
+    assert created.status_code == 200
+
+    response = client.get("/profile", params={"user_id": 303})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["user_id"] == 303
+    assert payload["native_lang"] == "ru"
+    assert payload["target_lang"] == "en"
+    assert payload["level"] == "B1"
+    assert payload["goal"] == "work"
+    assert payload["preferences"]["strictness"] == "high"
+
+
+def test_profile_get_404_when_missing(client: TestClient) -> None:
+    response = client.get("/profile", params={"user_id": 9999})
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Profile not found"
+
+
 def test_placement_flow_end_to_end(client: TestClient) -> None:
     started = client.post(
         "/profile/placement-test/start",
