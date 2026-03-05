@@ -5,6 +5,9 @@ export type AppBootstrapResponse = {
   next_step: "onboarding" | "dashboard";
   owner_user_id: number;
   active_workspace_id?: number | null;
+  active_workspace_native_lang?: string | null;
+  active_workspace_target_lang?: string | null;
+  active_workspace_goal?: string | null;
 };
 
 export type LearningWorkspace = {

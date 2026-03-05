@@ -30,4 +30,7 @@ def app_bootstrap(db: Session = Depends(get_db)) -> AppBootstrapResponse:
         next_step=next_step,
         owner_user_id=owner.id,
         active_workspace_id=active_workspace.id if active_workspace else None,
+        active_workspace_native_lang=active_workspace.native_lang if active_workspace else None,
+        active_workspace_target_lang=active_workspace.target_lang if active_workspace else None,
+        active_workspace_goal=active_workspace.goal if active_workspace else None,
     )

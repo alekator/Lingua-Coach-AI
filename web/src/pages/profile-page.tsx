@@ -72,6 +72,9 @@ export function ProfilePage() {
       hasProfile: bootstrap.has_profile,
       ownerUserId: bootstrap.owner_user_id,
       activeWorkspaceId: bootstrap.active_workspace_id ?? null,
+      activeWorkspaceNativeLang: bootstrap.active_workspace_native_lang ?? null,
+      activeWorkspaceTargetLang: bootstrap.active_workspace_target_lang ?? null,
+      activeWorkspaceGoal: bootstrap.active_workspace_goal ?? null,
     });
     if (bootstrap.needs_onboarding) {
       navigate("/", { replace: true });

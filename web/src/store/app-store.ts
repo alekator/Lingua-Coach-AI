@@ -4,6 +4,9 @@ type AppState = {
   userId: number | null;
   ownerUserId: number | null;
   activeWorkspaceId: number | null;
+  activeWorkspaceNativeLang: string | null;
+  activeWorkspaceTargetLang: string | null;
+  activeWorkspaceGoal: string | null;
   hasProfile: boolean;
   dailyMinutes: number;
   strictness: "low" | "medium" | "high";
@@ -12,6 +15,9 @@ type AppState = {
     hasProfile: boolean;
     ownerUserId?: number | null;
     activeWorkspaceId?: number | null;
+    activeWorkspaceNativeLang?: string | null;
+    activeWorkspaceTargetLang?: string | null;
+    activeWorkspaceGoal?: string | null;
   }) => void;
   setCoachPrefs: (payload: { dailyMinutes: number; strictness: "low" | "medium" | "high" }) => void;
   setDailyMinutes: (minutes: number) => void;
@@ -21,6 +27,9 @@ export const useAppStore = create<AppState>((set) => ({
   userId: null,
   ownerUserId: null,
   activeWorkspaceId: null,
+  activeWorkspaceNativeLang: null,
+  activeWorkspaceTargetLang: null,
+  activeWorkspaceGoal: null,
   hasProfile: false,
   dailyMinutes: 15,
   strictness: "medium",
@@ -30,6 +39,9 @@ export const useAppStore = create<AppState>((set) => ({
       hasProfile: payload.hasProfile,
       ownerUserId: payload.ownerUserId ?? null,
       activeWorkspaceId: payload.activeWorkspaceId ?? null,
+      activeWorkspaceNativeLang: payload.activeWorkspaceNativeLang ?? null,
+      activeWorkspaceTargetLang: payload.activeWorkspaceTargetLang ?? null,
+      activeWorkspaceGoal: payload.activeWorkspaceGoal ?? null,
     }),
   setCoachPrefs: (payload) =>
     set({

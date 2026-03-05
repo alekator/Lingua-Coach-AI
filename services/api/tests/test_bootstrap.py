@@ -11,6 +11,8 @@ def test_bootstrap_first_run_creates_local_user(client: TestClient) -> None:
     assert body["next_step"] == "onboarding"
     assert body["owner_user_id"] == 1
     assert body["active_workspace_id"] is None
+    assert body["active_workspace_native_lang"] is None
+    assert body["active_workspace_target_lang"] is None
 
 
 def test_bootstrap_after_profile_setup_goes_to_dashboard(client: TestClient) -> None:
@@ -36,3 +38,6 @@ def test_bootstrap_after_profile_setup_goes_to_dashboard(client: TestClient) -> 
     assert body["next_step"] == "dashboard"
     assert body["owner_user_id"] == 1
     assert body["active_workspace_id"] is not None
+    assert body["active_workspace_native_lang"] == "ru"
+    assert body["active_workspace_target_lang"] == "en"
+    assert body["active_workspace_goal"] == "travel"

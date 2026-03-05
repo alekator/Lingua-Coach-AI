@@ -28,11 +28,14 @@ function inferLikelyErrors(skillMap: Record<string, number>): string[] {
 export function OnboardingPage() {
   const navigate = useNavigate();
   const userId = useAppStore((s) => s.userId) ?? 1;
+  const activeWorkspaceNativeLang = useAppStore((s) => s.activeWorkspaceNativeLang);
+  const activeWorkspaceTargetLang = useAppStore((s) => s.activeWorkspaceTargetLang);
+  const activeWorkspaceGoal = useAppStore((s) => s.activeWorkspaceGoal);
   const setBootstrapState = useAppStore((s) => s.setBootstrapState);
   const setCoachPrefs = useAppStore((s) => s.setCoachPrefs);
-  const [nativeLang, setNativeLang] = useState("ru");
-  const [targetLang, setTargetLang] = useState("en");
-  const [goal, setGoal] = useState("travel");
+  const [nativeLang, setNativeLang] = useState(activeWorkspaceNativeLang ?? "ru");
+  const [targetLang, setTargetLang] = useState(activeWorkspaceTargetLang ?? "en");
+  const [goal, setGoal] = useState(activeWorkspaceGoal ?? "travel");
   const [dailyMinutes, setDailyMinutes] = useState(15);
   const [strictness, setStrictness] = useState<"low" | "medium" | "high">("medium");
   const [apiKey, setApiKey] = useState("");
@@ -70,6 +73,19 @@ export function OnboardingPage() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (sessionId || showWowResult) return;
+    if (activeWorkspaceNativeLang) {
+      setNativeLang(activeWorkspaceNativeLang);
+    }
+    if (activeWorkspaceTargetLang) {
+      setTargetLang(activeWorkspaceTargetLang);
+    }
+    if (activeWorkspaceGoal) {
+      setGoal(activeWorkspaceGoal);
+    }
+  }, [activeWorkspaceGoal, activeWorkspaceNativeLang, activeWorkspaceTargetLang, sessionId, showWowResult]);
 
   async function onSaveApiKey() {
     if (!apiKey.trim()) return;
@@ -148,7 +164,13 @@ export function OnboardingPage() {
         setStarterErrors(inferLikelyErrors(finished.skill_map));
         setStarterPlan(plan);
         setShowWowResult(true);
-        setBootstrapState({ userId: resolvedUserId, hasProfile: true });
+        setBootstrapState({
+          userId: resolvedUserId,
+          hasProfile: true,
+          activeWorkspaceNativeLang: normalizeLanguageCode(nativeLang),
+          activeWorkspaceTargetLang: normalizeLanguageCode(targetLang),
+          activeWorkspaceGoal: goal || null,
+        });
         pushToast("success", `Placement complete: ${finished.level}`);
         return;
       }

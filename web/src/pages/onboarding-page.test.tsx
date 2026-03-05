@@ -34,6 +34,9 @@ vi.mock("../store/app-store", () => ({
     selector: (state: {
       userId: number;
       hasProfile: boolean;
+      activeWorkspaceNativeLang: string | null;
+      activeWorkspaceTargetLang: string | null;
+      activeWorkspaceGoal: string | null;
       setBootstrapState: typeof mocks.setBootstrapState;
       setCoachPrefs: (...args: unknown[]) => void;
     }) => unknown,
@@ -41,6 +44,9 @@ vi.mock("../store/app-store", () => ({
     selector({
       userId: 1,
       hasProfile: false,
+      activeWorkspaceNativeLang: null,
+      activeWorkspaceTargetLang: null,
+      activeWorkspaceGoal: null,
       setBootstrapState: mocks.setBootstrapState,
       setCoachPrefs: vi.fn(),
     }),
@@ -146,7 +152,9 @@ describe("OnboardingPage", () => {
         }),
       );
       expect(mocks.planToday).toHaveBeenCalledWith(101, 15);
-      expect(mocks.setBootstrapState).toHaveBeenCalledWith({ userId: 101, hasProfile: true });
+      expect(mocks.setBootstrapState).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 101, hasProfile: true }),
+      );
       expect(screen.getByText("Your quick coach result")).toBeInTheDocument();
       expect(screen.getByText("Your detected level: B1")).toBeInTheDocument();
       expect(screen.getByText("Top 3 focus errors")).toBeInTheDocument();

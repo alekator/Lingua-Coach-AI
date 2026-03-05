@@ -33,6 +33,9 @@ function BootstrapGate() {
       hasProfile: bootstrap.data.has_profile,
       ownerUserId: bootstrap.data.owner_user_id,
       activeWorkspaceId: bootstrap.data.active_workspace_id ?? null,
+      activeWorkspaceNativeLang: bootstrap.data.active_workspace_native_lang ?? null,
+      activeWorkspaceTargetLang: bootstrap.data.active_workspace_target_lang ?? null,
+      activeWorkspaceGoal: bootstrap.data.active_workspace_goal ?? null,
     });
   }, [bootstrap.data, setBootstrapState]);
 
