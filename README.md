@@ -44,6 +44,7 @@ Invoke-WebRequest http://localhost:8002/health -UseBasicParsing
 ## API Highlights
 
 - Profile/onboarding:
+  - `GET /app/bootstrap`
   - `POST /profile/setup`
   - `POST /profile/placement-test/start`
   - `POST /profile/placement-test/answer`

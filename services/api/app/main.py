@@ -16,6 +16,7 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 from app.db import init_db
+from app.routers.app_state import router as app_state_router
 from app.routers.chat import router as chat_router
 from app.routers.homework import router as homework_router
 from app.routers.profile import router as profile_router
@@ -202,6 +203,7 @@ def create_app(
         }
 
     app.include_router(profile_router)
+    app.include_router(app_state_router)
     app.include_router(chat_router)
     app.include_router(translate_router)
     app.include_router(voice_router)
