@@ -12,9 +12,12 @@ from app.models import ChatSession, LearnerProfile, Message, Mistake, SkillSnaps
 from app.schemas.progress import (
     ProgressJournalEntry,
     ProgressJournalResponse,
+    ProgressRewardsResponse,
     ProgressSkillMapResponse,
     ProgressStreakResponse,
     ProgressSummaryResponse,
+    RewardClaimRequest,
+    RewardItem,
     WeeklyGoalResponse,
     WeeklyGoalSetRequest,
 )
@@ -22,6 +25,29 @@ from app.services.progress import compute_streak_days
 
 router = APIRouter(prefix="/progress", tags=["progress"])
 DEFAULT_WEEKLY_GOAL_MINUTES = 90
+REWARD_DEFINITIONS = (
+    {
+        "id": "streak_3",
+        "title": "3-Day Streak",
+        "description": "You studied 3 days in a row.",
+        "requirement": "Reach a 3-day streak",
+        "xp_points": 30,
+    },
+    {
+        "id": "streak_7",
+        "title": "7-Day Streak",
+        "description": "You studied 7 days in a row.",
+        "requirement": "Reach a 7-day streak",
+        "xp_points": 90,
+    },
+    {
+        "id": "weekly_goal_complete",
+        "title": "Weekly Goal Complete",
+        "description": "You completed your weekly minutes target.",
+        "requirement": "Complete weekly goal",
+        "xp_points": 60,
+    },
+)
 
 
 def _to_utc_date(dt: datetime) -> datetime.date:
@@ -49,6 +75,59 @@ def _read_weekly_goal_target(profile: LearnerProfile | None) -> int:
     if isinstance(raw, int) and raw >= 30:
         return raw
     return DEFAULT_WEEKLY_GOAL_MINUTES
+
+
+def _read_reward_claims(profile: LearnerProfile | None) -> set[str]:
+    if not profile:
+        return set()
+    raw = (profile.preferences or {}).get("reward_claims")
+    if not isinstance(raw, list):
+        return set()
+    return {str(item) for item in raw if isinstance(item, str)}
+
+
+def _reward_unlocked(reward_id: str, *, streak_days: int, weekly_goal_completed: bool) -> bool:
+    if reward_id == "streak_3":
+        return streak_days >= 3
+    if reward_id == "streak_7":
+        return streak_days >= 7
+    if reward_id == "weekly_goal_complete":
+        return weekly_goal_completed
+    return False
+
+
+def _build_rewards(user_id: int, db: Session) -> ProgressRewardsResponse:
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    streak = progress_streak(user_id=user_id, db=db)
+    weekly_goal = progress_weekly_goal(user_id=user_id, db=db)
+    claimed_ids = _read_reward_claims(profile)
+    items: list[RewardItem] = []
+    claimed_count = 0
+    total_xp = 0
+
+    for reward in REWARD_DEFINITIONS:
+        reward_id = reward["id"]
+        unlocked = _reward_unlocked(
+            reward_id,
+            streak_days=streak.streak_days,
+            weekly_goal_completed=weekly_goal.is_completed,
+        )
+        if reward_id in claimed_ids:
+            status = "claimed"
+            claimed_count += 1
+            total_xp += int(reward["xp_points"])
+        elif unlocked:
+            status = "available"
+        else:
+            status = "locked"
+        items.append(RewardItem(status=status, **reward))
+
+    return ProgressRewardsResponse(
+        user_id=user_id,
+        total_xp=total_xp,
+        claimed_count=claimed_count,
+        items=items,
+    )
 
 
 def _get_or_create_user(db: Session, user_id: int) -> User:
@@ -211,3 +290,37 @@ def progress_weekly_goal_set(payload: WeeklyGoalSetRequest, db: Session = Depend
         profile.preferences = prefs
     db.commit()
     return progress_weekly_goal(user_id=payload.user_id, db=db)
+
+
+@router.get("/rewards", response_model=ProgressRewardsResponse)
+def progress_rewards(user_id: int, db: Session = Depends(get_db)) -> ProgressRewardsResponse:
+    return _build_rewards(user_id=user_id, db=db)
+
+
+@router.post("/rewards/claim", response_model=ProgressRewardsResponse)
+def progress_rewards_claim(payload: RewardClaimRequest, db: Session = Depends(get_db)) -> ProgressRewardsResponse:
+    _get_or_create_user(db, payload.user_id)
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == payload.user_id))
+    if profile is None:
+        profile = LearnerProfile(
+            user_id=payload.user_id,
+            native_lang="ru",
+            target_lang="en",
+            level="A1",
+            goal=None,
+            preferences={},
+        )
+        db.add(profile)
+
+    rewards = _build_rewards(user_id=payload.user_id, db=db)
+    item = next((reward for reward in rewards.items if reward.id == payload.reward_id), None)
+    if item is None or item.status != "available":
+        return rewards
+
+    prefs = dict(profile.preferences or {})
+    claimed = set(str(it) for it in prefs.get("reward_claims", []) if isinstance(it, str))
+    claimed.add(payload.reward_id)
+    prefs["reward_claims"] = sorted(claimed)
+    profile.preferences = prefs
+    db.commit()
+    return _build_rewards(user_id=payload.user_id, db=db)

@@ -310,3 +310,17 @@ export type WeeklyGoal = {
   completion_percent: number;
   is_completed: boolean;
 };
+
+export type ProgressRewards = {
+  user_id: number;
+  total_xp: number;
+  claimed_count: number;
+  items: Array<{
+    id: string;
+    title: string;
+    description: string;
+    requirement: string;
+    xp_points: number;
+    status: "locked" | "available" | "claimed";
+  }>;
+};

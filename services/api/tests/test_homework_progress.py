@@ -88,11 +88,32 @@ def test_progress_endpoints(client: TestClient) -> None:
     assert default_body["completed_minutes"] >= 8
     assert "completion_percent" in default_body
 
+    client.post("/chat/start", json={"user_id": 901, "mode": "chat"})
+    client.post("/chat/start", json={"user_id": 901, "mode": "chat"})
+    client.post("/chat/start", json={"user_id": 901, "mode": "chat"})
+
     weekly_goal_set = client.post(
         "/progress/weekly-goal",
-        json={"user_id": 901, "target_minutes": 120},
+        json={"user_id": 901, "target_minutes": 30},
     )
     assert weekly_goal_set.status_code == 200
     set_body = weekly_goal_set.json()
-    assert set_body["target_minutes"] == 120
+    assert set_body["target_minutes"] == 30
     assert set_body["remaining_minutes"] >= 0
+
+    rewards = client.get("/progress/rewards", params={"user_id": 901})
+    assert rewards.status_code == 200
+    rewards_body = rewards.json()
+    assert "total_xp" in rewards_body
+    assert "items" in rewards_body
+    weekly_item_before = next(item for item in rewards_body["items"] if item["id"] == "weekly_goal_complete")
+    assert weekly_item_before["status"] == "available"
+
+    claim_weekly = client.post(
+        "/progress/rewards/claim",
+        json={"user_id": 901, "reward_id": "weekly_goal_complete"},
+    )
+    assert claim_weekly.status_code == 200
+    claim_body = claim_weekly.json()
+    weekly_item = next(item for item in claim_body["items"] if item["id"] == "weekly_goal_complete")
+    assert weekly_item["status"] == "claimed"

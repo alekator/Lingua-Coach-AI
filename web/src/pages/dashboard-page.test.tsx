@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   progressStreak: vi.fn(),
   progressJournal: vi.fn(),
   planToday: vi.fn(),
+  progressRewards: vi.fn(),
+  progressRewardsClaim: vi.fn(),
   pushToast: vi.fn(),
   setDailyMinutes: vi.fn(),
 }));
@@ -25,6 +27,8 @@ vi.mock("../api/client", () => ({
     progressStreak: mocks.progressStreak,
     progressJournal: mocks.progressJournal,
     planToday: mocks.planToday,
+    progressRewards: mocks.progressRewards,
+    progressRewardsClaim: mocks.progressRewardsClaim,
   },
 }));
 
@@ -111,6 +115,35 @@ describe("DashboardPage", () => {
       next_actions: ["Run one targeted drill for: grammar."],
       entries: [],
     });
+    mocks.progressRewards.mockResolvedValue({
+      user_id: 1,
+      total_xp: 30,
+      claimed_count: 1,
+      items: [
+        {
+          id: "streak_3",
+          title: "3-Day Streak",
+          description: "You studied 3 days in a row.",
+          requirement: "Reach a 3-day streak",
+          xp_points: 30,
+          status: "claimed",
+        },
+        {
+          id: "weekly_goal_complete",
+          title: "Weekly Goal Complete",
+          description: "You completed your weekly minutes target.",
+          requirement: "Complete weekly goal",
+          xp_points: 60,
+          status: "available",
+        },
+      ],
+    });
+    mocks.progressRewardsClaim.mockResolvedValue({
+      user_id: 1,
+      total_xp: 90,
+      claimed_count: 2,
+      items: [],
+    });
   });
 
   it("renders adaptive notes in today plan and updates weekly goal", async () => {
@@ -128,6 +161,8 @@ describe("DashboardPage", () => {
       expect(screen.getByText("Today one step:")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Do next best action" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Start 5-minute mode" })).toBeInTheDocument();
+      expect(screen.getByText("Rewards")).toBeInTheDocument();
+      expect(screen.getByText("XP: 30 | Claimed: 1")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Save weekly goal" }));
@@ -141,6 +176,12 @@ describe("DashboardPage", () => {
       expect(mocks.setDailyMinutes).toHaveBeenCalledWith(5);
       expect(mocks.pushToast).toHaveBeenCalledWith("info", "5-minute mode enabled for today");
       expect(screen.getByText(/Reactivation:/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Claim reward" }));
+    await waitFor(() => {
+      expect(mocks.progressRewardsClaim).toHaveBeenCalledWith({ user_id: 1, reward_id: "weekly_goal_complete" });
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Reward claimed");
     });
   });
 });

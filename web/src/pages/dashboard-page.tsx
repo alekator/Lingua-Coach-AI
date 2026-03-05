@@ -38,6 +38,10 @@ export function DashboardPage() {
     queryKey: ["progress-journal", userId],
     queryFn: () => api.progressJournal(userId),
   });
+  const rewards = useQuery({
+    queryKey: ["progress-rewards", userId],
+    queryFn: () => api.progressRewards(userId),
+  });
 
   async function onSaveGoal() {
     try {
@@ -49,6 +53,16 @@ export function DashboardPage() {
       const msg = getErrorMessage(err);
       setGoalError(msg);
       pushToast("error", msg);
+    }
+  }
+
+  async function onClaimReward(rewardId: string) {
+    try {
+      await api.progressRewardsClaim({ user_id: userId, reward_id: rewardId });
+      pushToast("success", "Reward claimed");
+      await rewards.refetch();
+    } catch (err) {
+      pushToast("error", getErrorMessage(err));
     }
   }
 
@@ -158,6 +172,32 @@ export function DashboardPage() {
               <Link to={item.route}>
                 <button type="button">Open action</button>
               </Link>
+            </div>
+          ))}
+        </article>
+      )}
+      {rewards.isPending && <LoadingState text="Loading rewards..." />}
+      {rewards.isError && <ErrorState text="Failed to load rewards." />}
+      {rewards.isSuccess && (
+        <article className="panel stack">
+          <h3>Rewards</h3>
+          <p>
+            XP: {rewards.data.total_xp} | Claimed: {rewards.data.claimed_count}
+          </p>
+          {rewards.data.items.map((item) => (
+            <div key={item.id} className="panel stack">
+              <p>
+                <strong>{item.title}</strong> ({item.xp_points} XP)
+              </p>
+              <p>{item.description}</p>
+              <p>Requirement: {item.requirement}</p>
+              {item.status === "available" && (
+                <button type="button" onClick={() => onClaimReward(item.id)}>
+                  Claim reward
+                </button>
+              )}
+              {item.status === "claimed" && <p>Status: claimed</p>}
+              {item.status === "locked" && <p>Status: locked</p>}
             </div>
           ))}
         </article>

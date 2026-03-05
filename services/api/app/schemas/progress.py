@@ -59,3 +59,24 @@ class WeeklyGoalResponse(BaseModel):
     remaining_minutes: int
     completion_percent: int
     is_completed: bool
+
+
+class RewardItem(BaseModel):
+    id: str
+    title: str
+    description: str
+    requirement: str
+    xp_points: int
+    status: str
+
+
+class ProgressRewardsResponse(BaseModel):
+    user_id: int
+    total_xp: int
+    claimed_count: int
+    items: list[RewardItem]
+
+
+class RewardClaimRequest(BaseModel):
+    user_id: int = Field(ge=1)
+    reward_id: str = Field(min_length=3, max_length=64)

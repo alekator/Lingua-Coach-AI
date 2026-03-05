@@ -22,6 +22,7 @@ import type {
   WeeklyGoal,
   ProgressStreak,
   ProgressSummary,
+  ProgressRewards,
   ScenarioSelectResponse,
   ScenarioScriptResponse,
   ScenarioTurnResponse,
@@ -258,6 +259,13 @@ export const api = {
     request<WeeklyGoal>(`/progress/weekly-goal?user_id=${encodeURIComponent(userId)}`),
   progressWeeklyGoalSet: (payload: { user_id: number; target_minutes: number }) =>
     request<WeeklyGoal>("/progress/weekly-goal", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  progressRewards: (userId: number) =>
+    request<ProgressRewards>(`/progress/rewards?user_id=${encodeURIComponent(userId)}`),
+  progressRewardsClaim: (payload: { user_id: number; reward_id: string }) =>
+    request<ProgressRewards>("/progress/rewards/claim", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
