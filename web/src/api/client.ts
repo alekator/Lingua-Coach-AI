@@ -1,5 +1,8 @@
 import type {
   AppBootstrapResponse,
+  PlacementAnswerResponse,
+  PlacementFinishResponse,
+  PlacementStartResponse,
   ChatMessageResponse,
   ChatStartResponse,
   ExercisesGenerateResponse,
@@ -74,6 +77,21 @@ export const api = {
     preferences?: Record<string, unknown>;
   }) =>
     request("/profile/setup", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  placementStart: (payload: { user_id: number; native_lang: string; target_lang: string }) =>
+    request<PlacementStartResponse>("/profile/placement-test/start", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  placementAnswer: (payload: { session_id: number; answer: string }) =>
+    request<PlacementAnswerResponse>("/profile/placement-test/answer", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  placementFinish: (payload: { session_id: number }) =>
+    request<PlacementFinishResponse>("/profile/placement-test/finish", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

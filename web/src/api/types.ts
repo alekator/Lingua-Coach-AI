@@ -5,6 +5,28 @@ export type AppBootstrapResponse = {
   next_step: "onboarding" | "dashboard";
 };
 
+export type PlacementStartResponse = {
+  session_id: number;
+  question_index: number;
+  question: string;
+  total_questions: number;
+};
+
+export type PlacementAnswerResponse = {
+  session_id: number;
+  accepted_question_index: number;
+  done: boolean;
+  next_question_index?: number | null;
+  next_question?: string | null;
+};
+
+export type PlacementFinishResponse = {
+  session_id: number;
+  level: string;
+  avg_score: number;
+  skill_map: Record<string, number>;
+};
+
 export type ProgressSummary = {
   streak_days: number;
   minutes_practiced: number;

@@ -18,6 +18,7 @@ import { useAppStore } from "./store/app-store";
 
 function BootstrapGate() {
   const location = useLocation();
+  const hasProfile = useAppStore((s) => s.hasProfile);
   const setBootstrapState = useAppStore((s) => s.setBootstrapState);
   const bootstrap = useQuery({
     queryKey: ["bootstrap"],
@@ -39,7 +40,7 @@ function BootstrapGate() {
     return <p className="centered">Failed to load bootstrap state.</p>;
   }
 
-  const needsOnboarding = bootstrap.data.needs_onboarding;
+  const needsOnboarding = bootstrap.data.needs_onboarding && !hasProfile;
   if (needsOnboarding && location.pathname !== "/") {
     return <Navigate to="/" replace />;
   }
