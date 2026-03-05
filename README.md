@@ -220,3 +220,22 @@ Dry run (no network calls):
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\e2e-smoke.ps1 -DryRun
 ```
+
+## E2E Key Paths (Script)
+
+Covers key product flows end-to-end:
+- bootstrap + onboarding/placement
+- daily planning (`/plan/today`, `/coach/session/today`, next actions, daily challenge, reactivation)
+- chat learning turn
+- scenario selection + scripted turn
+- progress and retention analytics (`summary/journal/weekly-goal/weekly-review/rewards`)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-key-paths.ps1 -BaseUrl http://localhost:8000 -UserId 1
+```
+
+Dry run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-key-paths.ps1 -DryRun
+```
