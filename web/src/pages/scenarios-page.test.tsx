@@ -99,6 +99,7 @@ describe("ScenariosPage", () => {
 
     await waitFor(() => {
       expect(mocks.selectScenario).toHaveBeenCalledWith({ user_id: 1, scenario_id: "job-interview" });
+      expect(mocks.scenarioScript).toHaveBeenCalledWith("job-interview", 1);
       expect(screen.getByText(/Coach session ready:/i)).toBeInTheDocument();
       expect(screen.getByText("Active Roleplay Step")).toBeInTheDocument();
       expect(screen.getByText("Introduce yourself in 2-3 sentences for this role.")).toBeInTheDocument();

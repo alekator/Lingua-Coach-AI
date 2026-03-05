@@ -42,7 +42,7 @@ export function ScenariosPage() {
     try {
       const [response, script] = await Promise.all([
         api.selectScenario({ user_id: userId, scenario_id: scenarioId }),
-        api.scenarioScript(scenarioId),
+        api.scenarioScript(scenarioId, userId),
       ]);
       const firstStep = script.steps[0];
       setActiveScenarioId(scenarioId);

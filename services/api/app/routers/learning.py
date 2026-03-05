@@ -31,10 +31,12 @@ from app.schemas.learning import (
 from app.services.learning import (
     build_adaptive_plan,
     build_today_session_steps,
+    build_suggested_reply,
     default_scenarios,
     evaluate_scenario_turn,
     generate_exercises,
     grade_exercises,
+    script_for_level,
     scenario_scripts,
 )
 from app.services.progress import compute_streak_days
@@ -319,18 +321,23 @@ def scenarios() -> ScenariosResponse:
 
 
 @router.get("/scenarios/script", response_model=ScenarioScriptResponse)
-def scenarios_script(scenario_id: str) -> ScenarioScriptResponse:
+def scenarios_script(scenario_id: str, user_id: int | None = None, db: Session = Depends(get_db)) -> ScenarioScriptResponse:
     scenario_map = {item.id: item for item in default_scenarios()}
     scenario = scenario_map.get(scenario_id)
     scripts = scenario_scripts()
     steps = scripts.get(scenario_id)
     if not scenario or not steps:
         raise HTTPException(status_code=404, detail="Scenario not found")
+    level = "A2"
+    if user_id is not None:
+        profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+        if profile is not None:
+            level = profile.level
     return ScenarioScriptResponse(
         scenario_id=scenario_id,
         title=scenario.title,
         description=scenario.description,
-        steps=steps,
+        steps=script_for_level(steps, level),
     )
 
 
@@ -373,7 +380,7 @@ def scenarios_turn(payload: ScenarioTurnRequest) -> ScenarioTurnResponse:
     )
     next_step = steps[step_index + 1] if step_index + 1 < len(steps) else None
     done = next_step is None
-    suggested_reply = None if score >= max_score else f"Try again using: {', '.join(current.expected_keywords[:2])}"
+    suggested_reply = None if score >= max_score else build_suggested_reply(current.expected_keywords)
 
     return ScenarioTurnResponse(
         scenario_id=payload.scenario_id,

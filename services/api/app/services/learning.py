@@ -27,6 +27,101 @@ def default_scenarios() -> list[ScenarioItem]:
             title="Airport Customs",
             description="Answer travel-control questions clearly under mild time pressure.",
         ),
+        ScenarioItem(
+            id="relocation-rental",
+            title="Apartment Rental",
+            description="Ask about rent, utilities, contract terms, and move-in details.",
+        ),
+        ScenarioItem(
+            id="relocation-bank",
+            title="Bank Account Setup",
+            description="Open an account, verify identity, and clarify account conditions.",
+        ),
+        ScenarioItem(
+            id="relocation-clinic",
+            title="Clinic Appointment",
+            description="Book an appointment, explain symptoms, and confirm next steps.",
+        ),
+        ScenarioItem(
+            id="work-standup",
+            title="Team Standup",
+            description="Give concise updates: done, in progress, blocked.",
+        ),
+        ScenarioItem(
+            id="work-meeting",
+            title="Project Meeting",
+            description="Present an idea, ask follow-up questions, and align on actions.",
+        ),
+        ScenarioItem(
+            id="work-feedback",
+            title="Manager Feedback",
+            description="Discuss performance feedback and agree on improvement actions.",
+        ),
+        ScenarioItem(
+            id="work-email",
+            title="Professional Email",
+            description="Formulate clear requests, confirmations, and deadlines.",
+        ),
+        ScenarioItem(
+            id="travel-restaurant",
+            title="Restaurant Interaction",
+            description="Order food, handle preferences, and request the bill politely.",
+        ),
+        ScenarioItem(
+            id="travel-emergency",
+            title="Travel Emergency",
+            description="Explain an urgent issue and ask for immediate help.",
+        ),
+        ScenarioItem(
+            id="daily-shopping",
+            title="Grocery Shopping",
+            description="Ask about product options, prices, and substitutions.",
+        ),
+        ScenarioItem(
+            id="daily-phone-call",
+            title="Phone Call Practice",
+            description="Handle a short practical call and confirm key details.",
+        ),
+        ScenarioItem(
+            id="daily-directions",
+            title="Asking Directions",
+            description="Ask for directions, confirm route, and repeat landmarks.",
+        ),
+        ScenarioItem(
+            id="daily-neighbor",
+            title="Neighbor Conversation",
+            description="Start polite small talk and discuss simple practical topics.",
+        ),
+        ScenarioItem(
+            id="study-presentation",
+            title="Mini Presentation",
+            description="Present a short topic with structure and transitions.",
+        ),
+        ScenarioItem(
+            id="study-debate",
+            title="Opinion Debate",
+            description="State and defend an opinion with two supporting points.",
+        ),
+        ScenarioItem(
+            id="study-storytelling",
+            title="Storytelling",
+            description="Tell a short story with clear sequence and details.",
+        ),
+        ScenarioItem(
+            id="service-return",
+            title="Product Return",
+            description="Explain issue, request refund/exchange, and negotiate options.",
+        ),
+        ScenarioItem(
+            id="service-support",
+            title="Customer Support Chat",
+            description="Describe a technical problem and confirm resolution steps.",
+        ),
+        ScenarioItem(
+            id="networking-event",
+            title="Networking Event",
+            description="Introduce yourself, exchange context, and propose follow-up.",
+        ),
     ]
 
 
@@ -112,7 +207,88 @@ def scenario_scripts() -> dict[str, list[ScenarioScriptStep]]:
                     tip="Be polite and concise.",
                 ),
             ],
+        "relocation-rental": [
+                ScenarioScriptStep(
+                    id="search",
+                    coach_prompt="Ask about available apartments and monthly rent range.",
+                    expected_keywords=["apartment", "rent", "available"],
+                    tip="Ask one clear question, then narrow options.",
+                ),
+                ScenarioScriptStep(
+                    id="terms",
+                    coach_prompt="Clarify utilities, deposit, and contract length.",
+                    expected_keywords=["utilities", "deposit", "contract"],
+                    tip="Group financial terms in one sentence.",
+                ),
+                ScenarioScriptStep(
+                    id="close",
+                    coach_prompt="Confirm move-in date and request next steps by message.",
+                    expected_keywords=["move", "date", "message"],
+                    tip="End with a polite confirmation.",
+                ),
+            ],
+        "relocation-bank": [
+                ScenarioScriptStep(
+                    id="intent",
+                    coach_prompt="Explain that you want to open a bank account.",
+                    expected_keywords=["open", "account", "bank"],
+                    tip="State intent directly.",
+                ),
+                ScenarioScriptStep(
+                    id="verify",
+                    coach_prompt="Provide identity details and ask what documents are required.",
+                    expected_keywords=["documents", "passport", "required"],
+                    tip="Mention one ID and ask one requirement question.",
+                ),
+                ScenarioScriptStep(
+                    id="confirm",
+                    coach_prompt="Confirm fees and online banking setup.",
+                    expected_keywords=["fees", "online", "setup"],
+                    tip="Repeat critical account conditions.",
+                ),
+            ],
+        "relocation-clinic": [
+                ScenarioScriptStep(
+                    id="book",
+                    coach_prompt="Book an appointment and mention your main symptom.",
+                    expected_keywords=["appointment", "symptom", "today"],
+                    tip="One symptom, one time request.",
+                ),
+                ScenarioScriptStep(
+                    id="details",
+                    coach_prompt="Describe symptom duration and severity briefly.",
+                    expected_keywords=["days", "pain", "worse"],
+                    tip="Use time + intensity language.",
+                ),
+                ScenarioScriptStep(
+                    id="followup",
+                    coach_prompt="Ask about tests, prescription, and next visit.",
+                    expected_keywords=["tests", "prescription", "next"],
+                    tip="Ask for concrete follow-up.",
+                ),
+            ],
     }
+
+
+def build_cefr_prompt_variant(base_prompt: str, level: str) -> str:
+    level_u = level.upper()
+    if level_u in {"A1", "A2"}:
+        return f"{base_prompt} Use short simple sentences (5-9 words)."
+    if level_u in {"B1", "B2"}:
+        return f"{base_prompt} Add one detail and one polite connector."
+    return f"{base_prompt} Add precision and natural phrasing with one follow-up nuance."
+
+
+def script_for_level(steps: list[ScenarioScriptStep], level: str) -> list[ScenarioScriptStep]:
+    return [
+        ScenarioScriptStep(
+            id=step.id,
+            coach_prompt=build_cefr_prompt_variant(step.coach_prompt, level),
+            expected_keywords=step.expected_keywords,
+            tip=step.tip,
+        )
+        for step in steps
+    ]
 
 
 def evaluate_scenario_turn(
@@ -128,12 +304,20 @@ def evaluate_scenario_turn(
     score = float(matched)
     ratio = score / max_score
     if ratio >= 0.8:
-        feedback = "Strong response: clear and complete for this step."
+        feedback = "Strong response. It sounds natural and complete for this step."
     elif ratio >= 0.5:
-        feedback = "Good attempt: add one more concrete detail from the prompt."
+        feedback = "Nice attempt. Add one clearer concrete detail to sound more confident."
     else:
-        feedback = "Needs improvement: include key details from this roleplay step."
+        feedback = "You are close. Try a shorter sentence with the key practical details."
     return score, max_score, feedback
+
+
+def build_suggested_reply(expected_keywords: list[str]) -> str:
+    if not expected_keywords:
+        return "Try one short, clear sentence with one practical detail."
+    lead = expected_keywords[0]
+    tail = expected_keywords[1] if len(expected_keywords) > 1 else "details"
+    return f"Example: I want to confirm {lead} and {tail}, please."
 
 
 def generate_exercises(exercise_type: str, topic: str, count: int) -> list[ExerciseItem]:

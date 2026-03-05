@@ -143,18 +143,19 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         scenarios = client.get("/scenarios")
         assert scenarios.status_code == 200
         items = scenarios.json()["items"]
-        assert len(items) >= 1
+        assert len(items) >= 20
 
         chosen = client.post("/scenarios/select", json={"user_id": 1, "scenario_id": items[0]["id"]})
         assert chosen.status_code == 200
         assert chosen.json()["mode"].startswith("scenario:")
 
-        script = client.get("/scenarios/script", params={"scenario_id": "job-interview"})
+        script = client.get("/scenarios/script", params={"scenario_id": "job-interview", "user_id": 1})
         assert script.status_code == 200
         script_body = script.json()
         assert script_body["scenario_id"] == "job-interview"
         assert len(script_body["steps"]) >= 1
         first_step = script_body["steps"][0]
+        assert "Use short simple sentences" in first_step["coach_prompt"]
 
         turn = client.post(
             "/scenarios/turn",
@@ -170,3 +171,5 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert turn_body["score"] >= 1
         assert turn_body["max_score"] >= 1
         assert "feedback" in turn_body
+        if turn_body["suggested_reply"]:
+            assert "Example:" in turn_body["suggested_reply"]

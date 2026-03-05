@@ -130,8 +130,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  scenarioScript: (scenarioId: string) =>
-    request<ScenarioScriptResponse>(`/scenarios/script?scenario_id=${encodeURIComponent(scenarioId)}`),
+  scenarioScript: (scenarioId: string, userId?: number) =>
+    request<ScenarioScriptResponse>(
+      `/scenarios/script?scenario_id=${encodeURIComponent(scenarioId)}${
+        userId ? `&user_id=${encodeURIComponent(userId)}` : ""
+      }`,
+    ),
   scenarioTurn: (payload: { user_id: number; scenario_id: string; step_id: string; user_text: string }) =>
     request<ScenarioTurnResponse>("/scenarios/turn", {
       method: "POST",
