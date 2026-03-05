@@ -4,6 +4,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { DashboardPage } from "./dashboard-page";
 
+const routerFuture = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+} as const;
+
 const mocks = vi.hoisted(() => ({
   progressSummary: vi.fn(),
   progressWeeklyGoal: vi.fn(),
@@ -69,7 +74,7 @@ function renderPage() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter future={routerFuture}>
         <DashboardPage />
       </MemoryRouter>
     </QueryClientProvider>,

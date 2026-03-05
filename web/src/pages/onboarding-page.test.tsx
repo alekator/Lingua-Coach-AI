@@ -2,6 +2,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { OnboardingPage } from "./onboarding-page";
 
+const routerFuture = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+} as const;
+
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   pushToast: vi.fn(),
@@ -125,7 +130,7 @@ describe("OnboardingPage", () => {
     });
 
     render(
-      <MemoryRouter>
+      <MemoryRouter future={routerFuture}>
         <OnboardingPage />
       </MemoryRouter>,
     );
@@ -167,7 +172,7 @@ describe("OnboardingPage", () => {
 
   it("blocks start when native and target language are equal", async () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter future={routerFuture}>
         <OnboardingPage />
       </MemoryRouter>,
     );
@@ -183,7 +188,7 @@ describe("OnboardingPage", () => {
 
   it("supports preset and swap for onboarding language pair", async () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter future={routerFuture}>
         <OnboardingPage />
       </MemoryRouter>,
     );

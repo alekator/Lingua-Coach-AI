@@ -7,11 +7,15 @@ import { AppRouter } from "./router";
 import "./styles.css";
 
 const queryClient = new QueryClient();
+const routerFuture = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+} as const;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter future={routerFuture}>
         <AppRouter />
         <ToastViewport />
       </BrowserRouter>

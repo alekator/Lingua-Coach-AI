@@ -4,13 +4,18 @@ import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
 import { AppRouter } from "./router";
 
+const routerFuture = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+} as const;
+
 function renderRouter(path: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[path]}>
+      <MemoryRouter initialEntries={[path]} future={routerFuture}>
         <AppRouter />
       </MemoryRouter>
     </QueryClientProvider>,
