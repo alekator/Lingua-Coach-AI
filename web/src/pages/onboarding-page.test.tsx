@@ -156,4 +156,20 @@ describe("OnboardingPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start my first session" }));
     expect(mocks.navigate).toHaveBeenCalledWith("/app");
   });
+
+  it("blocks start when native and target language are equal", async () => {
+    render(
+      <MemoryRouter>
+        <OnboardingPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Target language"), { target: { value: "ru" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start coaching placement" }));
+
+    await waitFor(() => {
+      expect(mocks.placementStart).not.toHaveBeenCalled();
+      expect(screen.getByText("Native and target language must be different.")).toBeInTheDocument();
+    });
+  });
 });

@@ -2,7 +2,9 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { ErrorState } from "../components/feedback";
+import { LanguagePicker } from "../components/language-picker";
 import { getErrorMessage } from "../lib/errors";
+import { normalizeLanguageCode } from "../lib/languages";
 import type { PlanTodayResponse } from "../api/types";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
@@ -91,13 +93,21 @@ export function OnboardingPage() {
   async function onStart() {
     setSubmitting(true);
     try {
+      const normalizedNative = normalizeLanguageCode(nativeLang);
+      const normalizedTarget = normalizeLanguageCode(targetLang);
+      if (!normalizedNative || !normalizedTarget) {
+        throw new Error("Please choose both native and target languages.");
+      }
+      if (normalizedNative === normalizedTarget) {
+        throw new Error("Native and target language must be different.");
+      }
       if (keyStatus !== "configured") {
         pushToast("info", "You can continue without key, but AI quality will be limited.");
       }
       const started = await api.placementStart({
         user_id: userId,
-        native_lang: nativeLang,
-        target_lang: targetLang,
+        native_lang: normalizedNative,
+        target_lang: normalizedTarget,
       });
       setError("");
       setSessionId(started.session_id);
@@ -125,8 +135,8 @@ export function OnboardingPage() {
         const finished = await api.placementFinish({ session_id: sessionId });
         const profile = await api.profileSetup({
           user_id: userId,
-          native_lang: nativeLang,
-          target_lang: targetLang,
+          native_lang: normalizeLanguageCode(nativeLang),
+          target_lang: normalizeLanguageCode(targetLang),
           level: finished.level,
           goal,
           preferences: { strictness, daily_minutes: dailyMinutes },
@@ -177,14 +187,8 @@ export function OnboardingPage() {
       {!sessionId && (
         <form className="stack" onSubmit={(event) => event.preventDefault()}>
           <p>Let your coach calibrate your starting point. Set languages and complete a quick placement test.</p>
-          <label>
-            Native language
-            <input value={nativeLang} onChange={(e) => setNativeLang(e.target.value)} />
-          </label>
-          <label>
-            Target language
-            <input value={targetLang} onChange={(e) => setTargetLang(e.target.value)} />
-          </label>
+          <LanguagePicker label="Native language" value={nativeLang} onChange={setNativeLang} />
+          <LanguagePicker label="Target language" value={targetLang} onChange={setTargetLang} />
           <label>
             Goal
             <input value={goal} onChange={(e) => setGoal(e.target.value)} />

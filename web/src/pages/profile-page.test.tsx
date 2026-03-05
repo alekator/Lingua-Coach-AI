@@ -28,22 +28,26 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-vi.mock("../api/client", () => ({
-  api: {
-    profileGet: mocks.profileGet,
-    profileSetup: mocks.profileSetup,
-    bootstrap: mocks.bootstrap,
-    workspacesList: mocks.workspacesList,
-    workspaceCreate: mocks.workspaceCreate,
-    workspaceSwitch: mocks.workspaceSwitch,
-    placementStart: mocks.placementStart,
-    placementAnswer: mocks.placementAnswer,
-    placementFinish: mocks.placementFinish,
-    progressSkillMap: mocks.progressSkillMap,
-    progressStreak: mocks.progressStreak,
-    progressJournal: mocks.progressJournal,
-  },
-}));
+vi.mock("../api/client", async () => {
+  const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
+  return {
+    ...actual,
+    api: {
+      profileGet: mocks.profileGet,
+      profileSetup: mocks.profileSetup,
+      bootstrap: mocks.bootstrap,
+      workspacesList: mocks.workspacesList,
+      workspaceCreate: mocks.workspaceCreate,
+      workspaceSwitch: mocks.workspaceSwitch,
+      placementStart: mocks.placementStart,
+      placementAnswer: mocks.placementAnswer,
+      placementFinish: mocks.placementFinish,
+      progressSkillMap: mocks.progressSkillMap,
+      progressStreak: mocks.progressStreak,
+      progressJournal: mocks.progressJournal,
+    },
+  };
+});
 
 vi.mock("../store/app-store", () => ({
   useAppStore: (
@@ -249,6 +253,23 @@ describe("ProfilePage", () => {
         }),
       );
       expect(mocks.navigate).toHaveBeenCalledWith("/", { replace: true });
+    });
+  });
+
+  it("prevents creating a space with identical language pair", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("New native language")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("New native language"), { target: { value: "ru" } });
+    fireEvent.change(screen.getByLabelText("New target language"), { target: { value: "ru" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create and switch space" }));
+
+    await waitFor(() => {
+      expect(mocks.workspaceCreate).not.toHaveBeenCalled();
+      expect(screen.getByText("Native and target language must be different.")).toBeInTheDocument();
     });
   });
 });

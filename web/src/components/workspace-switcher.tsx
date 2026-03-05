@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { getErrorMessage } from "../lib/errors";
+import { languageLabelByCode } from "../lib/languages";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
@@ -48,7 +49,7 @@ export function WorkspaceSwitcher() {
       >
         {items.map((item) => (
           <option key={item.id} value={item.id}>
-            {item.native_lang} {"->"} {item.target_lang}
+            {languageLabelByCode(item.native_lang)} {"->"} {languageLabelByCode(item.target_lang)}
           </option>
         ))}
       </select>

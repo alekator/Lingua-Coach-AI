@@ -3,7 +3,9 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
+import { LanguagePicker } from "../components/language-picker";
 import { getErrorMessage } from "../lib/errors";
+import { languageLabelByCode, normalizeLanguageCode } from "../lib/languages";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
@@ -104,9 +106,17 @@ export function ProfilePage() {
     event.preventDefault();
     setWorkspaceBusy(true);
     try {
+      const normalizedNative = normalizeLanguageCode(newNativeLang);
+      const normalizedTarget = normalizeLanguageCode(newTargetLang);
+      if (!normalizedNative || !normalizedTarget) {
+        throw new Error("Please choose both native and target languages.");
+      }
+      if (normalizedNative === normalizedTarget) {
+        throw new Error("Native and target language must be different.");
+      }
       await api.workspaceCreate({
-        native_lang: newNativeLang,
-        target_lang: newTargetLang,
+        native_lang: normalizedNative,
+        target_lang: normalizedTarget,
         goal: newGoal || null,
         make_active: true,
       });
@@ -233,7 +243,7 @@ export function ProfilePage() {
               >
                 {workspaces.data.items.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.native_lang} {"->"} {item.target_lang}
+                    {languageLabelByCode(item.native_lang)} {"->"} {languageLabelByCode(item.target_lang)}
                     {item.is_active ? " (active)" : ""}
                   </option>
                 ))}
@@ -241,22 +251,18 @@ export function ProfilePage() {
             </label>
             <form className="stack" onSubmit={onCreateWorkspace}>
               <h4>Create new space</h4>
-              <label>
-                Native language
-                <input
-                  aria-label="New native language"
-                  value={newNativeLang}
-                  onChange={(e) => setNewNativeLang(e.target.value)}
-                />
-              </label>
-              <label>
-                Target language
-                <input
-                  aria-label="New target language"
-                  value={newTargetLang}
-                  onChange={(e) => setNewTargetLang(e.target.value)}
-                />
-              </label>
+              <LanguagePicker
+                label="Native language"
+                ariaLabel="New native language"
+                value={newNativeLang}
+                onChange={setNewNativeLang}
+              />
+              <LanguagePicker
+                label="Target language"
+                ariaLabel="New target language"
+                value={newTargetLang}
+                onChange={setNewTargetLang}
+              />
               <label>
                 Goal
                 <input aria-label="New space goal" value={newGoal} onChange={(e) => setNewGoal(e.target.value)} />
