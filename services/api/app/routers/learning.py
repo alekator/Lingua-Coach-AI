@@ -91,8 +91,8 @@ def exercises_generate(payload: ExercisesGenerateRequest) -> ExercisesGenerateRe
 
 @router.post("/exercises/grade", response_model=ExercisesGradeResponse)
 def exercises_grade(payload: ExercisesGradeRequest) -> ExercisesGradeResponse:
-    score, max_score, details = grade_exercises(payload.answers, payload.expected)
-    return ExercisesGradeResponse(score=score, max_score=max_score, details=details)
+    score, max_score, details, rubric = grade_exercises(payload.answers, payload.expected)
+    return ExercisesGradeResponse(score=score, max_score=max_score, details=details, rubric=rubric)
 
 
 @router.get("/plan/today", response_model=PlanTodayResponse)

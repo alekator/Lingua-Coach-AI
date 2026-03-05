@@ -94,6 +94,17 @@ export type ExercisesGradeResponse = {
   score: number;
   max_score: number;
   details: Record<string, boolean>;
+  rubric?: Record<
+    string,
+    {
+      is_correct: boolean;
+      completeness: number;
+      grammar_quality: number;
+      lexical_quality: number;
+      item_score: number;
+      feedback: string;
+    }
+  >;
 };
 
 export type TranslateResponse = {
@@ -127,6 +138,16 @@ export type VoiceMessageResponse = {
   teacher_text: string;
   audio_url: string;
   pronunciation_feedback: string;
+  pronunciation_rubric?: {
+    fluency: number;
+    clarity: number;
+    grammar_accuracy: number;
+    vocabulary_range: number;
+    confidence: number;
+    overall_score: number;
+    level_band: string;
+    actionable_tips: string[];
+  };
 };
 
 export type VocabItem = {

@@ -29,18 +29,43 @@ def generate_exercises(exercise_type: str, topic: str, count: int) -> list[Exerc
     return items
 
 
-def grade_exercises(answers: dict[str, str], expected: dict[str, str]) -> tuple[float, float, dict[str, bool]]:
+def grade_exercises(
+    answers: dict[str, str],
+    expected: dict[str, str],
+) -> tuple[float, float, dict[str, bool], dict[str, dict[str, float | str | bool]]]:
     if not expected:
-        return 0.0, 0.0, {}
+        return 0.0, 0.0, {}, {}
     details: dict[str, bool] = {}
+    rubric: dict[str, dict[str, float | str | bool]] = {}
     correct = 0
     for key, value in expected.items():
-        ok = answers.get(key, "").strip().lower() == value.strip().lower()
+        answer = answers.get(key, "").strip()
+        expected_clean = value.strip()
+        ok = answer.lower() == expected_clean.lower()
         details[key] = ok
         if ok:
             correct += 1
+
+        # Lightweight rubric for MVP scoring transparency.
+        answer_len = len(answer.split())
+        expected_len = max(1, len(expected_clean.split()))
+        completeness = min(1.0, answer_len / expected_len)
+        grammar_quality = 1.0 if ok else 0.6 if answer else 0.2
+        lexical_quality = 1.0 if answer else 0.0
+        item_score = round(
+            (0.6 * (1.0 if ok else 0.0)) + (0.2 * completeness) + (0.1 * grammar_quality) + (0.1 * lexical_quality),
+            3,
+        )
+        rubric[key] = {
+            "is_correct": ok,
+            "completeness": round(completeness, 3),
+            "grammar_quality": round(grammar_quality, 3),
+            "lexical_quality": round(lexical_quality, 3),
+            "item_score": item_score,
+            "feedback": "Exact match." if ok else "Close meaning is possible, but expected form differs.",
+        }
     max_score = float(len(expected))
-    return float(correct), max_score, details
+    return float(correct), max_score, details, rubric
 
 
 def build_adaptive_plan(

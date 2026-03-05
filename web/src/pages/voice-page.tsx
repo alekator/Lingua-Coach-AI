@@ -22,8 +22,12 @@ export function VoicePage() {
         target_lang: "en",
         language_hint: "en",
       });
+      const rubric = response.pronunciation_rubric;
+      const rubricBlock = rubric
+        ? `\nRubric: overall ${rubric.overall_score} (${rubric.level_band}), fluency ${rubric.fluency}, clarity ${rubric.clarity}\nTips: ${rubric.actionable_tips.join("; ")}`
+        : "";
       setResult(
-        `Transcript: ${response.transcript}\nTeacher: ${response.teacher_text}\nAudio: ${response.audio_url}\nTip: ${response.pronunciation_feedback}`,
+        `Transcript: ${response.transcript}\nTeacher: ${response.teacher_text}\nAudio: ${response.audio_url}\nTip: ${response.pronunciation_feedback}${rubricBlock}`,
       );
       setError("");
       pushToast("success", "Voice message processed");

@@ -69,5 +69,8 @@ def test_voice_message_pipeline(
         assert body["transcript"] == "I goed to school"
         assert body["teacher_text"] == "You should say: I went to school."
         assert body["audio_url"] == "http://tts.local/audio/voice-1.mp3"
-        assert "Speech is understandable" in body["pronunciation_feedback"]
+        assert len(body["pronunciation_feedback"]) > 10
+        assert body["pronunciation_rubric"]["grammar_accuracy"] < 60
+        assert body["pronunciation_rubric"]["level_band"] in {"needs_work", "developing", "solid"}
+        assert len(body["pronunciation_rubric"]["actionable_tips"]) >= 1
         assert [step for step, _ in chain] == ["asr", "teacher", "tts"]

@@ -8,7 +8,12 @@ from app.db import get_db
 from app.models import LearnerProfile
 from app.schemas.voice import VoiceMessageResponse, VoiceTranscribeResponse
 from app.services.translate import TtsSynthesizerFn
-from app.services.voice import AsrTranscriberFn, VoiceTeacherFn, build_pronunciation_feedback
+from app.services.voice import (
+    AsrTranscriberFn,
+    VoiceTeacherFn,
+    build_pronunciation_feedback,
+    build_pronunciation_rubric,
+)
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
@@ -76,4 +81,5 @@ async def voice_message(
         teacher_text=teacher_text,
         audio_url=audio_url,
         pronunciation_feedback=build_pronunciation_feedback(transcript),
+        pronunciation_rubric=build_pronunciation_rubric(transcript),
     )

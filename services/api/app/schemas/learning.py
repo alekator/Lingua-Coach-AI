@@ -54,6 +54,7 @@ class ExercisesGradeResponse(BaseModel):
     score: float
     max_score: float
     details: dict[str, bool]
+    rubric: dict[str, dict[str, float | str | bool]]
 
 
 class PlanTodayResponse(BaseModel):

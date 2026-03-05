@@ -61,9 +61,54 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
 
 
 def build_pronunciation_feedback(transcript: str) -> str:
-    words = transcript.split()
-    if len(words) < 4:
-        return "Try speaking a little longer to assess pronunciation more accurately."
-    if any("'" in w for w in words):
-        return "Good contractions usage; focus on clear final consonants."
-    return "Speech is understandable; focus on stress in longer words."
+    rubric = build_pronunciation_rubric(transcript)
+    if rubric["overall_score"] < 45:
+        return "Focus on slower pace and clearer articulation. Start with short phrases."
+    if rubric["overall_score"] < 70:
+        return "Speech is understandable. Improve stress and sentence rhythm."
+    return "Good pronunciation baseline. Keep polishing natural rhythm and intonation."
+
+
+def build_pronunciation_rubric(transcript: str) -> dict[str, float | str | list[str]]:
+    words = [w for w in transcript.split() if w.strip()]
+    length = len(words)
+    unique_ratio = len({w.lower() for w in words}) / max(1, length)
+    has_contractions = any("'" in w for w in words)
+
+    fluency = 35.0 + min(45.0, length * 2.5)
+    clarity = 50.0 + (10.0 if has_contractions else 0.0)
+    grammar_accuracy = 75.0 if "goed" not in transcript.lower() else 45.0
+    vocabulary_range = min(90.0, 40.0 + unique_ratio * 55.0)
+    confidence = min(90.0, 35.0 + length * 2.0)
+
+    overall = round(
+        0.25 * fluency
+        + 0.2 * clarity
+        + 0.2 * grammar_accuracy
+        + 0.15 * vocabulary_range
+        + 0.2 * confidence,
+        2,
+    )
+    band = "needs_work" if overall < 45 else "developing" if overall < 70 else "solid"
+    tips: list[str] = []
+    if fluency < 60:
+        tips.append("Speak in 5-8 word chunks without long pauses.")
+    if clarity < 65:
+        tips.append("Over-articulate final consonants, then relax naturally.")
+    if grammar_accuracy < 60:
+        tips.append("Review irregular past forms before speaking drills.")
+    if vocabulary_range < 60:
+        tips.append("Reuse 3-5 topic words in one response.")
+    if not tips:
+        tips.append("Add intonation variety on key words for natural delivery.")
+
+    return {
+        "fluency": round(fluency, 2),
+        "clarity": round(clarity, 2),
+        "grammar_accuracy": round(grammar_accuracy, 2),
+        "vocabulary_range": round(vocabulary_range, 2),
+        "confidence": round(confidence, 2),
+        "overall_score": overall,
+        "level_band": band,
+        "actionable_tips": tips[:3],
+    }

@@ -61,6 +61,10 @@ def test_exercises_generate_and_grade(client: TestClient) -> None:
     body = graded.json()
     assert body["score"] == 1.0
     assert body["max_score"] == 3.0
+    assert "rubric" in body
+    assert "ex-1" in body["rubric"]
+    assert body["rubric"]["ex-1"]["is_correct"] is True
+    assert "item_score" in body["rubric"]["ex-2"]
 
 
 def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> None:
