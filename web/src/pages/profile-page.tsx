@@ -3,7 +3,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
-import { LanguagePicker } from "../components/language-picker";
+import { LanguagePairSelector } from "../components/language-pair-selector";
 import { getErrorMessage } from "../lib/errors";
 import { languageLabelByCode, normalizeLanguageCode } from "../lib/languages";
 import { useAppStore } from "../store/app-store";
@@ -254,17 +254,12 @@ export function ProfilePage() {
             </label>
             <form className="stack" onSubmit={onCreateWorkspace}>
               <h4>Create new space</h4>
-              <LanguagePicker
-                label="Native language"
-                ariaLabel="New native language"
-                value={newNativeLang}
-                onChange={setNewNativeLang}
-              />
-              <LanguagePicker
-                label="Target language"
-                ariaLabel="New target language"
-                value={newTargetLang}
-                onChange={setNewTargetLang}
+              <LanguagePairSelector
+                nativeLang={newNativeLang}
+                targetLang={newTargetLang}
+                onNativeLangChange={setNewNativeLang}
+                onTargetLangChange={setNewTargetLang}
+                ariaPrefix="New space"
               />
               <label>
                 Goal

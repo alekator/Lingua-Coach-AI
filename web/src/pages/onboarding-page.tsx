@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { ErrorState } from "../components/feedback";
-import { LanguagePicker } from "../components/language-picker";
+import { LanguagePairSelector } from "../components/language-pair-selector";
 import { getErrorMessage } from "../lib/errors";
 import { normalizeLanguageCode } from "../lib/languages";
 import type { PlanTodayResponse } from "../api/types";
@@ -209,8 +209,13 @@ export function OnboardingPage() {
       {!sessionId && (
         <form className="stack" onSubmit={(event) => event.preventDefault()}>
           <p>Let your coach calibrate your starting point. Set languages and complete a quick placement test.</p>
-          <LanguagePicker label="Native language" value={nativeLang} onChange={setNativeLang} />
-          <LanguagePicker label="Target language" value={targetLang} onChange={setTargetLang} />
+          <LanguagePairSelector
+            nativeLang={nativeLang}
+            targetLang={targetLang}
+            onNativeLangChange={setNativeLang}
+            onTargetLangChange={setTargetLang}
+            ariaPrefix="Onboarding"
+          />
           <label>
             Goal
             <input value={goal} onChange={(e) => setGoal(e.target.value)} />

@@ -172,12 +172,28 @@ describe("OnboardingPage", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.change(screen.getByLabelText("Target language"), { target: { value: "ru" } });
+    fireEvent.change(screen.getByLabelText("Onboarding target language"), { target: { value: "ru" } });
     fireEvent.click(screen.getByRole("button", { name: "Start coaching placement" }));
 
     await waitFor(() => {
       expect(mocks.placementStart).not.toHaveBeenCalled();
       expect(screen.getByText("Native and target language must be different.")).toBeInTheDocument();
     });
+  });
+
+  it("supports preset and swap for onboarding language pair", async () => {
+    render(
+      <MemoryRouter>
+        <OnboardingPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByLabelText("Onboarding preset DE -> EN"));
+    expect(screen.getByLabelText("Onboarding native language")).toHaveValue("de");
+    expect(screen.getByLabelText("Onboarding target language")).toHaveValue("en");
+
+    fireEvent.click(screen.getByLabelText("Onboarding swap languages"));
+    expect(screen.getByLabelText("Onboarding native language")).toHaveValue("en");
+    expect(screen.getByLabelText("Onboarding target language")).toHaveValue("de");
   });
 });

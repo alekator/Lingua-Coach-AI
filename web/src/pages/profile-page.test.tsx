@@ -228,11 +228,11 @@ describe("ProfilePage", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Learning Spaces" })).toBeInTheDocument();
-      expect(screen.getByLabelText("New native language")).toBeInTheDocument();
+      expect(screen.getByLabelText("New space native language")).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByLabelText("New native language"), { target: { value: "de" } });
-    fireEvent.change(screen.getByLabelText("New target language"), { target: { value: "en" } });
+    fireEvent.change(screen.getByLabelText("New space native language"), { target: { value: "de" } });
+    fireEvent.change(screen.getByLabelText("New space target language"), { target: { value: "en" } });
     fireEvent.change(screen.getByLabelText("New space goal"), { target: { value: "job" } });
     fireEvent.click(screen.getByRole("button", { name: "Create and switch space" }));
 
@@ -260,16 +260,32 @@ describe("ProfilePage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByLabelText("New native language")).toBeInTheDocument();
+      expect(screen.getByLabelText("New space native language")).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByLabelText("New native language"), { target: { value: "ru" } });
-    fireEvent.change(screen.getByLabelText("New target language"), { target: { value: "ru" } });
+    fireEvent.change(screen.getByLabelText("New space native language"), { target: { value: "ru" } });
+    fireEvent.change(screen.getByLabelText("New space target language"), { target: { value: "ru" } });
     fireEvent.click(screen.getByRole("button", { name: "Create and switch space" }));
 
     await waitFor(() => {
       expect(mocks.workspaceCreate).not.toHaveBeenCalled();
       expect(screen.getByText("Native and target language must be different.")).toBeInTheDocument();
     });
+  });
+
+  it("applies preset pair and swap controls in new space builder", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("New space preset DE -> EN")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText("New space preset DE -> EN"));
+    expect(screen.getByLabelText("New space native language")).toHaveValue("de");
+    expect(screen.getByLabelText("New space target language")).toHaveValue("en");
+
+    fireEvent.click(screen.getByLabelText("New space swap languages"));
+    expect(screen.getByLabelText("New space native language")).toHaveValue("en");
+    expect(screen.getByLabelText("New space target language")).toHaveValue("de");
   });
 });
