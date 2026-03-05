@@ -55,7 +55,15 @@ Invoke-WebRequest http://localhost:8002/health -UseBasicParsing
   - `POST /chat/end`
 - Translation + TTS:
   - `POST /translate`
+  - `POST /translate/voice`
   - `POST /tts/speak` (on tts service)
+- Grammar + exercises + planning:
+  - `POST /grammar/analyze`
+  - `POST /exercises/generate`
+  - `POST /exercises/grade`
+  - `GET /plan/today`
+  - `GET /scenarios`
+  - `POST /scenarios/select`
 - Voice pipeline:
   - `POST /voice/transcribe`
   - `POST /voice/message`

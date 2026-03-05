@@ -19,6 +19,7 @@ from app.db import init_db
 from app.routers.app_state import router as app_state_router
 from app.routers.chat import router as chat_router
 from app.routers.homework import router as homework_router
+from app.routers.learning import router as learning_router
 from app.routers.profile import router as profile_router
 from app.routers.progress import router as progress_router
 from app.routers.translate import router as translate_router
@@ -210,6 +211,7 @@ def create_app(
     app.include_router(vocab_router)
     app.include_router(homework_router)
     app.include_router(progress_router)
+    app.include_router(learning_router)
 
     return app
 
