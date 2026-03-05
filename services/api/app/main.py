@@ -11,6 +11,7 @@ from collections import deque
 from typing import Any, Callable
 
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from openai import OpenAI
 from pydantic import BaseModel
@@ -86,6 +87,12 @@ def create_app(
     rate_limit_per_minute: int = 120,
 ) -> FastAPI:
     app = FastAPI(title="LinguaCoach API", version="0.1.0", lifespan=app_lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     probe = openai_probe or default_openai_probe
     app.state.teacher_responder = teacher_responder or default_teacher_responder
     app.state.translator = translator or default_translator
