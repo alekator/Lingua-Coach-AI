@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   placementFinish: vi.fn(),
   progressSkillMap: vi.fn(),
   progressStreak: vi.fn(),
+  progressJournal: vi.fn(),
   pushToast: vi.fn(),
 }));
 
@@ -22,6 +23,7 @@ vi.mock("../api/client", () => ({
     placementFinish: mocks.placementFinish,
     progressSkillMap: mocks.progressSkillMap,
     progressStreak: mocks.progressStreak,
+    progressJournal: mocks.progressJournal,
   },
 }));
 
@@ -68,6 +70,21 @@ describe("ProfilePage", () => {
       streak_days: 2,
       active_dates: ["2026-03-05", "2026-03-06"],
     });
+    mocks.progressJournal.mockResolvedValue({
+      weekly_minutes: 24,
+      weekly_sessions: 3,
+      weak_areas: ["grammar"],
+      next_actions: ["Run one targeted drill for: grammar."],
+      entries: [
+        {
+          session_id: 9,
+          started_at: "2026-03-06",
+          mode: "chat",
+          messages_count: 4,
+          completed: true,
+        },
+      ],
+    });
     mocks.profileSetup.mockResolvedValue({});
     mocks.placementStart.mockResolvedValue({
       session_id: 11,
@@ -95,6 +112,7 @@ describe("ProfilePage", () => {
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("ru")).toBeInTheDocument();
+      expect(screen.getByText("Weekly Journal")).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByLabelText("Goal"), { target: { value: "travel" } });

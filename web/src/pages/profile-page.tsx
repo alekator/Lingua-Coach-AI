@@ -35,6 +35,10 @@ export function ProfilePage() {
     queryKey: ["streak", userId],
     queryFn: () => api.progressStreak(userId),
   });
+  const journal = useQuery({
+    queryKey: ["progress-journal", userId],
+    queryFn: () => api.progressJournal(userId),
+  });
 
   useEffect(() => {
     if (!profile.data) return;
@@ -190,8 +194,12 @@ export function ProfilePage() {
           </button>
         </form>
       )}
-      {(streak.isPending || skillMap.isPending) && <LoadingState text="Loading profile analytics..." />}
-      {(streak.isError || skillMap.isError) && <ErrorState text="Failed to load progress analytics." />}
+      {(streak.isPending || skillMap.isPending || journal.isPending) && (
+        <LoadingState text="Loading profile analytics..." />
+      )}
+      {(streak.isError || skillMap.isError || journal.isError) && (
+        <ErrorState text="Failed to load progress analytics." />
+      )}
       {streak.isSuccess && skillMap.isSuccess && streak.data.streak_days === 0 && (
         <EmptyState text="No tracked activity yet. Start a lesson to populate progress." />
       )}
@@ -211,6 +219,27 @@ export function ProfilePage() {
           <p>Vocab: {skillMap.data.vocab}</p>
           <p>Reading: {skillMap.data.reading}</p>
           <p>Writing: {skillMap.data.writing}</p>
+        </article>
+      )}
+      {journal.isSuccess && (
+        <article className="panel">
+          <h3>Weekly Journal</h3>
+          <p>
+            Sessions: {journal.data.weekly_sessions} | Minutes: {journal.data.weekly_minutes}
+          </p>
+          <p>Weak areas: {journal.data.weak_areas.join(", ") || "none detected"}</p>
+          <h4>Next actions</h4>
+          {journal.data.next_actions.map((action) => (
+            <p key={action}>- {action}</p>
+          ))}
+          <h4>Recent sessions</h4>
+          {journal.data.entries.length === 0 && <p>No session history yet.</p>}
+          {journal.data.entries.map((entry) => (
+            <p key={entry.session_id}>
+              #{entry.session_id} | {entry.started_at} | {entry.mode} | msgs: {entry.messages_count} |{" "}
+              {entry.completed ? "completed" : "in progress"}
+            </p>
+          ))}
         </article>
       )}
     </section>

@@ -71,3 +71,12 @@ def test_progress_endpoints(client: TestClient) -> None:
     assert summary_body["words_learned"] >= 1
     assert summary_body["minutes_practiced"] >= 8
     assert summary_body["streak_days"] >= 1
+
+    journal = client.get("/progress/journal", params={"user_id": 901})
+    assert journal.status_code == 200
+    journal_body = journal.json()
+    assert "weekly_minutes" in journal_body
+    assert "weekly_sessions" in journal_body
+    assert "next_actions" in journal_body
+    assert len(journal_body["entries"]) >= 1
+    assert "session_id" in journal_body["entries"][0]

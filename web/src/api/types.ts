@@ -240,3 +240,17 @@ export type ProgressStreak = {
   streak_days: number;
   active_dates: string[];
 };
+
+export type ProgressJournal = {
+  weekly_minutes: number;
+  weekly_sessions: number;
+  weak_areas: string[];
+  next_actions: string[];
+  entries: Array<{
+    session_id: number;
+    started_at: string;
+    mode: string;
+    messages_count: number;
+    completed: boolean;
+  }>;
+};
