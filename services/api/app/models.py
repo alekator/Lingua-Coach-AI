@@ -26,6 +26,7 @@ class User(Base):
 
     learner_profile: Mapped["LearnerProfile | None"] = relationship(back_populates="user")
     chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="user")
+    homeworks: Mapped[list["Homework"]] = relationship(back_populates="user")
 
 
 class LearnerProfile(Base):
@@ -183,3 +184,39 @@ class SrsState(Base):
     last_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     vocab_item: Mapped["VocabItem"] = relationship(back_populates="srs_state")
+
+
+class Homework(Base):
+    __tablename__ = "homeworks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    tasks: Mapped[list] = mapped_column(json_type(), default=list, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="assigned", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped["User"] = relationship(back_populates="homeworks")
+    submissions: Mapped[list["HomeworkSubmission"]] = relationship(
+        back_populates="homework",
+        cascade="all, delete-orphan",
+    )
+
+
+class HomeworkSubmission(Base):
+    __tablename__ = "homework_submissions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    homework_id: Mapped[int] = mapped_column(
+        ForeignKey("homeworks.id", ondelete="CASCADE"), nullable=False
+    )
+    answers: Mapped[dict] = mapped_column(json_type(), default=dict, nullable=False)
+    grade: Mapped[dict] = mapped_column(json_type(), default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    homework: Mapped["Homework"] = relationship(back_populates="submissions")
