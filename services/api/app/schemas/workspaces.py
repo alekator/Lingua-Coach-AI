@@ -36,3 +36,20 @@ class WorkspaceSwitchResponse(BaseModel):
     active_workspace_id: int
     active_user_id: int
 
+
+class WorkspaceOverviewItem(BaseModel):
+    workspace_id: int
+    native_lang: str
+    target_lang: str
+    goal: str | None
+    is_active: bool
+    has_profile: bool
+    streak_days: int
+    minutes_practiced: int
+    words_learned: int
+    last_activity_at: datetime | None
+
+
+class WorkspaceOverviewResponse(BaseModel):
+    owner_user_id: int
+    items: list[WorkspaceOverviewItem]

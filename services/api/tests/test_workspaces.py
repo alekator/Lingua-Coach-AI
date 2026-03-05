@@ -109,3 +109,59 @@ def test_workspace_profiles_are_isolated_between_language_pairs(client: TestClie
     assert profile_b.json()["native_lang"] == "es"
     assert profile_b.json()["target_lang"] == "ru"
     assert profile_b.json()["level"] == "B1"
+
+
+def test_workspace_overview_returns_per_space_metrics(client: TestClient) -> None:
+    setup_a = client.post(
+        "/profile/setup",
+        json={
+            "user_id": 1,
+            "native_lang": "de",
+            "target_lang": "en",
+            "level": "A2",
+            "goal": "job",
+            "preferences": {},
+        },
+    )
+    assert setup_a.status_code == 200
+    user_a = setup_a.json()["user_id"]
+
+    setup_b = client.post(
+        "/profile/setup",
+        json={
+            "user_id": 1,
+            "native_lang": "es",
+            "target_lang": "ru",
+            "level": "B1",
+            "goal": "travel",
+            "preferences": {},
+        },
+    )
+    assert setup_b.status_code == 200
+    user_b = setup_b.json()["user_id"]
+
+    vocab = client.post(
+        "/vocab/add",
+        json={"user_id": user_a, "word": "hiring", "translation": "naim"},
+    )
+    assert vocab.status_code == 200
+
+    chat_start = client.post("/chat/start", json={"user_id": user_b, "mode": "chat"})
+    assert chat_start.status_code == 200
+
+    overview = client.get("/workspaces/overview")
+    assert overview.status_code == 200
+    payload = overview.json()
+    assert payload["owner_user_id"] == 1
+    assert len(payload["items"]) == 2
+
+    de_en = next(item for item in payload["items"] if item["native_lang"] == "de" and item["target_lang"] == "en")
+    es_ru = next(item for item in payload["items"] if item["native_lang"] == "es" and item["target_lang"] == "ru")
+
+    assert de_en["has_profile"] is True
+    assert de_en["goal"] == "job"
+    assert de_en["words_learned"] >= 1
+
+    assert es_ru["has_profile"] is True
+    assert es_ru["goal"] == "travel"
+    assert es_ru["minutes_practiced"] >= 8

@@ -46,6 +46,7 @@ import type {
   WorkspaceListResponse,
   WorkspaceSwitchResponse,
   LearningWorkspace,
+  WorkspaceOverviewResponse,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -107,6 +108,7 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   workspaceActive: () => request<WorkspaceSwitchResponse>("/workspaces/active"),
+  workspacesOverview: () => request<WorkspaceOverviewResponse>("/workspaces/overview"),
   openaiKeyStatus: () => request<OpenAIKeyStatus>("/settings/openai-key"),
   openaiKeySet: (payload: { api_key: string }) =>
     request<OpenAIKeyStatus>("/settings/openai-key", {

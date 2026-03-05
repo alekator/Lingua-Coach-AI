@@ -15,8 +15,12 @@ const mocks = vi.hoisted(() => ({
   progressRewards: vi.fn(),
   progressRewardsClaim: vi.fn(),
   progressWeeklyReview: vi.fn(),
+  workspacesOverview: vi.fn(),
+  workspaceSwitch: vi.fn(),
+  bootstrap: vi.fn(),
   pushToast: vi.fn(),
   setDailyMinutes: vi.fn(),
+  setBootstrapState: vi.fn(),
 }));
 
 vi.mock("../api/client", () => ({
@@ -31,12 +35,27 @@ vi.mock("../api/client", () => ({
     progressRewards: mocks.progressRewards,
     progressRewardsClaim: mocks.progressRewardsClaim,
     progressWeeklyReview: mocks.progressWeeklyReview,
+    workspacesOverview: mocks.workspacesOverview,
+    workspaceSwitch: mocks.workspaceSwitch,
+    bootstrap: mocks.bootstrap,
   },
 }));
 
 vi.mock("../store/app-store", () => ({
-  useAppStore: (selector: (state: { userId: number; setDailyMinutes: (minutes: number) => void }) => unknown) =>
-    selector({ userId: 1, setDailyMinutes: mocks.setDailyMinutes }),
+  useAppStore: (
+    selector: (state: {
+      userId: number;
+      activeWorkspaceId: number;
+      setDailyMinutes: (minutes: number) => void;
+      setBootstrapState: typeof mocks.setBootstrapState;
+    }) => unknown,
+  ) =>
+    selector({
+      userId: 1,
+      activeWorkspaceId: 1,
+      setDailyMinutes: mocks.setDailyMinutes,
+      setBootstrapState: mocks.setBootstrapState,
+    }),
 }));
 
 vi.mock("../store/toast-store", () => ({
@@ -170,6 +189,47 @@ describe("DashboardPage", () => {
       wins: ["3 sessions completed this week.", "24 active learning minutes logged."],
       next_focus: "Keep momentum with one short drill in grammar and one coach chat turn.",
     });
+    mocks.workspacesOverview.mockResolvedValue({
+      owner_user_id: 1,
+      items: [
+        {
+          workspace_id: 1,
+          native_lang: "ru",
+          target_lang: "en",
+          goal: "travel",
+          is_active: true,
+          has_profile: true,
+          streak_days: 3,
+          minutes_practiced: 24,
+          words_learned: 8,
+          last_activity_at: "2026-03-06T10:00:00Z",
+        },
+        {
+          workspace_id: 2,
+          native_lang: "de",
+          target_lang: "en",
+          goal: "job",
+          is_active: false,
+          has_profile: false,
+          streak_days: 0,
+          minutes_practiced: 0,
+          words_learned: 0,
+          last_activity_at: null,
+        },
+      ],
+    });
+    mocks.workspaceSwitch.mockResolvedValue({ active_workspace_id: 2, active_user_id: 2 });
+    mocks.bootstrap.mockResolvedValue({
+      user_id: 2,
+      has_profile: false,
+      needs_onboarding: true,
+      next_step: "onboarding",
+      owner_user_id: 1,
+      active_workspace_id: 2,
+      active_workspace_native_lang: "de",
+      active_workspace_target_lang: "en",
+      active_workspace_goal: "job",
+    });
   });
 
   it("renders adaptive notes in today plan and updates weekly goal", async () => {
@@ -195,6 +255,9 @@ describe("DashboardPage", () => {
       expect(screen.getByText("Skills: strongest vocab, weakest grammar")).toBeInTheDocument();
       expect(screen.getByText("Daily Challenge")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Start daily challenge" })).toBeInTheDocument();
+      expect(screen.getByText("Your Learning Spaces")).toBeInTheDocument();
+      expect(screen.getByText("Needs onboarding to unlock full coach flow.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Switch and open" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Save weekly goal" }));
@@ -219,6 +282,19 @@ describe("DashboardPage", () => {
     await waitFor(() => {
       expect(mocks.progressRewardsClaim).toHaveBeenCalledWith({ user_id: 1, reward_id: "weekly_goal_complete" });
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Reward claimed");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch and open" }));
+    await waitFor(() => {
+      expect(mocks.workspaceSwitch).toHaveBeenCalledWith({ workspace_id: 2 });
+      expect(mocks.setBootstrapState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 2,
+          hasProfile: false,
+          activeWorkspaceId: 2,
+        }),
+      );
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Switched learning space");
     });
   });
 });

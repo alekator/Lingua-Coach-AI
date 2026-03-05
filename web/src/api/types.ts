@@ -31,6 +31,22 @@ export type WorkspaceSwitchResponse = {
   active_user_id: number;
 };
 
+export type WorkspaceOverviewResponse = {
+  owner_user_id: number;
+  items: Array<{
+    workspace_id: number;
+    native_lang: string;
+    target_lang: string;
+    goal?: string | null;
+    is_active: boolean;
+    has_profile: boolean;
+    streak_days: number;
+    minutes_practiced: number;
+    words_learned: number;
+    last_activity_at?: string | null;
+  }>;
+};
+
 export type PlacementStartResponse = {
   session_id: number;
   question_index: number;

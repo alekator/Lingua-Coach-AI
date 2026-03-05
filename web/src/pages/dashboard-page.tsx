@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
@@ -8,8 +8,11 @@ import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
 export function DashboardPage() {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const userId = useAppStore((s) => s.userId) ?? 1;
+  const setBootstrapState = useAppStore((s) => s.setBootstrapState);
+  const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
   const setDailyMinutes = useAppStore((s) => s.setDailyMinutes);
   const pushToast = useToastStore((s) => s.push);
   const [goalMinutes, setGoalMinutes] = useState(120);
@@ -46,6 +49,10 @@ export function DashboardPage() {
     queryKey: ["progress-weekly-review", userId],
     queryFn: () => api.progressWeeklyReview(userId),
   });
+  const spacesOverview = useQuery({
+    queryKey: ["workspaces-overview"],
+    queryFn: api.workspacesOverview,
+  });
 
   async function onSaveGoal() {
     try {
@@ -70,6 +77,31 @@ export function DashboardPage() {
     }
   }
 
+  async function onSwitchSpace(workspaceId: number) {
+    try {
+      await api.workspaceSwitch({ workspace_id: workspaceId });
+      const bootstrap = await api.bootstrap();
+      queryClient.setQueryData(["bootstrap"], bootstrap);
+      setBootstrapState({
+        userId: bootstrap.user_id,
+        hasProfile: bootstrap.has_profile,
+        ownerUserId: bootstrap.owner_user_id,
+        activeWorkspaceId: bootstrap.active_workspace_id ?? null,
+        activeWorkspaceNativeLang: bootstrap.active_workspace_native_lang ?? null,
+        activeWorkspaceTargetLang: bootstrap.active_workspace_target_lang ?? null,
+        activeWorkspaceGoal: bootstrap.active_workspace_goal ?? null,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["workspaces-overview"] }),
+        queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
+      ]);
+      pushToast("success", "Switched learning space");
+      navigate(bootstrap.needs_onboarding ? "/" : "/app");
+    } catch (err) {
+      pushToast("error", getErrorMessage(err));
+    }
+  }
+
   function startFiveMinuteMode() {
     setDailyMinutes(5);
     pushToast("info", "5-minute mode enabled for today");
@@ -81,6 +113,7 @@ export function DashboardPage() {
     reactivation.data && reactivation.data.eligible
       ? `You had a ${reactivation.data.gap_days}-day pause. ${reactivation.data.note}`
       : null;
+  const workspaceItems = Array.isArray(spacesOverview.data?.items) ? spacesOverview.data.items : [];
 
   return (
     <section className="panel">
@@ -106,6 +139,34 @@ export function DashboardPage() {
             <p>{summary.data.words_learned}</p>
           </article>
         </div>
+      )}
+      {spacesOverview.isPending && <LoadingState text="Loading learning spaces overview..." />}
+      {spacesOverview.isError && <ErrorState text="Failed to load learning spaces overview." />}
+      {spacesOverview.isSuccess && workspaceItems.length > 0 && (
+        <article className="panel stack">
+          <h3>Your Learning Spaces</h3>
+          <p>Each pair is an isolated coach space with separate progress and history.</p>
+          {workspaceItems.map((item) => (
+            <div key={item.workspace_id} className="panel stack">
+              <p>
+                <strong>
+                  {item.native_lang} {"->"} {item.target_lang}
+                </strong>{" "}
+                {item.is_active ? "(active)" : ""}
+              </p>
+              <p>Goal: {item.goal || "not set yet"}</p>
+              <p>
+                Streak: {item.streak_days} | Minutes: {item.minutes_practiced} | Words: {item.words_learned}
+              </p>
+              {!item.has_profile && <p>Needs onboarding to unlock full coach flow.</p>}
+              {item.workspace_id !== activeWorkspaceId && (
+                <button type="button" onClick={() => onSwitchSpace(item.workspace_id)}>
+                  Switch and open
+                </button>
+              )}
+            </div>
+          ))}
+        </article>
       )}
       {weeklyGoal.isPending && <LoadingState text="Loading weekly goal..." />}
       {weeklyGoal.isError && <ErrorState text="Failed to load weekly goal." />}
