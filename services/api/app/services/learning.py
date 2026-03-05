@@ -7,10 +7,26 @@ from app.schemas.learning import CoachSessionStep, ExerciseItem, ScenarioItem
 
 def default_scenarios() -> list[ScenarioItem]:
     return [
-        ScenarioItem(id="travel-hotel", title="Hotel Check-in", description="Practice check-in dialog."),
-        ScenarioItem(id="job-interview", title="Job Interview", description="Common interview Q&A."),
-        ScenarioItem(id="coffee-shop", title="Coffee Shop", description="Ordering and small talk."),
-        ScenarioItem(id="airport-customs", title="Airport Customs", description="Travel control questions."),
+        ScenarioItem(
+            id="travel-hotel",
+            title="Hotel Check-in",
+            description="Handle booking details, requests, and polite clarification at reception.",
+        ),
+        ScenarioItem(
+            id="job-interview",
+            title="Job Interview",
+            description="Practice concise self-introduction, strengths, and follow-up questions.",
+        ),
+        ScenarioItem(
+            id="coffee-shop",
+            title="Coffee Shop",
+            description="Train everyday ordering, quick decisions, and friendly small talk.",
+        ),
+        ScenarioItem(
+            id="airport-customs",
+            title="Airport Customs",
+            description="Answer travel-control questions clearly under mild time pressure.",
+        ),
     ]
 
 
