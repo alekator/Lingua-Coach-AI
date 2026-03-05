@@ -165,3 +165,46 @@ def test_workspace_overview_returns_per_space_metrics(client: TestClient) -> Non
     assert es_ru["has_profile"] is True
     assert es_ru["goal"] == "travel"
     assert es_ru["minutes_practiced"] >= 8
+
+
+def test_workspace_user_cannot_use_foreign_language_pair_in_profile_or_placement(
+    client: TestClient,
+) -> None:
+    setup = client.post(
+        "/profile/setup",
+        json={
+            "user_id": 1,
+            "native_lang": "de",
+            "target_lang": "en",
+            "level": "A2",
+            "goal": "job",
+            "preferences": {},
+        },
+    )
+    assert setup.status_code == 200
+    workspace_user_id = setup.json()["user_id"]
+
+    wrong_profile = client.post(
+        "/profile/setup",
+        json={
+            "user_id": workspace_user_id,
+            "native_lang": "es",
+            "target_lang": "ru",
+            "level": "A2",
+            "goal": "job",
+            "preferences": {},
+        },
+    )
+    assert wrong_profile.status_code == 400
+    assert wrong_profile.json()["detail"] == "Workspace language pair mismatch for this user_id"
+
+    wrong_placement = client.post(
+        "/profile/placement-test/start",
+        json={
+            "user_id": workspace_user_id,
+            "native_lang": "es",
+            "target_lang": "ru",
+        },
+    )
+    assert wrong_placement.status_code == 400
+    assert wrong_placement.json()["detail"] == "Workspace language pair mismatch for this user_id"

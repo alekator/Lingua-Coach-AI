@@ -29,6 +29,7 @@ from app.services.workspaces import (
     create_workspace,
     get_workspace_for_user,
     get_workspace_by_lang_pair,
+    normalize_lang,
     set_active_workspace,
 )
 
@@ -46,20 +47,29 @@ def _get_or_create_user(db: Session, user_id: int) -> User:
     return user
 
 
-def _resolve_user_for_profile_setup(payload: ProfileSetupRequest, db: Session) -> int:
+def _resolve_user_for_profile_setup(payload: ProfileSetupRequest, db: Session) -> tuple[int, str, str]:
+    normalized_native = normalize_lang(payload.native_lang)
+    normalized_target = normalize_lang(payload.target_lang)
+
     if payload.user_id != LOCAL_OWNER_USER_ID:
         workspace = get_workspace_for_user(db, payload.user_id)
         if workspace is not None:
+            if workspace.native_lang != normalized_native or workspace.target_lang != normalized_target:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Workspace language pair mismatch for this user_id",
+                )
             workspace.goal = payload.goal
             set_active_workspace(db, workspace)
-        return payload.user_id
+            return payload.user_id, workspace.native_lang, workspace.target_lang
+        return payload.user_id, normalized_native, normalized_target
 
-    workspace = get_workspace_by_lang_pair(db, payload.native_lang, payload.target_lang)
+    workspace = get_workspace_by_lang_pair(db, normalized_native, normalized_target)
     if workspace is None:
         workspace = create_workspace(
             db,
-            native_lang=payload.native_lang,
-            target_lang=payload.target_lang,
+            native_lang=normalized_native,
+            target_lang=normalized_target,
             goal=payload.goal,
             make_active=True,
         )
@@ -67,28 +77,28 @@ def _resolve_user_for_profile_setup(payload: ProfileSetupRequest, db: Session) -
         workspace.goal = payload.goal
         set_active_workspace(db, workspace)
 
-    return workspace.learner_user_id
+    return workspace.learner_user_id, workspace.native_lang, workspace.target_lang
 
 
 @router.post("/setup", response_model=ProfileSetupResponse)
 def profile_setup(payload: ProfileSetupRequest, db: Session = Depends(get_db)) -> ProfileSetupResponse:
-    resolved_user_id = _resolve_user_for_profile_setup(payload, db)
+    resolved_user_id, resolved_native, resolved_target = _resolve_user_for_profile_setup(payload, db)
     _get_or_create_user(db, resolved_user_id)
 
     profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == resolved_user_id))
     if profile is None:
         profile = LearnerProfile(
             user_id=resolved_user_id,
-            native_lang=payload.native_lang,
-            target_lang=payload.target_lang,
+            native_lang=resolved_native,
+            target_lang=resolved_target,
             level=payload.level,
             goal=payload.goal,
             preferences=payload.preferences,
         )
         db.add(profile)
     else:
-        profile.native_lang = payload.native_lang
-        profile.target_lang = payload.target_lang
+        profile.native_lang = resolved_native
+        profile.target_lang = resolved_target
         profile.level = payload.level
         profile.goal = payload.goal
         profile.preferences = payload.preferences
@@ -124,28 +134,41 @@ def profile_get(user_id: int, db: Session = Depends(get_db)) -> ProfileGetRespon
 def placement_start(
     payload: PlacementStartRequest, db: Session = Depends(get_db)
 ) -> PlacementStartResponse:
+    normalized_native = normalize_lang(payload.native_lang)
+    normalized_target = normalize_lang(payload.target_lang)
     resolved_user_id = payload.user_id
+    resolved_native = normalized_native
+    resolved_target = normalized_target
     if payload.user_id == LOCAL_OWNER_USER_ID:
         workspace = create_workspace(
             db,
-            native_lang=payload.native_lang,
-            target_lang=payload.target_lang,
+            native_lang=normalized_native,
+            target_lang=normalized_target,
             goal=None,
             make_active=True,
         )
         resolved_user_id = workspace.learner_user_id
+        resolved_native = workspace.native_lang
+        resolved_target = workspace.target_lang
     else:
         workspace = get_workspace_for_user(db, payload.user_id)
         if workspace is not None:
+            if workspace.native_lang != normalized_native or workspace.target_lang != normalized_target:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Workspace language pair mismatch for this user_id",
+                )
             set_active_workspace(db, workspace)
+            resolved_native = workspace.native_lang
+            resolved_target = workspace.target_lang
 
     _get_or_create_user(db, resolved_user_id)
-    questions = build_placement_questions(payload.target_lang)
+    questions = build_placement_questions(resolved_target)
 
     session = PlacementSession(
         user_id=resolved_user_id,
-        native_lang=payload.native_lang,
-        target_lang=payload.target_lang,
+        native_lang=resolved_native,
+        target_lang=resolved_target,
         status="in_progress",
         current_question_index=0,
         questions=questions,
