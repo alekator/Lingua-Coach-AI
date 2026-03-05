@@ -115,6 +115,22 @@ def test_chat_end_blocks_future_messages(
         assert blocked.status_code == 409
 
 
+def test_chat_teacher_failure_uses_resilient_fallback(
+    client_factory: Callable[[Callable[[dict[str, Any]], ChatMessageResponse]], TestClient],
+) -> None:
+    def broken_teacher(_: dict[str, Any]) -> ChatMessageResponse:
+        raise RuntimeError("provider timeout")
+
+    with client_factory(broken_teacher) as client:
+        started = client.post("/chat/start", json={"user_id": 55, "mode": "chat"})
+        session_id = started.json()["session_id"]
+        sent = client.post("/chat/message", json={"session_id": session_id, "text": "Can we continue?"})
+        assert sent.status_code == 200
+        body = sent.json()
+        assert "fallback guidance" in body["assistant_text"]
+        assert body["rubric"] is not None
+
+
 def test_default_teacher_responder_adds_rubric_without_openai_key(monkeypatch: Any) -> None:
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     response = default_teacher_responder(

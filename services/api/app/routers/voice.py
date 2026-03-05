@@ -69,7 +69,13 @@ async def voice_message(
 
     transcript = asr_result["transcript"]
     profile = None if user_id is None else db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
-    teacher_text = voice_teacher(transcript, profile, target_lang)
+    try:
+        teacher_text = voice_teacher(transcript, profile, target_lang)
+    except Exception:
+        teacher_text = (
+            f"Fallback coach mode in {target_lang}: {transcript}. "
+            "Try one shorter and cleaner version next."
+        )
 
     try:
         audio_url = tts_synthesizer(teacher_text, target_lang, voice_name)

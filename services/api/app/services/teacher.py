@@ -140,6 +140,34 @@ def _build_coaching_policy(profile: LearnerProfile | None) -> dict[str, Any]:
     }
 
 
+def build_resilient_teacher_fallback(payload: dict[str, Any], reason: str | None = None) -> ChatMessageResponse:
+    user_text = str(payload.get("user_input", "")).strip() or "your latest message"
+    learner_profile = payload.get("learner_profile", {}) or {}
+    level = str(learner_profile.get("level", "A1"))
+    preferences = learner_profile.get("preferences", {}) or {}
+    strictness = _normalize_strictness(preferences)
+    opener = {
+        "low": "Good effort.",
+        "medium": "Good practice.",
+        "high": "Direct feedback.",
+    }[strictness]
+    recovery_note = "I switched to local fallback guidance for this turn."
+    if reason:
+        recovery_note = f"{recovery_note} Reason: {reason[:80]}."
+
+    response = ChatMessageResponse(
+        assistant_text=(
+            f"{opener} Practice ({level}): {user_text}. "
+            f"{recovery_note} Apply one correction-ready sentence now."
+        ),
+        corrections=[],
+        new_words=[],
+        homework_suggestions=["Rewrite your last message in one cleaner version."],
+    )
+    response.rubric = build_fallback_rubric(user_text, response)
+    return response
+
+
 def summarize_weak_topics(mistakes: list[Mistake]) -> list[str]:
     if not mistakes:
         return []
@@ -217,32 +245,9 @@ def build_teacher_payload(
 
 def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
     user_text = payload["user_input"]
-    learner_profile = payload["learner_profile"]
-    preferences = learner_profile.get("preferences", {}) or {}
-    strictness = _normalize_strictness(preferences)
     api_key = __import__("os").getenv("OPENAI_API_KEY")
     if not api_key:
-        intro = {
-            "low": "Nice effort.",
-            "medium": "Good practice.",
-            "high": "Direct feedback.",
-        }[strictness]
-        homework_tip = (
-            "Rewrite 3 sentences applying the correction exactly."
-            if strictness == "high"
-            else "Write 3 short sentences using today's topic."
-        )
-        fallback = ChatMessageResponse(
-            assistant_text=(
-                f"{intro} Practice ({learner_profile['level']}): {user_text}. "
-                "Use one improved version in your next message."
-            ),
-            corrections=[],
-            new_words=[],
-            homework_suggestions=[homework_tip],
-        )
-        fallback.rubric = build_fallback_rubric(user_text, fallback)
-        return fallback
+        return build_resilient_teacher_fallback(payload, reason="OPENAI_API_KEY missing")
 
     system_prompt = (
         "You are LinguaCoach AI, a concise language coach. "
@@ -258,16 +263,19 @@ def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
     developer_prompt = json.dumps(payload, ensure_ascii=False)
 
     client = OpenAI(api_key=api_key)
-    response = client.responses.create(
-        model="gpt-4.1-mini",
-        input=[
-            {"role": "system", "content": system_prompt},
-            {"role": "developer", "content": developer_prompt},
-        ],
-    )
-    text = response.output_text
-    parsed = json.loads(text)
-    result = ChatMessageResponse.model_validate(parsed)
-    if result.rubric is None:
-        result.rubric = build_fallback_rubric(user_text, result)
-    return result
+    try:
+        response = client.responses.create(
+            model="gpt-4.1-mini",
+            input=[
+                {"role": "system", "content": system_prompt},
+                {"role": "developer", "content": developer_prompt},
+            ],
+        )
+        text = response.output_text
+        parsed = json.loads(text)
+        result = ChatMessageResponse.model_validate(parsed)
+        if result.rubric is None:
+            result.rubric = build_fallback_rubric(user_text, result)
+        return result
+    except Exception as exc:
+        return build_resilient_teacher_fallback(payload, reason=f"provider error: {exc}")

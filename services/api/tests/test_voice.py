@@ -91,3 +91,31 @@ def test_default_voice_teacher_fallback_respects_strictness(monkeypatch: Any) ->
     )
     text = default_voice_teacher("I goed home", profile, "en")
     assert text.startswith("Direct note.")
+
+
+def test_voice_message_teacher_failure_uses_router_fallback(
+    client_factory: Callable[..., TestClient],
+) -> None:
+    def fake_asr(audio_bytes: bytes, filename: str, content_type: str, language_hint: str) -> dict[str, str]:
+        return {"transcript": "I goed to school", "language": "en"}
+
+    def broken_teacher(transcript: str, profile: Any, target_lang: str) -> str:
+        raise RuntimeError("teacher unavailable")
+
+    def fake_tts(text: str, target_lang: str, voice_name: str) -> str:
+        return "http://tts.local/audio/fallback.mp3"
+
+    with client_factory(
+        asr_transcriber=fake_asr,
+        voice_teacher=broken_teacher,
+        tts_synthesizer=fake_tts,
+    ) as client:
+        response = client.post(
+            "/voice/message",
+            files={"file": ("voice.webm", b"voice-bytes", "audio/webm")},
+            data={"user_id": "77", "target_lang": "en", "language_hint": "en", "voice_name": "alloy"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["audio_url"] == "http://tts.local/audio/fallback.mp3"
+        assert "Fallback coach mode in en" in body["teacher_text"]

@@ -16,7 +16,12 @@ from app.schemas.chat import (
     ChatStartResponse,
 )
 from app.services.placement import utcnow
-from app.services.teacher import TeacherResponder, build_teacher_payload, default_teacher_responder
+from app.services.teacher import (
+    TeacherResponder,
+    build_resilient_teacher_fallback,
+    build_teacher_payload,
+    default_teacher_responder,
+)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -130,7 +135,10 @@ def chat_message(
     try:
         teacher_output = teacher_responder(teacher_payload)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Teacher call failed: {exc}") from exc
+        teacher_output = build_resilient_teacher_fallback(
+            teacher_payload,
+            reason=f"teacher call failed: {exc}",
+        )
 
     db.add(Message(session_id=session.id, role="assistant", text=teacher_output.assistant_text))
 
