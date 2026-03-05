@@ -16,6 +16,7 @@ from app.schemas.progress import (
     ProgressSkillMapResponse,
     ProgressStreakResponse,
     ProgressSummaryResponse,
+    ProgressWeeklyReviewResponse,
     RewardClaimRequest,
     RewardItem,
     WeeklyGoalResponse,
@@ -194,6 +195,53 @@ def progress_summary(user_id: int, db: Session = Depends(get_db)) -> ProgressSum
         vocab=skill.vocab,
         reading=skill.reading,
         writing=skill.writing,
+    )
+
+
+@router.get("/weekly-review", response_model=ProgressWeeklyReviewResponse)
+def progress_weekly_review(user_id: int, db: Session = Depends(get_db)) -> ProgressWeeklyReviewResponse:
+    weekly_goal = progress_weekly_goal(user_id=user_id, db=db)
+    streak = progress_streak(user_id=user_id, db=db)
+    journal = progress_journal(user_id=user_id, db=db)
+    summary = progress_summary(user_id=user_id, db=db)
+
+    skill_map = {
+        "speaking": summary.speaking,
+        "listening": summary.listening,
+        "grammar": summary.grammar,
+        "vocab": summary.vocab,
+        "reading": summary.reading,
+        "writing": summary.writing,
+    }
+    strongest_skill = max(skill_map.items(), key=lambda item: item[1])[0]
+    weakest_skill = min(skill_map.items(), key=lambda item: item[1])[0]
+    top_weak_area = journal.weak_areas[0] if journal.weak_areas else None
+
+    wins = [
+        f"{journal.weekly_sessions} sessions completed this week.",
+        f"{journal.weekly_minutes} active learning minutes logged.",
+    ]
+    if streak.streak_days >= 2:
+        wins.append(f"Current streak: {streak.streak_days} days.")
+    if weekly_goal.is_completed:
+        wins.append("Weekly goal reached.")
+
+    next_focus = (
+        f"Keep momentum with one short drill in {top_weak_area or weakest_skill} and one coach chat turn."
+    )
+
+    return ProgressWeeklyReviewResponse(
+        user_id=user_id,
+        weekly_minutes=journal.weekly_minutes,
+        weekly_sessions=journal.weekly_sessions,
+        weekly_goal_target_minutes=weekly_goal.target_minutes,
+        weekly_goal_completed=weekly_goal.is_completed,
+        streak_days=streak.streak_days,
+        strongest_skill=strongest_skill,
+        weakest_skill=weakest_skill,
+        top_weak_area=top_weak_area,
+        wins=wins,
+        next_focus=next_focus,
     )
 
 

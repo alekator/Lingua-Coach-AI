@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   planToday: vi.fn(),
   progressRewards: vi.fn(),
   progressRewardsClaim: vi.fn(),
+  progressWeeklyReview: vi.fn(),
   pushToast: vi.fn(),
   setDailyMinutes: vi.fn(),
 }));
@@ -27,6 +28,7 @@ vi.mock("../api/client", () => ({
     planToday: mocks.planToday,
     progressRewards: mocks.progressRewards,
     progressRewardsClaim: mocks.progressRewardsClaim,
+    progressWeeklyReview: mocks.progressWeeklyReview,
   },
 }));
 
@@ -145,6 +147,19 @@ describe("DashboardPage", () => {
       claimed_count: 2,
       items: [],
     });
+    mocks.progressWeeklyReview.mockResolvedValue({
+      user_id: 1,
+      weekly_minutes: 24,
+      weekly_sessions: 3,
+      weekly_goal_target_minutes: 120,
+      weekly_goal_completed: false,
+      streak_days: 3,
+      strongest_skill: "vocab",
+      weakest_skill: "grammar",
+      top_weak_area: "grammar",
+      wins: ["3 sessions completed this week.", "24 active learning minutes logged."],
+      next_focus: "Keep momentum with one short drill in grammar and one coach chat turn.",
+    });
   });
 
   it("renders adaptive notes in today plan and updates weekly goal", async () => {
@@ -166,6 +181,8 @@ describe("DashboardPage", () => {
       expect(screen.getByRole("button", { name: "Start easy return (5 min)" })).toBeInTheDocument();
       expect(screen.getByText("Rewards")).toBeInTheDocument();
       expect(screen.getByText("XP: 30 | Claimed: 1")).toBeInTheDocument();
+      expect(screen.getByText("Weekly Review")).toBeInTheDocument();
+      expect(screen.getByText("Skills: strongest vocab, weakest grammar")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Save weekly goal" }));

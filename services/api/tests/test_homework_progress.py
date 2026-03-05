@@ -117,3 +117,13 @@ def test_progress_endpoints(client: TestClient) -> None:
     claim_body = claim_weekly.json()
     weekly_item = next(item for item in claim_body["items"] if item["id"] == "weekly_goal_complete")
     assert weekly_item["status"] == "claimed"
+
+    weekly_review = client.get("/progress/weekly-review", params={"user_id": 901})
+    assert weekly_review.status_code == 200
+    review_body = weekly_review.json()
+    assert review_body["weekly_sessions"] >= 1
+    assert review_body["weekly_minutes"] >= 8
+    assert "strongest_skill" in review_body
+    assert "weakest_skill" in review_body
+    assert len(review_body["wins"]) >= 1
+    assert "next_focus" in review_body

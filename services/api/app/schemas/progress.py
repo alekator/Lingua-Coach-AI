@@ -80,3 +80,17 @@ class ProgressRewardsResponse(BaseModel):
 class RewardClaimRequest(BaseModel):
     user_id: int = Field(ge=1)
     reward_id: str = Field(min_length=3, max_length=64)
+
+
+class ProgressWeeklyReviewResponse(BaseModel):
+    user_id: int
+    weekly_minutes: int
+    weekly_sessions: int
+    weekly_goal_target_minutes: int
+    weekly_goal_completed: bool
+    streak_days: int
+    strongest_skill: str
+    weakest_skill: str
+    top_weak_area: str | None = None
+    wins: list[str]
+    next_focus: str

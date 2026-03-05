@@ -38,6 +38,10 @@ export function DashboardPage() {
     queryKey: ["progress-rewards", userId],
     queryFn: () => api.progressRewards(userId),
   });
+  const weeklyReview = useQuery({
+    queryKey: ["progress-weekly-review", userId],
+    queryFn: () => api.progressWeeklyReview(userId),
+  });
 
   async function onSaveGoal() {
     try {
@@ -199,6 +203,28 @@ export function DashboardPage() {
               {item.status === "locked" && <p>Status: locked</p>}
             </div>
           ))}
+        </article>
+      )}
+      {weeklyReview.isPending && <LoadingState text="Loading weekly review..." />}
+      {weeklyReview.isError && <ErrorState text="Failed to load weekly review." />}
+      {weeklyReview.isSuccess && (
+        <article className="panel stack">
+          <h3>Weekly Review</h3>
+          <p>
+            Sessions: {weeklyReview.data.weekly_sessions} | Minutes: {weeklyReview.data.weekly_minutes}
+          </p>
+          <p>
+            Goal: {weeklyReview.data.weekly_goal_target_minutes} min{" "}
+            {weeklyReview.data.weekly_goal_completed ? "(completed)" : "(in progress)"}
+          </p>
+          <p>
+            Skills: strongest {weeklyReview.data.strongest_skill}, weakest {weeklyReview.data.weakest_skill}
+          </p>
+          {weeklyReview.data.top_weak_area && <p>Most frequent weak area: {weeklyReview.data.top_weak_area}</p>}
+          {weeklyReview.data.wins.map((win) => (
+            <p key={win}>- {win}</p>
+          ))}
+          <p>Next focus: {weeklyReview.data.next_focus}</p>
         </article>
       )}
       {plan.isPending && <LoadingState text="Generating today plan..." />}

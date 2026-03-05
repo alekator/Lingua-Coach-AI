@@ -335,3 +335,17 @@ export type ProgressRewards = {
     status: "locked" | "available" | "claimed";
   }>;
 };
+
+export type ProgressWeeklyReview = {
+  user_id: number;
+  weekly_minutes: number;
+  weekly_sessions: number;
+  weekly_goal_target_minutes: number;
+  weekly_goal_completed: boolean;
+  streak_days: number;
+  strongest_skill: string;
+  weakest_skill: string;
+  top_weak_area?: string | null;
+  wins: string[];
+  next_focus: string;
+};

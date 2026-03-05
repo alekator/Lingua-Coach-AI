@@ -24,6 +24,7 @@ import type {
   ProgressStreak,
   ProgressSummary,
   ProgressRewards,
+  ProgressWeeklyReview,
   ScenarioSelectResponse,
   ScenarioScriptResponse,
   ScenarioTurnResponse,
@@ -272,4 +273,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  progressWeeklyReview: (userId: number) =>
+    request<ProgressWeeklyReview>(`/progress/weekly-review?user_id=${encodeURIComponent(userId)}`),
 };
