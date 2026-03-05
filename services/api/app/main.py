@@ -1,0 +1,74 @@
+from __future__ import annotations
+
+import os
+from typing import Any, Callable
+
+from fastapi import FastAPI, HTTPException
+from openai import OpenAI
+from pydantic import BaseModel
+
+
+class HealthResponse(BaseModel):
+    service: str
+    status: str
+
+
+class OpenAIDebugResponse(BaseModel):
+    status: str
+    detail: str
+
+
+def default_openai_probe() -> tuple[str, str]:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return ("not_configured", "OPENAI_API_KEY is not set")
+
+    try:
+        client = OpenAI(api_key=api_key)
+        models = client.models.list()
+        first_model = next(iter(models.data), None)
+        model_name = first_model.id if first_model else "unknown"
+        return ("ok", f"OpenAI reachable, sample model: {model_name}")
+    except Exception as exc:  # pragma: no cover
+        return ("error", str(exc))
+
+
+def create_app(openai_probe: Callable[[], tuple[str, str]] | None = None) -> FastAPI:
+    app = FastAPI(title="LinguaCoach API", version="0.1.0")
+    probe = openai_probe or default_openai_probe
+
+    @app.get("/health", response_model=HealthResponse)
+    def health() -> HealthResponse:
+        return HealthResponse(service="api", status="ok")
+
+    @app.get("/debug/openai", response_model=OpenAIDebugResponse)
+    def debug_openai() -> OpenAIDebugResponse:
+        status, detail = probe()
+        if status == "error":
+            raise HTTPException(status_code=502, detail=detail)
+        return OpenAIDebugResponse(status=status, detail=detail)
+
+    # Stage 1 scaffold for future routing groups.
+    @app.get("/_scaffold", response_model=dict[str, Any])
+    def scaffold() -> dict[str, Any]:
+        return {
+            "planned_routes": [
+                "/auth/*",
+                "/profile/*",
+                "/chat/*",
+                "/voice/*",
+                "/translate*",
+                "/grammar/*",
+                "/vocab/*",
+                "/exercises/*",
+                "/homework/*",
+                "/progress/*",
+                "/plan/today",
+                "/scenarios",
+            ]
+        }
+
+    return app
+
+
+app = create_app()

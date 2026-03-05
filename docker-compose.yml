@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: linguacoach-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-linguacoach}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-linguacoach}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: linguacoach-api
+    env_file:
+      - .env
+    environment:
+      ASR_URL: ${ASR_URL:-http://asr:8001}
+      TTS_URL: ${TTS_URL:-http://tts:8002}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/linguacoach}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      asr:
+        condition: service_started
+      tts:
+        condition: service_started
+
+  asr:
+    build:
+      context: ./services/asr
+      dockerfile: Dockerfile
+    container_name: linguacoach-asr
+    env_file:
+      - .env
+    ports:
+      - "${ASR_PORT:-8001}:8001"
+
+  tts:
+    build:
+      context: ./services/tts
+      dockerfile: Dockerfile
+    container_name: linguacoach-tts
+    env_file:
+      - .env
+    ports:
+      - "${TTS_PORT:-8002}:8002"
+
+volumes:
+  postgres_data:

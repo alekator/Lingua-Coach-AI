@@ -1,0 +1,77 @@
+{
+  // =========================
+  // Base settings
+  // =========================
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": false,
+  "editor.formatOnType": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.eol": "\n",
+  "editor.rulers": [100],
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // =========================
+  // TS/JS
+  // =========================
+  "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[javascriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+
+  "js/ts.preferences.importModuleSpecifier": "non-relative",
+  "js/ts.updateImportsOnFileMove.enabled": "always",
+
+  // ESLint
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "eslint.alwaysShowStatus": true,
+
+  // Prettier
+  "prettier.requireConfig": true,
+  "prettier.useEditorConfig": true,
+
+  // =========================
+  // Python (FastAPI)
+  // =========================
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+
+  // Python: Black
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true
+  },
+
+  // Ruff
+  "ruff.enable": true,
+
+  // =========================
+  // YAML / Docker
+  // =========================
+  "[yaml]": { "editor.defaultFormatter": "redhat.vscode-yaml" },
+  "yaml.format.enable": true,
+
+  // =========================
+  // .env
+  // =========================
+  "files.associations": {
+    ".env": "dotenv",
+    ".env.*": "dotenv"
+  },
+
+  // =========================
+  // Other
+  // =========================
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+  "terminal.integrated.defaultProfile.windows": "PowerShell"
+}
