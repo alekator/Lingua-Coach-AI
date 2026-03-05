@@ -72,6 +72,13 @@ def test_chat_flow_with_memory_updates(
         assert body1["corrections"][0]["good"] == "I made a mistake"
         assert body1["new_words"][0]["word"] == "achieve"
         assert body1["rubric"]["overall_score"] == 72
+        homework_after_msg1 = client.get("/homework", params={"user_id": 7})
+        assert homework_after_msg1.status_code == 200
+        hw_items = homework_after_msg1.json()["items"]
+        assert len(hw_items) == 1
+        assert hw_items[0]["title"] == "Auto Drill: grammar"
+        assert hw_items[0]["tasks"][0]["type"] == "rewrite"
+        assert "I did a mistake" in hw_items[0]["tasks"][0]["prompt"]
 
         msg2 = client.post("/chat/message", json={"session_id": session_id, "text": "Thanks, understood"})
         assert msg2.status_code == 200
@@ -83,6 +90,9 @@ def test_chat_flow_with_memory_updates(
         assert payloads[1]["recent_mistakes"][0]["category"] == "grammar"
         assert any(word["word"] == "achieve" for word in payloads[1]["learner_profile"]["active_vocab"])
         assert "rubric" in payloads[0]["schema"]
+        homework_after_msg2 = client.get("/homework", params={"user_id": 7})
+        assert homework_after_msg2.status_code == 200
+        assert len(homework_after_msg2.json()["items"]) == 1
 
 
 def test_chat_end_blocks_future_messages(

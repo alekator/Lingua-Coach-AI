@@ -5,10 +5,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import ChatSession, LearnerProfile, Message, Mistake, User, VocabItem
+from app.models import ChatSession, Homework, LearnerProfile, Message, Mistake, User, VocabItem
 from app.schemas.chat import (
     ChatEndRequest,
     ChatEndResponse,
+    Correction,
     ChatMessageRequest,
     ChatMessageResponse,
     ChatStartRequest,
@@ -28,6 +29,49 @@ def _get_or_create_user(db: Session, user_id: int) -> User:
     db.add(user)
     db.flush()
     return user
+
+
+def _upsert_auto_drill_homework(db: Session, user_id: int, corrections: list[Correction]) -> None:
+    if not corrections:
+        return
+
+    primary_category = corrections[0].type or "general"
+    title = f"Auto Drill: {primary_category}"
+    existing = db.scalars(
+        select(Homework)
+        .where(Homework.user_id == user_id, Homework.status == "assigned", Homework.title == title)
+        .order_by(Homework.created_at.desc())
+    ).first()
+
+    new_tasks: list[dict[str, str]] = []
+    for correction in corrections[:3]:
+        prompt = f"Fix and rewrite: {correction.bad}"
+        task = {
+            "id": f"auto-{correction.type}-{len(correction.bad)}-{len(correction.good)}",
+            "type": "rewrite",
+            "prompt": prompt,
+            "expected_answer": correction.good,
+            "hint": correction.explanation or "Use the corrected form exactly once.",
+        }
+        new_tasks.append(task)
+
+    if existing is None:
+        db.add(
+            Homework(
+                user_id=user_id,
+                title=title,
+                tasks=new_tasks,
+                status="assigned",
+            )
+        )
+        return
+
+    current_tasks = list(existing.tasks or [])
+    seen_prompts = {str(item.get("prompt", "")) for item in current_tasks if isinstance(item, dict)}
+    for task in new_tasks:
+        if task["prompt"] not in seen_prompts:
+            current_tasks.append(task)
+    existing.tasks = current_tasks[:8]
 
 
 @router.post("/start", response_model=ChatStartResponse)
@@ -111,6 +155,8 @@ def chat_message(
                 phonetics=word.phonetics,
             )
         )
+
+    _upsert_auto_drill_homework(db, session.user_id, teacher_output.corrections)
 
     db.commit()
     return teacher_output
