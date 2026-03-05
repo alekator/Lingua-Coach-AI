@@ -4,10 +4,15 @@ __pycache__/
 .mypy_cache/
 web/node_modules/
 web/dist/
+web/.vite/
+web/coverage/
 desktop/node_modules/
 desktop/dist/
+desktop/.vite/
 desktop/package-lock.json
 *.tsbuildinfo
+*.tsbuildinfo.*
+*.tmp
 
 # Local environment
 .env

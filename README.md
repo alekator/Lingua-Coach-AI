@@ -68,6 +68,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `POST /profile/placement-test/start`
   - `POST /profile/placement-test/answer`
   - `POST /profile/placement-test/finish`
+- Workspaces (multi-language spaces):
+  - `GET /workspaces`
+  - `POST /workspaces`
+  - `PATCH /workspaces/{workspace_id}`
+  - `POST /workspaces/switch`
+  - `GET /workspaces/active`
+  - `GET /workspaces/overview`
+  - `DELETE /workspaces/{workspace_id}`
 - Chat + memory:
   - `POST /chat/start`
   - `POST /chat/message`
@@ -114,6 +122,36 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `GET /coach/reactivation`
 
 ## API Contract Notes
+
+- `GET /app/bootstrap`
+  - returns active workspace context for UI routing and state sync:
+    - `active_workspace_id`
+    - `active_workspace_native_lang`
+    - `active_workspace_target_lang`
+    - `active_workspace_goal`
+
+- `GET /workspaces`
+  - returns owner scope workspace list:
+    - `owner_user_id`
+    - `active_workspace_id`
+    - `items[]` (`id`, `native_lang`, `target_lang`, `goal`, `is_active`, timestamps)
+
+- `POST /workspaces/switch`
+  - activates selected workspace and returns:
+    - `active_workspace_id`
+    - `active_user_id`
+
+- `GET /workspaces/overview`
+  - per-space progress snapshot for dashboard cards:
+    - `workspace_id`
+    - `native_lang`, `target_lang`, `goal`, `is_active`
+    - `has_profile`, `streak_days`, `minutes_practiced`, `words_learned`, `last_activity_at`
+
+- `DELETE /workspaces/{workspace_id}`
+  - prevents deleting the last remaining space.
+  - response:
+    - `deleted_workspace_id`
+    - `active_workspace_id` (fallback active space after deletion)
 
 - `GET /plan/today`
   - response includes `adaptation_notes: string[]` with short reasoning for plan adaptation.
