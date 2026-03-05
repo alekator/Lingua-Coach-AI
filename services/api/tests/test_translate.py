@@ -62,3 +62,18 @@ def test_translate_with_voice_uses_tts(
         assert body["audio_url"] == "http://tts.local/audio/abc123.mp3"
         assert translator_calls == [("Good day", "en", "fr")]
         assert tts_calls == [("Bonjour", "fr", "alloy")]
+
+
+def test_translate_same_language_short_circuit(client: TestClient) -> None:
+    response = client.post(
+        "/translate",
+        json={
+            "text": "Hello world",
+            "source_lang": "en",
+            "target_lang": "en",
+            "voice": False,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["translated_text"] == "Hello world"

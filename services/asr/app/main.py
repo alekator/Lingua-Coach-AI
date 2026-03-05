@@ -24,7 +24,7 @@ def default_transcribe(file: UploadFile, language_hint: str) -> AsrTranscribeRes
         client = OpenAI(api_key=api_key)
         audio_bytes = file.file.read()
         transcript = client.audio.transcriptions.create(
-            model="whisper-1",
+            model=os.getenv("OPENAI_ASR_MODEL", "whisper-1"),
             file=(file.filename or "audio.webm", io.BytesIO(audio_bytes), file.content_type or "audio/webm"),
             language=None if language_hint == "auto" else language_hint,
         )

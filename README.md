@@ -138,6 +138,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `{"error":"...", "detail":"...", "request_id":"..."}`
 - Basic in-memory rate limit in API.
 - JSON-style access logs in API middleware.
+- AI cost controls:
+  - configurable OpenAI models (`OPENAI_CHAT_MODEL`, `OPENAI_VOICE_MODEL`, `OPENAI_TRANSLATE_MODEL`, `OPENAI_ASR_MODEL`)
+  - configurable output token caps (`OPENAI_*_MAX_OUTPUT_TOKENS`)
+  - configurable temperatures (`OPENAI_TEMPERATURE_*`)
+  - lightweight in-memory AI cache (`AI_CACHE_MAX_ITEMS`)
 
 ## Running Tests
 

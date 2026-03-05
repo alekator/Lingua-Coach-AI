@@ -6,7 +6,9 @@ from typing import Any, Callable
 
 from openai import OpenAI
 
+from app.config import settings
 from app.models import LearnerProfile, Message, Mistake, VocabItem
+from app.services.ai_runtime import log_usage, usage_from_response
 from app.schemas.chat import ChatMessageResponse, ChatRubric, ChatRubricDimension
 
 
@@ -183,13 +185,16 @@ def build_teacher_payload(
     recent_mistakes: list[Mistake] | None = None,
     active_vocab: list[VocabItem] | None = None,
 ) -> dict[str, Any]:
-    compact_history = [{"role": msg.role, "text": msg.text} for msg in history[-8:]]
+    compact_history = [
+        {"role": msg.role, "text": msg.text[:280]}
+        for msg in history[-6:]
+    ]
     mistakes = recent_mistakes or []
     vocab = active_vocab or []
     learner_profile = build_learner_profile_block(profile)
     learner_profile["weak_topics"] = summarize_weak_topics(mistakes)
     learner_profile["active_vocab"] = [
-        {"word": item.word, "translation": item.translation} for item in vocab[-20:]
+        {"word": item.word, "translation": item.translation} for item in vocab[-8:]
     ]
 
     coaching_policy = _build_coaching_policy(profile)
@@ -198,15 +203,15 @@ def build_teacher_payload(
         "learner_profile": learner_profile,
         "mode": mode,
         "history": compact_history,
-        "user_input": user_text,
+        "user_input": user_text[:900],
         "recent_mistakes": [
             {
                 "category": m.category,
-                "bad": m.bad,
-                "good": m.good,
-                "explanation": m.explanation,
+                "bad": m.bad[:160],
+                "good": m.good[:160],
+                "explanation": None if m.explanation is None else m.explanation[:180],
             }
-            for m in mistakes[-8:]
+            for m in mistakes[-5:]
         ],
         "coaching_policy": coaching_policy,
         "schema": {
@@ -265,12 +270,15 @@ def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
     client = OpenAI(api_key=api_key)
     try:
         response = client.responses.create(
-            model="gpt-4.1-mini",
+            model=settings.openai_chat_model,
+            max_output_tokens=settings.openai_chat_max_output_tokens,
+            temperature=settings.openai_temperature_chat,
             input=[
                 {"role": "system", "content": system_prompt},
                 {"role": "developer", "content": developer_prompt},
             ],
         )
+        log_usage("chat_teacher", settings.openai_chat_model, usage_from_response(response))
         text = response.output_text
         parsed = json.loads(text)
         result = ChatMessageResponse.model_validate(parsed)

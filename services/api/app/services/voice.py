@@ -10,10 +10,12 @@ from openai import OpenAI
 
 from app.config import settings
 from app.models import LearnerProfile
+from app.services.ai_runtime import SmallLRUCache, log_usage, usage_from_response
 from app.services.teacher import build_learner_profile_block
 
 AsrTranscriberFn = Callable[[bytes, str, str, str], dict[str, str]]
 VoiceTeacherFn = Callable[[str, LearnerProfile | None, str], str]
+_voice_teacher_cache = SmallLRUCache(max_items=settings.ai_cache_max_items)
 
 
 def default_asr_transcriber(
@@ -32,11 +34,17 @@ def default_asr_transcriber(
 
 
 def default_voice_teacher(transcript: str, profile: LearnerProfile | None, target_lang: str) -> str:
+    clean_transcript = transcript.strip()[:900]
     profile_block = build_learner_profile_block(profile)
     preferences = profile_block.get("preferences", {}) or {}
     strictness = str(preferences.get("strictness", "medium")).lower()
     if strictness not in {"low", "medium", "high"}:
         strictness = "medium"
+
+    cache_key = ("voice_teacher", target_lang.lower(), strictness, clean_transcript.lower())
+    cached = _voice_teacher_cache.get(cache_key)
+    if isinstance(cached, str):
+        return cached
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -45,7 +53,9 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
             "medium": "Good practice.",
             "high": "Direct note.",
         }[strictness]
-        return f"{opening} Let's continue in {target_lang}. You said: {transcript}"
+        fallback = f"{opening} Let's continue in {target_lang}. You said: {clean_transcript}"
+        _voice_teacher_cache.set(cache_key, fallback)
+        return fallback
 
     prompt = (
         "You are a language tutor. Reply briefly in target language practice mode "
@@ -54,7 +64,9 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
     )
     client = OpenAI(api_key=api_key)
     response = client.responses.create(
-        model="gpt-4.1-mini",
+        model=settings.openai_voice_model,
+        max_output_tokens=settings.openai_voice_max_output_tokens,
+        temperature=settings.openai_temperature_voice,
         input=[
             {"role": "system", "content": prompt},
             {
@@ -63,7 +75,7 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
                     {
                         "learner_profile": profile_block,
                         "target_lang": target_lang,
-                        "transcript": transcript,
+                        "transcript": clean_transcript,
                         "coaching_policy": {
                             "strictness": strictness,
                             "max_corrections": 1 if strictness == "low" else 2 if strictness == "medium" else 3,
@@ -74,7 +86,10 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
             },
         ],
     )
-    return response.output_text.strip()
+    log_usage("voice_teacher", settings.openai_voice_model, usage_from_response(response))
+    teacher_text = response.output_text.strip()
+    _voice_teacher_cache.set(cache_key, teacher_text)
+    return teacher_text
 
 
 def build_pronunciation_feedback(transcript: str) -> str:
