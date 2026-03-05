@@ -92,6 +92,16 @@ cd ..\tts
 cd ..\..
 ```
 
+Frontend (`web`) tests/build:
+
+```powershell
+cd web
+npm install
+npm run test
+npm run build
+cd ..
+```
+
 ## E2E Smoke (Manual)
 
 1. Start stack: `docker compose up -d --build`
