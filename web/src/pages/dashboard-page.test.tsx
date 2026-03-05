@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   progressSummary: vi.fn(),
   progressWeeklyGoal: vi.fn(),
   progressWeeklyGoalSet: vi.fn(),
+  coachNextActions: vi.fn(),
   planToday: vi.fn(),
   pushToast: vi.fn(),
 }));
@@ -17,6 +18,7 @@ vi.mock("../api/client", () => ({
     progressSummary: mocks.progressSummary,
     progressWeeklyGoal: mocks.progressWeeklyGoal,
     progressWeeklyGoalSet: mocks.progressWeeklyGoalSet,
+    coachNextActions: mocks.coachNextActions,
     planToday: mocks.planToday,
   },
 }));
@@ -80,6 +82,18 @@ describe("DashboardPage", () => {
       completion_percent: 16,
       is_completed: false,
     });
+    mocks.coachNextActions.mockResolvedValue({
+      user_id: 1,
+      items: [
+        {
+          id: "weekly-goal",
+          title: "Complete 96 more weekly minutes",
+          reason: "Weekly target not completed yet.",
+          route: "/app/session",
+          priority: 1,
+        },
+      ],
+    });
   });
 
   it("renders adaptive notes in today plan and updates weekly goal", async () => {
@@ -92,6 +106,8 @@ describe("DashboardPage", () => {
       ).toBeInTheDocument();
       expect(screen.getByText("Weekly Goal Tracker")).toBeInTheDocument();
       expect(screen.getByText("Progress: 24/120 min (20%)")).toBeInTheDocument();
+      expect(screen.getByText("Coach Next Actions")).toBeInTheDocument();
+      expect(screen.getByText("Complete 96 more weekly minutes")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Save weekly goal" }));

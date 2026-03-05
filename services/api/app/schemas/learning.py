@@ -80,6 +80,19 @@ class CoachSessionTodayResponse(BaseModel):
     steps: list[CoachSessionStep]
 
 
+class CoachNextAction(BaseModel):
+    id: str
+    title: str
+    reason: str
+    route: str
+    priority: int
+
+
+class CoachNextActionsResponse(BaseModel):
+    user_id: int
+    items: list[CoachNextAction]
+
+
 class ScenarioItem(BaseModel):
     id: str
     title: str

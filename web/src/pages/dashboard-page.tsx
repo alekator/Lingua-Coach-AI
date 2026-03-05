@@ -24,6 +24,10 @@ export function DashboardPage() {
     queryKey: ["plan-today", userId],
     queryFn: () => api.planToday(userId, 15),
   });
+  const nextActions = useQuery({
+    queryKey: ["coach-next-actions", userId],
+    queryFn: () => api.coachNextActions(userId),
+  });
 
   async function onSaveGoal() {
     try {
@@ -91,6 +95,24 @@ export function DashboardPage() {
             Save weekly goal
           </button>
           {goalError && <ErrorState text={goalError} />}
+        </article>
+      )}
+      {nextActions.isPending && <LoadingState text="Loading coach next actions..." />}
+      {nextActions.isError && <ErrorState text="Failed to load coach next actions." />}
+      {nextActions.isSuccess && (
+        <article className="panel stack">
+          <h3>Coach Next Actions</h3>
+          {nextActions.data.items.map((item) => (
+            <div key={item.id} className="panel stack">
+              <p>
+                <strong>{item.title}</strong>
+              </p>
+              <p>{item.reason}</p>
+              <Link to={item.route}>
+                <button type="button">Open action</button>
+              </Link>
+            </div>
+          ))}
         </article>
       )}
       {plan.isPending && <LoadingState text="Generating today plan..." />}

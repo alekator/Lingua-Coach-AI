@@ -80,6 +80,17 @@ export type CoachSessionTodayResponse = {
   }>;
 };
 
+export type CoachNextActionsResponse = {
+  user_id: number;
+  items: Array<{
+    id: string;
+    title: string;
+    reason: string;
+    route: string;
+    priority: number;
+  }>;
+};
+
 export type ScenarioItem = {
   id: string;
   title: string;

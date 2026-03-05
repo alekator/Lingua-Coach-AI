@@ -7,8 +7,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import ChatSession, LearnerProfile, Message, Mistake, SkillSnapshot, SrsState, User, VocabItem
+from app.models import ChatSession, Homework, LearnerProfile, Message, Mistake, SkillSnapshot, SrsState, User, VocabItem
 from app.schemas.learning import (
+    CoachNextAction,
+    CoachNextActionsResponse,
     CoachSessionTodayResponse,
     ExercisesGenerateRequest,
     ExercisesGenerateResponse,
@@ -204,6 +206,111 @@ def coach_session_today(
         focus=plan.focus,
         steps=build_today_session_steps(plan.focus, plan.time_budget_minutes),
     )
+
+
+@router.get("/coach/next-actions", response_model=CoachNextActionsResponse)
+def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNextActionsResponse:
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    preferences = (profile.preferences if profile else {}) or {}
+    weekly_goal_minutes = int(preferences.get("weekly_goal_minutes", 90))
+    weekly_goal_minutes = max(30, min(2000, weekly_goal_minutes))
+
+    sessions = db.scalars(select(ChatSession).where(ChatSession.user_id == user_id)).all()
+    cutoff = datetime.now(UTC) - timedelta(days=7)
+    weekly_sessions = [s for s in sessions if s.started_at and _to_utc_datetime(s.started_at) >= cutoff]
+    weekly_minutes = len(weekly_sessions) * 8
+    remaining_minutes = max(0, weekly_goal_minutes - weekly_minutes)
+
+    due_vocab_count = int(
+        db.scalar(
+            select(func.count(SrsState.vocab_item_id))
+            .select_from(SrsState)
+            .join(VocabItem, VocabItem.id == SrsState.vocab_item_id)
+            .where(VocabItem.user_id == user_id, SrsState.due_at <= utcnow())
+        )
+        or 0
+    )
+    auto_drill_count = int(
+        db.scalar(
+            select(func.count(Homework.id))
+            .select_from(Homework)
+            .where(
+                Homework.user_id == user_id,
+                Homework.status == "assigned",
+                Homework.title.like("Auto Drill:%"),
+            )
+        )
+        or 0
+    )
+    weak_top = db.scalars(
+        select(Mistake.category)
+        .where(Mistake.user_id == user_id)
+        .order_by(Mistake.created_at.desc())
+        .limit(50)
+    ).all()
+    top_weak = ""
+    if weak_top:
+        counts: dict[str, int] = {}
+        for category in weak_top:
+            if not category:
+                continue
+            counts[category] = counts.get(category, 0) + 1
+        if counts:
+            top_weak = max(counts.items(), key=lambda item: item[1])[0]
+
+    items: list[CoachNextAction] = []
+    if remaining_minutes > 0:
+        items.append(
+            CoachNextAction(
+                id="weekly-goal",
+                title=f"Complete {remaining_minutes} more weekly minutes",
+                reason="Weekly target not completed yet.",
+                route="/app/session",
+                priority=1,
+            )
+        )
+    if auto_drill_count > 0:
+        items.append(
+            CoachNextAction(
+                id="auto-drills",
+                title=f"Finish {auto_drill_count} personalized auto drills",
+                reason="These drills come from your latest correction patterns.",
+                route="/app/homework",
+                priority=2,
+            )
+        )
+    if due_vocab_count > 0:
+        items.append(
+            CoachNextAction(
+                id="vocab-due",
+                title=f"Review {due_vocab_count} due vocab cards",
+                reason="Spaced repetition is due now.",
+                route="/app/vocab",
+                priority=3,
+            )
+        )
+    if top_weak:
+        items.append(
+            CoachNextAction(
+                id="weak-area",
+                title=f"Run a targeted {top_weak} drill",
+                reason="Most frequent recent weak area.",
+                route="/app/exercises",
+                priority=4,
+            )
+        )
+    if not items:
+        items.append(
+            CoachNextAction(
+                id="keep-momentum",
+                title="Keep momentum with one short coach chat",
+                reason="No urgent pending actions detected.",
+                route="/app/chat",
+                priority=1,
+            )
+        )
+
+    return CoachNextActionsResponse(user_id=user_id, items=sorted(items, key=lambda item: item.priority)[:4])
 
 
 @router.get("/scenarios", response_model=ScenariosResponse)
