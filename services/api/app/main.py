@@ -13,6 +13,7 @@ from app.db import init_db
 from app.routers.chat import router as chat_router
 from app.routers.profile import router as profile_router
 from app.routers.translate import router as translate_router
+from app.routers.vocab import router as vocab_router
 from app.routers.voice import router as voice_router
 from app.services.teacher import TeacherResponder, default_teacher_responder
 from app.services.translate import (
@@ -111,6 +112,7 @@ def create_app(
     app.include_router(chat_router)
     app.include_router(translate_router)
     app.include_router(voice_router)
+    app.include_router(vocab_router)
 
     return app
 

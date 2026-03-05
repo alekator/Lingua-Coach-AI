@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, UTC
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -161,3 +161,25 @@ class VocabItem(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+    srs_state: Mapped["SrsState | None"] = relationship(
+        back_populates="vocab_item", cascade="all, delete-orphan", uselist=False
+    )
+
+
+class SrsState(Base):
+    __tablename__ = "srs_state"
+
+    vocab_item_id: Mapped[int] = mapped_column(
+        ForeignKey("vocab_items.id", ondelete="CASCADE"), primary_key=True
+    )
+    interval_days: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    ease: Mapped[float] = mapped_column(Float, default=2.5, nullable=False)
+    due_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+    last_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    vocab_item: Mapped["VocabItem"] = relationship(back_populates="srs_state")
