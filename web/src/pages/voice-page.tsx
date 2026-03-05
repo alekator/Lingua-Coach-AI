@@ -2,14 +2,24 @@ import { FormEvent, useState } from "react";
 import { api } from "../api/client";
 import { ErrorState } from "../components/feedback";
 import { getErrorMessage } from "../lib/errors";
+import type { VoiceMessageResponse } from "../api/types";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
+
+function extractCoachTarget(text: string): string {
+  const marker = "You should say:";
+  const index = text.indexOf(marker);
+  if (index < 0) return "";
+  return text.slice(index + marker.length).trim().replace(/\.$/, "");
+}
 
 export function VoicePage() {
   const userId = useAppStore((s) => s.userId) ?? 1;
   const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState("");
+  const [result, setResult] = useState<VoiceMessageResponse | null>(null);
   const [error, setError] = useState("");
+  const [practicePhrase, setPracticePhrase] = useState("");
+  const [coachTarget, setCoachTarget] = useState("");
   const pushToast = useToastStore((s) => s.push);
 
   async function onSubmit(event: FormEvent) {
@@ -22,13 +32,8 @@ export function VoicePage() {
         target_lang: "en",
         language_hint: "en",
       });
-      const rubric = response.pronunciation_rubric;
-      const rubricBlock = rubric
-        ? `\nRubric: overall ${rubric.overall_score} (${rubric.level_band}), fluency ${rubric.fluency}, clarity ${rubric.clarity}\nTips: ${rubric.actionable_tips.join("; ")}`
-        : "";
-      setResult(
-        `Transcript: ${response.transcript}\nTeacher: ${response.teacher_text}\nAudio: ${response.audio_url}\nTip: ${response.pronunciation_feedback}${rubricBlock}`,
-      );
+      setResult(response);
+      setCoachTarget(extractCoachTarget(response.teacher_text));
       setError("");
       pushToast("success", "Voice message processed");
     } catch (err) {
@@ -42,6 +47,15 @@ export function VoicePage() {
     <section className="panel stack">
       <h2>Voice Conversation</h2>
       <p>Coach mode: upload a short response, review pronunciation feedback, then repeat with one improvement.</p>
+      <label>
+        Practice phrase (optional)
+        <input
+          placeholder="Example: I went to school yesterday."
+          value={practicePhrase}
+          onChange={(e) => setPracticePhrase(e.target.value)}
+        />
+      </label>
+      {practicePhrase && <p>Retry plan: say this phrase clearly in your next recording.</p>}
       <form className="stack" onSubmit={onSubmit}>
         <label>
           Upload voice sample (10-45 sec)
@@ -56,7 +70,40 @@ export function VoicePage() {
         </button>
       </form>
       {error && <ErrorState text={error} />}
-      {result && <pre>{result}</pre>}
+      {result && (
+        <article className="panel stack">
+          <h3>Coach Voice Feedback</h3>
+          <p>Transcript: {result.transcript}</p>
+          <p>Coach: {result.teacher_text}</p>
+          <p>Pronunciation tip: {result.pronunciation_feedback}</p>
+          {result.pronunciation_rubric && (
+            <>
+              <p>
+                Rubric: {result.pronunciation_rubric.overall_score} ({result.pronunciation_rubric.level_band})
+              </p>
+              <p>
+                Fluency {result.pronunciation_rubric.fluency} | Clarity {result.pronunciation_rubric.clarity} |
+                Grammar {result.pronunciation_rubric.grammar_accuracy}
+              </p>
+              {result.pronunciation_rubric.actionable_tips.map((tip, idx) => (
+                <p key={`voice-tip-${idx}`}>- {tip}</p>
+              ))}
+            </>
+          )}
+          <p>Coach audio: {result.audio_url}</p>
+          {coachTarget && (
+            <button
+              type="button"
+              onClick={() => {
+                setPracticePhrase(coachTarget);
+                pushToast("info", "Coach target applied for retry");
+              }}
+            >
+              Use coach target for next try
+            </button>
+          )}
+        </article>
+      )}
     </section>
   );
 }
