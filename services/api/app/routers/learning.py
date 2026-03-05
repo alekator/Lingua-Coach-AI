@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import ChatSession, Homework, LearnerProfile, Message, Mistake, SkillSnapshot, SrsState, User, VocabItem
 from app.schemas.learning import (
+    CoachDailyChallengeResponse,
     CoachNextAction,
     CoachNextActionsResponse,
     CoachReactivationResponse,
@@ -323,6 +324,48 @@ def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNext
         )
 
     return CoachNextActionsResponse(user_id=user_id, items=sorted(items, key=lambda item: item.priority)[:4])
+
+
+@router.get("/coach/daily-challenge", response_model=CoachDailyChallengeResponse)
+def coach_daily_challenge(user_id: int, db: Session = Depends(get_db)) -> CoachDailyChallengeResponse:
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    goal = (profile.goal if profile and profile.goal else "general communication").strip()
+
+    due_vocab_count = int(
+        db.scalar(
+            select(func.count(SrsState.vocab_item_id))
+            .select_from(SrsState)
+            .join(VocabItem, VocabItem.id == SrsState.vocab_item_id)
+            .where(VocabItem.user_id == user_id, SrsState.due_at <= utcnow())
+        )
+        or 0
+    )
+    top_weak = db.scalars(
+        select(Mistake.category)
+        .where(Mistake.user_id == user_id)
+        .order_by(Mistake.created_at.desc())
+        .limit(30)
+    ).all()
+    weak_topic = next((category for category in top_weak if category), "grammar")
+
+    if due_vocab_count > 0:
+        return CoachDailyChallengeResponse(
+            user_id=user_id,
+            title="Daily Challenge: Vocab Sprint",
+            reason="You have due cards ready for high-impact recall.",
+            task=f"Review {min(5, due_vocab_count)} due vocab cards and use one in a short sentence.",
+            route="/app/vocab",
+            estimated_minutes=5,
+        )
+
+    return CoachDailyChallengeResponse(
+        user_id=user_id,
+        title="Daily Challenge: One Clear Step",
+        reason=f"Fast progress for your {goal} goal with minimal friction.",
+        task=f"Write one short message focused on {weak_topic}, then apply one correction.",
+        route="/app/chat",
+        estimated_minutes=5,
+    )
 
 
 @router.get("/coach/reactivation", response_model=CoachReactivationResponse)

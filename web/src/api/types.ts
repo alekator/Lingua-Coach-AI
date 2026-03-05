@@ -102,6 +102,15 @@ export type CoachReactivationResponse = {
   note: string;
 };
 
+export type CoachDailyChallengeResponse = {
+  user_id: number;
+  title: string;
+  reason: string;
+  task: string;
+  route: string;
+  estimated_minutes: number;
+};
+
 export type ScenarioItem = {
   id: string;
   title: string;

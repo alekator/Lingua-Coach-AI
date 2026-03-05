@@ -34,6 +34,10 @@ export function DashboardPage() {
     queryKey: ["coach-reactivation", userId],
     queryFn: () => api.coachReactivation(userId),
   });
+  const dailyChallenge = useQuery({
+    queryKey: ["coach-daily-challenge", userId],
+    queryFn: () => api.coachDailyChallenge(userId),
+  });
   const rewards = useQuery({
     queryKey: ["progress-rewards", userId],
     queryFn: () => api.progressRewards(userId),
@@ -177,6 +181,21 @@ export function DashboardPage() {
           <button type="button" onClick={startFiveMinuteMode}>
             Start easy return (5 min)
           </button>
+        </article>
+      )}
+      {dailyChallenge.isPending && <LoadingState text="Loading daily challenge..." />}
+      {dailyChallenge.isError && <ErrorState text="Failed to load daily challenge." />}
+      {dailyChallenge.isSuccess && (
+        <article className="panel stack">
+          <h3>Daily Challenge</h3>
+          <p>
+            <strong>{dailyChallenge.data.title}</strong> ({dailyChallenge.data.estimated_minutes} min)
+          </p>
+          <p>{dailyChallenge.data.reason}</p>
+          <p>{dailyChallenge.data.task}</p>
+          <Link to={dailyChallenge.data.route}>
+            <button type="button">Start daily challenge</button>
+          </Link>
         </article>
       )}
       {rewards.isPending && <LoadingState text="Loading rewards..." />}

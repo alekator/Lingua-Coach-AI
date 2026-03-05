@@ -104,6 +104,15 @@ class CoachReactivationResponse(BaseModel):
     note: str
 
 
+class CoachDailyChallengeResponse(BaseModel):
+    user_id: int
+    title: str
+    reason: str
+    task: str
+    route: str
+    estimated_minutes: int
+
+
 class ScenarioItem(BaseModel):
     id: str
     title: str

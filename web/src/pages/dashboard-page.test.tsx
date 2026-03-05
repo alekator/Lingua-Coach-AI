@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   progressWeeklyGoalSet: vi.fn(),
   coachNextActions: vi.fn(),
   coachReactivation: vi.fn(),
+  coachDailyChallenge: vi.fn(),
   planToday: vi.fn(),
   progressRewards: vi.fn(),
   progressRewardsClaim: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("../api/client", () => ({
     progressWeeklyGoalSet: mocks.progressWeeklyGoalSet,
     coachNextActions: mocks.coachNextActions,
     coachReactivation: mocks.coachReactivation,
+    coachDailyChallenge: mocks.coachDailyChallenge,
     planToday: mocks.planToday,
     progressRewards: mocks.progressRewards,
     progressRewardsClaim: mocks.progressRewardsClaim,
@@ -118,6 +120,14 @@ describe("DashboardPage", () => {
       cta_route: "/app/session",
       note: "Keep it light today. The goal is to restart momentum, not intensity.",
     });
+    mocks.coachDailyChallenge.mockResolvedValue({
+      user_id: 1,
+      title: "Daily Challenge: One Clear Step",
+      reason: "Fast progress for your travel goal with minimal friction.",
+      task: "Write one short message focused on grammar, then apply one correction.",
+      route: "/app/chat",
+      estimated_minutes: 5,
+    });
     mocks.progressRewards.mockResolvedValue({
       user_id: 1,
       total_xp: 30,
@@ -183,6 +193,8 @@ describe("DashboardPage", () => {
       expect(screen.getByText("XP: 30 | Claimed: 1")).toBeInTheDocument();
       expect(screen.getByText("Weekly Review")).toBeInTheDocument();
       expect(screen.getByText("Skills: strongest vocab, weakest grammar")).toBeInTheDocument();
+      expect(screen.getByText("Daily Challenge")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start daily challenge" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Save weekly goal" }));
