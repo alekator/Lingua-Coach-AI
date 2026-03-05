@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Callable, Generator
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,29 +11,39 @@ from sqlalchemy.pool import StaticPool
 
 from app.db import Base, get_db
 from app.main import create_app
+from app.schemas.chat import ChatMessageResponse
 
 
 @pytest.fixture()
-def client() -> Generator[TestClient, None, None]:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    TestingSessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, class_=Session)
-    Base.metadata.create_all(bind=engine)
+def client_factory() -> Callable[[Callable[[dict[str, Any]], ChatMessageResponse] | None], TestClient]:
+    def _build(
+        teacher_responder: Callable[[dict[str, Any]], ChatMessageResponse] | None = None,
+    ) -> TestClient:
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        testing_session_local = sessionmaker(
+            bind=engine, autocommit=False, autoflush=False, class_=Session
+        )
+        Base.metadata.create_all(bind=engine)
 
-    def override_get_db() -> Generator[Session, None, None]:
-        db = TestingSessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
+        def override_get_db() -> Generator[Session, None, None]:
+            db = testing_session_local()
+            try:
+                yield db
+            finally:
+                db.close()
 
-    app = create_app()
-    app.dependency_overrides[get_db] = override_get_db
+        app = create_app(teacher_responder=teacher_responder)
+        app.dependency_overrides[get_db] = override_get_db
+        return TestClient(app)
 
-    with TestClient(app) as test_client:
+    return _build
+
+
+@pytest.fixture()
+def client(client_factory: Callable[..., TestClient]) -> Generator[TestClient, None, None]:
+    with client_factory() as test_client:
         yield test_client
-
-    app.dependency_overrides.clear()

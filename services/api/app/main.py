@@ -10,7 +10,9 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 from app.db import init_db
+from app.routers.chat import router as chat_router
 from app.routers.profile import router as profile_router
+from app.services.teacher import TeacherResponder, default_teacher_responder
 
 
 class HealthResponse(BaseModel):
@@ -44,9 +46,13 @@ async def app_lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-def create_app(openai_probe: Callable[[], tuple[str, str]] | None = None) -> FastAPI:
+def create_app(
+    openai_probe: Callable[[], tuple[str, str]] | None = None,
+    teacher_responder: TeacherResponder | None = None,
+) -> FastAPI:
     app = FastAPI(title="LinguaCoach API", version="0.1.0", lifespan=app_lifespan)
     probe = openai_probe or default_openai_probe
+    app.state.teacher_responder = teacher_responder or default_teacher_responder
 
     @app.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
@@ -80,6 +86,7 @@ def create_app(openai_probe: Callable[[], tuple[str, str]] | None = None) -> Fas
         }
 
     app.include_router(profile_router)
+    app.include_router(chat_router)
 
     return app
 
