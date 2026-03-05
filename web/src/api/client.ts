@@ -1,4 +1,5 @@
 import type {
+  AppResetResponse,
   AppBootstrapResponse,
   PlacementAnswerResponse,
   PlacementFinishResponse,
@@ -92,6 +93,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   bootstrap: () => request<AppBootstrapResponse>("/app/bootstrap"),
+  appReset: (payload: { confirmation: string }) =>
+    request<AppResetResponse>("/app/reset", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   workspacesList: () => request<WorkspaceListResponse>("/workspaces"),
   workspaceCreate: (payload: {
     native_lang: string;

@@ -6,7 +6,8 @@ import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { LanguagePairSelector } from "../components/language-pair-selector";
 import { getErrorMessage } from "../lib/errors";
 import { languageLabelByCode, normalizeLanguageCode } from "../lib/languages";
-import { syncWorkspaceContext } from "../lib/workspace-context";
+import { clearWorkspaceRoutes } from "../lib/workspace-routes";
+import { syncWorkspaceContext, toBootstrapStorePayload } from "../lib/workspace-context";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
@@ -36,6 +37,10 @@ export function ProfilePage() {
   const [retakeTotalQuestions, setRetakeTotalQuestions] = useState(0);
   const [retakeAnswer, setRetakeAnswer] = useState("");
   const [retakeBusy, setRetakeBusy] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [resetToken, setResetToken] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetError, setResetError] = useState("");
   const pushToast = useToastStore((s) => s.push);
   const profile = useQuery({
     queryKey: ["profile", userId],
@@ -257,6 +262,34 @@ export function ProfilePage() {
     }
   }
 
+  async function onResetAllData() {
+    const token = resetToken.trim().toUpperCase();
+    if (token !== "RESET") {
+      setResetError("Type RESET to confirm full data deletion.");
+      return;
+    }
+    setResetBusy(true);
+    try {
+      await api.appReset({ confirmation: token });
+      clearWorkspaceRoutes();
+      queryClient.clear();
+      const bootstrap = await api.bootstrap();
+      queryClient.setQueryData(["bootstrap"], bootstrap);
+      setBootstrapState(toBootstrapStorePayload(bootstrap));
+      setResetError("");
+      setResetConfirmOpen(false);
+      setResetToken("");
+      pushToast("success", "All learning data removed. Starting fresh.");
+      navigate("/", { replace: true });
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setResetError(msg);
+      pushToast("error", msg);
+    } finally {
+      setResetBusy(false);
+    }
+  }
+
   return (
     <section className="panel stack">
       <h2>Coach Profile</h2>
@@ -446,6 +479,43 @@ export function ProfilePage() {
           ))}
         </article>
       )}
+      <article className="panel stack">
+        <h3>Start Over</h3>
+        <p>
+          Delete all learning spaces, progress, sessions, vocabulary, and profile data. This action cannot be undone.
+        </p>
+        {!resetConfirmOpen && (
+          <button type="button" onClick={() => setResetConfirmOpen(true)} disabled={resetBusy}>
+            Start over (delete all data)
+          </button>
+        )}
+        {resetConfirmOpen && (
+          <div className="panel stack">
+            <p>Warning: all saved learning data will be permanently deleted.</p>
+            <label>
+              Type RESET to confirm
+              <input value={resetToken} onChange={(e) => setResetToken(e.target.value)} />
+            </label>
+            <div className="row">
+              <button
+                type="button"
+                onClick={() => {
+                  setResetConfirmOpen(false);
+                  setResetToken("");
+                  setResetError("");
+                }}
+                disabled={resetBusy}
+              >
+                Cancel
+              </button>
+              <button type="button" onClick={onResetAllData} disabled={resetBusy || resetToken.trim().toUpperCase() !== "RESET"}>
+                {resetBusy ? "Deleting..." : "Delete all my data"}
+              </button>
+            </div>
+          </div>
+        )}
+        {resetError && <ErrorState text={resetError} />}
+      </article>
     </section>
   );
 }

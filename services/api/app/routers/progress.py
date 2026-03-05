@@ -8,7 +8,17 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import ChatSession, LearnerProfile, Message, Mistake, SkillSnapshot, SrsState, User, VocabItem
+from app.models import (
+    ChatSession,
+    LearnerProfile,
+    LearningWorkspace,
+    Message,
+    Mistake,
+    SkillSnapshot,
+    SrsState,
+    User,
+    VocabItem,
+)
 from app.schemas.progress import (
     AchievementItem,
     ProgressAchievementsResponse,
@@ -143,6 +153,15 @@ def _get_or_create_user(db: Session, user_id: int) -> User:
     db.add(user)
     db.flush()
     return user
+
+
+def _resolve_profile_lang_pair(db: Session, user_id: int) -> tuple[str, str]:
+    workspace = db.scalar(
+        select(LearningWorkspace).where(LearningWorkspace.learner_user_id == user_id)
+    )
+    if workspace is not None:
+        return workspace.native_lang, workspace.target_lang
+    return "en", "en"
 
 
 def _score_to_cefr_from_skills(score: float) -> str:
@@ -517,10 +536,11 @@ def progress_weekly_goal_set(payload: WeeklyGoalSetRequest, db: Session = Depend
     _get_or_create_user(db, payload.user_id)
     profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == payload.user_id))
     if profile is None:
+        native_lang, target_lang = _resolve_profile_lang_pair(db, payload.user_id)
         profile = LearnerProfile(
             user_id=payload.user_id,
-            native_lang="ru",
-            target_lang="en",
+            native_lang=native_lang,
+            target_lang=target_lang,
             level="A1",
             goal=None,
             preferences={"weekly_goal_minutes": payload.target_minutes},
@@ -544,10 +564,11 @@ def progress_rewards_claim(payload: RewardClaimRequest, db: Session = Depends(ge
     _get_or_create_user(db, payload.user_id)
     profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == payload.user_id))
     if profile is None:
+        native_lang, target_lang = _resolve_profile_lang_pair(db, payload.user_id)
         profile = LearnerProfile(
             user_id=payload.user_id,
-            native_lang="ru",
-            target_lang="en",
+            native_lang=native_lang,
+            target_lang=target_lang,
             level="A1",
             goal=None,
             preferences={},

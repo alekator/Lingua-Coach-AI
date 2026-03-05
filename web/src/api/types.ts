@@ -10,6 +10,16 @@ export type AppBootstrapResponse = {
   active_workspace_goal?: string | null;
 };
 
+export type AppResetResponse = {
+  status: string;
+  deleted_users: number;
+  deleted_workspaces: number;
+  deleted_profiles: number;
+  deleted_vocab_items: number;
+  deleted_chat_sessions: number;
+  openai_key_cleared: boolean;
+};
+
 export type LearningWorkspace = {
   id: number;
   native_lang: string;

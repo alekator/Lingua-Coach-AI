@@ -147,3 +147,27 @@ def test_progress_endpoints(client: TestClient) -> None:
     assert report_body["period_days"] == 30
     assert "export_markdown" in report_body
     assert "Highlights" in report_body["export_markdown"]
+
+
+def test_progress_profile_defaults_follow_workspace_lang_pair(client: TestClient) -> None:
+    created = client.post(
+        "/workspaces",
+        json={"native_lang": "es", "target_lang": "fr", "goal": "relocation", "make_active": True},
+    )
+    assert created.status_code == 200
+
+    active = client.get("/workspaces/active")
+    assert active.status_code == 200
+    workspace_user_id = active.json()["active_user_id"]
+
+    weekly_goal_set = client.post(
+        "/progress/weekly-goal",
+        json={"user_id": workspace_user_id, "target_minutes": 120},
+    )
+    assert weekly_goal_set.status_code == 200
+
+    profile = client.get("/profile", params={"user_id": workspace_user_id})
+    assert profile.status_code == 200
+    profile_body = profile.json()
+    assert profile_body["native_lang"] == "es"
+    assert profile_body["target_lang"] == "fr"

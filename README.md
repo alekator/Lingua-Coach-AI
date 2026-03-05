@@ -64,6 +64,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
 
 - Profile/onboarding:
   - `GET /app/bootstrap`
+  - `POST /app/reset`
   - `POST /profile/setup`
   - `POST /profile/placement-test/start`
   - `POST /profile/placement-test/answer`
@@ -129,6 +130,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - `active_workspace_native_lang`
     - `active_workspace_target_lang`
     - `active_workspace_goal`
+
+- `POST /app/reset`
+  - full local reset for single-user desktop mode.
+  - requires payload confirmation token: `"RESET"`.
+  - clears users, workspaces, profiles, progress data, and in-process OpenAI key.
 
 - `GET /workspaces`
   - returns owner scope workspace list:

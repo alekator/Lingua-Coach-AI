@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getWorkspaceResumeRoute, rememberWorkspaceRoute } from "./workspace-routes";
+import { clearWorkspaceRoutes, getWorkspaceResumeRoute, rememberWorkspaceRoute } from "./workspace-routes";
 
 describe("workspace-routes", () => {
   beforeEach(() => {
@@ -14,6 +14,12 @@ describe("workspace-routes", () => {
 
   it("ignores non-app routes", () => {
     rememberWorkspaceRoute(2, "/");
+    expect(getWorkspaceResumeRoute(2)).toBeNull();
+  });
+
+  it("clears remembered routes", () => {
+    rememberWorkspaceRoute(2, "/app/chat");
+    clearWorkspaceRoutes();
     expect(getWorkspaceResumeRoute(2)).toBeNull();
   });
 });

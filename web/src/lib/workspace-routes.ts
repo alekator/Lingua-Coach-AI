@@ -39,3 +39,8 @@ export function getWorkspaceResumeRoute(workspaceId: number): string | null {
   if (typeof pathname !== "string" || !isAppRoute(pathname)) return null;
   return pathname;
 }
+
+export function clearWorkspaceRoutes(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(STORAGE_KEY);
+}

@@ -5,6 +5,7 @@ import { ProfilePage } from "./profile-page";
 const mocks = vi.hoisted(() => ({
   profileGet: vi.fn(),
   profileSetup: vi.fn(),
+  appReset: vi.fn(),
   bootstrap: vi.fn(),
   workspacesList: vi.fn(),
   workspaceCreate: vi.fn(),
@@ -37,6 +38,7 @@ vi.mock("../api/client", async () => {
     api: {
       profileGet: mocks.profileGet,
       profileSetup: mocks.profileSetup,
+      appReset: mocks.appReset,
       bootstrap: mocks.bootstrap,
       workspacesList: mocks.workspacesList,
       workspaceCreate: mocks.workspaceCreate,
@@ -119,6 +121,15 @@ describe("ProfilePage", () => {
       ],
     });
     mocks.profileSetup.mockResolvedValue({});
+    mocks.appReset.mockResolvedValue({
+      status: "ok",
+      deleted_users: 2,
+      deleted_workspaces: 1,
+      deleted_profiles: 1,
+      deleted_vocab_items: 3,
+      deleted_chat_sessions: 1,
+      openai_key_cleared: true,
+    });
     mocks.bootstrap.mockResolvedValue({
       user_id: 1,
       has_profile: true,
@@ -336,6 +347,33 @@ describe("ProfilePage", () => {
     await waitFor(() => {
       expect(mocks.workspaceUpdate).toHaveBeenCalledWith(2, { goal: "relocation prep" });
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Space goal updated");
+    });
+  });
+
+  it("resets all data with two-step confirmation", async () => {
+    mocks.bootstrap.mockResolvedValue({
+      user_id: 1,
+      has_profile: false,
+      needs_onboarding: true,
+      next_step: "onboarding",
+      owner_user_id: 1,
+      active_workspace_id: null,
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Start over (delete all data)" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start over (delete all data)" }));
+    fireEvent.change(screen.getByLabelText("Type RESET to confirm"), { target: { value: "RESET" } });
+    fireEvent.click(screen.getByRole("button", { name: "Delete all my data" }));
+
+    await waitFor(() => {
+      expect(mocks.appReset).toHaveBeenCalledWith({ confirmation: "RESET" });
+      expect(mocks.navigate).toHaveBeenCalledWith("/", { replace: true });
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "All learning data removed. Starting fresh.");
     });
   });
 });
