@@ -93,6 +93,17 @@ class CoachNextActionsResponse(BaseModel):
     items: list[CoachNextAction]
 
 
+class CoachReactivationResponse(BaseModel):
+    user_id: int
+    eligible: bool
+    gap_days: int
+    weak_topic: str | None = None
+    title: str
+    tasks: list[str] = Field(default_factory=list)
+    cta_route: str = "/app/session"
+    note: str
+
+
 class ScenarioItem(BaseModel):
     id: str
     title: str

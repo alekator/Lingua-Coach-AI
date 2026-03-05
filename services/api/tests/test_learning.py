@@ -140,6 +140,20 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert "title" in next_body["items"][0]
         assert "route" in next_body["items"][0]
 
+        reactivation_recent = client.get("/coach/reactivation", params={"user_id": 1})
+        assert reactivation_recent.status_code == 200
+        recent_body = reactivation_recent.json()
+        assert recent_body["eligible"] is False
+        assert recent_body["gap_days"] == 0
+        assert recent_body["tasks"] == []
+
+        reactivation_new_user = client.get("/coach/reactivation", params={"user_id": 999})
+        assert reactivation_new_user.status_code == 200
+        new_user_body = reactivation_new_user.json()
+        assert new_user_body["eligible"] is True
+        assert new_user_body["gap_days"] >= 2
+        assert len(new_user_body["tasks"]) == 3
+
         scenarios = client.get("/scenarios")
         assert scenarios.status_code == 200
         items = scenarios.json()["items"]

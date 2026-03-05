@@ -91,6 +91,17 @@ export type CoachNextActionsResponse = {
   }>;
 };
 
+export type CoachReactivationResponse = {
+  user_id: number;
+  eligible: boolean;
+  gap_days: number;
+  weak_topic?: string | null;
+  title: string;
+  tasks: string[];
+  cta_route: string;
+  note: string;
+};
+
 export type ScenarioItem = {
   id: string;
   title: string;

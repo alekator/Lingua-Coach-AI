@@ -30,13 +30,9 @@ export function DashboardPage() {
     queryKey: ["coach-next-actions", userId],
     queryFn: () => api.coachNextActions(userId),
   });
-  const streak = useQuery({
-    queryKey: ["streak", userId],
-    queryFn: () => api.progressStreak(userId),
-  });
-  const journal = useQuery({
-    queryKey: ["progress-journal", userId],
-    queryFn: () => api.progressJournal(userId),
+  const reactivation = useQuery({
+    queryKey: ["coach-reactivation", userId],
+    queryFn: () => api.coachReactivation(userId),
   });
   const rewards = useQuery({
     queryKey: ["progress-rewards", userId],
@@ -66,19 +62,6 @@ export function DashboardPage() {
     }
   }
 
-  function computeReactivation() {
-    if (!streak.data || streak.data.active_dates.length === 0) return null;
-    const lastActiveRaw = streak.data.active_dates[streak.data.active_dates.length - 1];
-    const lastActiveUtc = new Date(`${lastActiveRaw}T00:00:00Z`);
-    const now = new Date();
-    const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-    const lastUtc = Date.UTC(lastActiveUtc.getUTCFullYear(), lastActiveUtc.getUTCMonth(), lastActiveUtc.getUTCDate());
-    const gapDays = Math.floor((todayUtc - lastUtc) / (24 * 60 * 60 * 1000));
-    if (gapDays < 2) return null;
-    const weakArea = journal.data?.weak_areas?.[0] ?? "grammar";
-    return `You had a ${gapDays}-day pause. Easy return: 5 min on ${weakArea}, then one short coach chat.`;
-  }
-
   function startFiveMinuteMode() {
     setDailyMinutes(5);
     pushToast("info", "5-minute mode enabled for today");
@@ -86,7 +69,10 @@ export function DashboardPage() {
   }
 
   const nextBestAction = nextActions.data?.items?.[0] ?? null;
-  const reactivationMsg = computeReactivation();
+  const reactivationMsg =
+    reactivation.data && reactivation.data.eligible
+      ? `You had a ${reactivation.data.gap_days}-day pause. ${reactivation.data.note}`
+      : null;
 
   return (
     <section className="panel">
@@ -174,6 +160,19 @@ export function DashboardPage() {
               </Link>
             </div>
           ))}
+        </article>
+      )}
+      {reactivation.isSuccess && reactivation.data.eligible && (
+        <article className="panel stack">
+          <h3>Easy Return Plan</h3>
+          <p>{reactivation.data.title}</p>
+          {reactivation.data.weak_topic && <p>Focus area: {reactivation.data.weak_topic}</p>}
+          {reactivation.data.tasks.map((task) => (
+            <p key={task}>- {task}</p>
+          ))}
+          <button type="button" onClick={startFiveMinuteMode}>
+            Start easy return (5 min)
+          </button>
         </article>
       )}
       {rewards.isPending && <LoadingState text="Loading rewards..." />}

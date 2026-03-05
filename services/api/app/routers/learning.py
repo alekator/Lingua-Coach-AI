@@ -11,6 +11,7 @@ from app.models import ChatSession, Homework, LearnerProfile, Message, Mistake, 
 from app.schemas.learning import (
     CoachNextAction,
     CoachNextActionsResponse,
+    CoachReactivationResponse,
     CoachSessionTodayResponse,
     ExercisesGenerateRequest,
     ExercisesGenerateResponse,
@@ -57,6 +58,15 @@ def _to_utc_datetime(dt: datetime) -> datetime:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=UTC)
     return dt.astimezone(UTC)
+
+
+def _reactivation_gap_days(sessions: list[ChatSession]) -> int:
+    active_dates = sorted({_to_utc_date(s.started_at) for s in sessions if s.started_at})
+    if not active_dates:
+        return 999
+    last_active = active_dates[-1]
+    today = datetime.now(UTC).date()
+    return max(0, (today - last_active).days)
 
 
 @router.post("/translate/voice", response_model=TranslateVoiceResponse)
@@ -313,6 +323,59 @@ def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNext
         )
 
     return CoachNextActionsResponse(user_id=user_id, items=sorted(items, key=lambda item: item.priority)[:4])
+
+
+@router.get("/coach/reactivation", response_model=CoachReactivationResponse)
+def coach_reactivation(user_id: int, db: Session = Depends(get_db)) -> CoachReactivationResponse:
+    sessions = db.scalars(select(ChatSession).where(ChatSession.user_id == user_id)).all()
+    gap_days = _reactivation_gap_days(sessions)
+
+    weak_top = db.scalars(
+        select(Mistake.category)
+        .where(Mistake.user_id == user_id)
+        .order_by(Mistake.created_at.desc())
+        .limit(30)
+    ).all()
+    weak_topic = next((category for category in weak_top if category), None)
+
+    due_vocab_count = int(
+        db.scalar(
+            select(func.count(SrsState.vocab_item_id))
+            .select_from(SrsState)
+            .join(VocabItem, VocabItem.id == SrsState.vocab_item_id)
+            .where(VocabItem.user_id == user_id, SrsState.due_at <= utcnow())
+        )
+        or 0
+    )
+    target_topic = weak_topic or "grammar"
+    tasks = [
+        f"2 min: quick warmup in {target_topic} with one simple sentence.",
+        "2 min: one short coach chat turn and apply one correction.",
+        "1 min: close with one success line to lock momentum.",
+    ]
+    if due_vocab_count > 0:
+        tasks[0] = f"2 min: review {min(due_vocab_count, 5)} due vocab cards for easy restart."
+
+    if gap_days < 2:
+        return CoachReactivationResponse(
+            user_id=user_id,
+            eligible=False,
+            gap_days=gap_days,
+            weak_topic=weak_topic,
+            title="No reactivation needed",
+            tasks=[],
+            note="You are active recently. Keep normal daily flow.",
+        )
+
+    return CoachReactivationResponse(
+        user_id=user_id,
+        eligible=True,
+        gap_days=gap_days,
+        weak_topic=weak_topic,
+        title=f"Easy return plan after {gap_days} day break",
+        tasks=tasks,
+        note="Keep it light today. The goal is to restart momentum, not intensity.",
+    )
 
 
 @router.get("/scenarios", response_model=ScenariosResponse)

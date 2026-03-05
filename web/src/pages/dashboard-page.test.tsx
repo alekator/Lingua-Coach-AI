@@ -9,8 +9,7 @@ const mocks = vi.hoisted(() => ({
   progressWeeklyGoal: vi.fn(),
   progressWeeklyGoalSet: vi.fn(),
   coachNextActions: vi.fn(),
-  progressStreak: vi.fn(),
-  progressJournal: vi.fn(),
+  coachReactivation: vi.fn(),
   planToday: vi.fn(),
   progressRewards: vi.fn(),
   progressRewardsClaim: vi.fn(),
@@ -24,8 +23,7 @@ vi.mock("../api/client", () => ({
     progressWeeklyGoal: mocks.progressWeeklyGoal,
     progressWeeklyGoalSet: mocks.progressWeeklyGoalSet,
     coachNextActions: mocks.coachNextActions,
-    progressStreak: mocks.progressStreak,
-    progressJournal: mocks.progressJournal,
+    coachReactivation: mocks.coachReactivation,
     planToday: mocks.planToday,
     progressRewards: mocks.progressRewards,
     progressRewardsClaim: mocks.progressRewardsClaim,
@@ -104,16 +102,19 @@ describe("DashboardPage", () => {
         },
       ],
     });
-    mocks.progressStreak.mockResolvedValue({
-      streak_days: 0,
-      active_dates: ["2026-03-03"],
-    });
-    mocks.progressJournal.mockResolvedValue({
-      weekly_minutes: 24,
-      weekly_sessions: 3,
-      weak_areas: ["grammar"],
-      next_actions: ["Run one targeted drill for: grammar."],
-      entries: [],
+    mocks.coachReactivation.mockResolvedValue({
+      user_id: 1,
+      eligible: true,
+      gap_days: 3,
+      weak_topic: "grammar",
+      title: "Easy return plan after 3 day break",
+      tasks: [
+        "2 min: quick warmup in grammar with one simple sentence.",
+        "2 min: one short coach chat turn and apply one correction.",
+        "1 min: close with one success line to lock momentum.",
+      ],
+      cta_route: "/app/session",
+      note: "Keep it light today. The goal is to restart momentum, not intensity.",
     });
     mocks.progressRewards.mockResolvedValue({
       user_id: 1,
@@ -161,6 +162,8 @@ describe("DashboardPage", () => {
       expect(screen.getByText("Today one step:")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Do next best action" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Start 5-minute mode" })).toBeInTheDocument();
+      expect(screen.getByText("Easy Return Plan")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start easy return (5 min)" })).toBeInTheDocument();
       expect(screen.getByText("Rewards")).toBeInTheDocument();
       expect(screen.getByText("XP: 30 | Claimed: 1")).toBeInTheDocument();
     });
@@ -176,6 +179,11 @@ describe("DashboardPage", () => {
       expect(mocks.setDailyMinutes).toHaveBeenCalledWith(5);
       expect(mocks.pushToast).toHaveBeenCalledWith("info", "5-minute mode enabled for today");
       expect(screen.getByText(/Reactivation:/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start easy return (5 min)" }));
+    await waitFor(() => {
+      expect(mocks.setDailyMinutes).toHaveBeenCalledWith(5);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Claim reward" }));

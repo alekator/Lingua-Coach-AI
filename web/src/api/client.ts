@@ -8,6 +8,7 @@ import type {
   ProfileResponse,
   ChatMessageResponse,
   CoachNextActionsResponse,
+  CoachReactivationResponse,
   CoachSessionTodayResponse,
   ChatStartResponse,
   ExercisesGenerateResponse,
@@ -125,6 +126,8 @@ export const api = {
     ),
   coachNextActions: (userId: number) =>
     request<CoachNextActionsResponse>(`/coach/next-actions?user_id=${encodeURIComponent(userId)}`),
+  coachReactivation: (userId: number) =>
+    request<CoachReactivationResponse>(`/coach/reactivation?user_id=${encodeURIComponent(userId)}`),
   scenarios: () => request<ScenariosResponse>("/scenarios"),
   selectScenario: (payload: { user_id: number; scenario_id: string }) =>
     request<ScenarioSelectResponse>("/scenarios/select", {
