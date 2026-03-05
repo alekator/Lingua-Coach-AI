@@ -143,7 +143,7 @@ export function ProfilePage() {
   return (
     <section className="panel stack">
       <h2>Coach Profile & Progress</h2>
-      <p>Tune your learning profile and inspect how your skills evolve over time.</p>
+      <p>Set your learning preferences and track coach signals for steady progress.</p>
       {profile.isPending && <LoadingState text="Loading profile settings..." />}
       {profile.isError && <ErrorState text="Failed to load profile settings." />}
       {profile.isSuccess && (
@@ -229,6 +229,7 @@ export function ProfilePage() {
           </p>
           <p>Weak areas: {journal.data.weak_areas.join(", ") || "none detected"}</p>
           <h4>Next actions</h4>
+          <p>Coach recommendation: pick one action and complete it today.</p>
           {journal.data.next_actions.map((action) => (
             <p key={action}>- {action}</p>
           ))}

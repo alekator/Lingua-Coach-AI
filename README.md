@@ -81,6 +81,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `POST /exercises/generate`
   - `POST /exercises/grade`
   - `GET /plan/today`
+  - `GET /coach/session/today`
   - `GET /scenarios`
   - `POST /scenarios/select`
 - Voice pipeline:
@@ -98,6 +99,37 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `GET /progress/summary`
   - `GET /progress/skill-map`
   - `GET /progress/streak`
+  - `GET /progress/journal`
+
+## API Contract Notes
+
+- `GET /plan/today`
+  - response includes `adaptation_notes: string[]` with short reasoning for plan adaptation.
+
+- `GET /coach/session/today`
+  - returns guided step sequence for the day:
+    - `steps[].id`
+    - `steps[].title`
+    - `steps[].description`
+    - `steps[].route`
+    - `steps[].duration_minutes`
+
+- `POST /chat/message`
+  - response includes coaching rubric in `rubric`:
+    - `overall_score` (0..100)
+    - `level_band`
+    - `grammar_accuracy`, `lexical_range`, `fluency_coherence`, `task_completion` (each with `score` 1..5 + `feedback`)
+    - `strengths[]`
+    - `priority_fixes[]`
+    - `next_drill`
+
+- `GET /progress/journal`
+  - response includes weekly view and actionable recommendations:
+    - `weekly_minutes`
+    - `weekly_sessions`
+    - `weak_areas[]`
+    - `next_actions[]`
+    - `entries[]` (recent sessions with mode, message count, completion)
 
 ## Quality / Platform Features
 

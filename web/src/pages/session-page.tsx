@@ -22,7 +22,7 @@ export function SessionPage() {
   return (
     <section className="panel stack">
       <h2>Daily Session</h2>
-      <p>Run one guided cycle: warmup, coaching, drills, vocab review, and recap.</p>
+      <p>Coach flow: warmup, focused practice, quick drill, vocab review, and recap.</p>
       {session.isPending && <LoadingState text="Preparing your session..." />}
       {session.isError && <ErrorState text="Failed to load daily session." />}
       {session.isSuccess && (
@@ -30,6 +30,7 @@ export function SessionPage() {
           <p>
             Time budget: {session.data.time_budget_minutes} min | Focus: {session.data.focus.join(", ")}
           </p>
+          <p>Coach note: complete each step in order, even if you keep responses short.</p>
           <article className="panel">
             <h3>
               Step {activeIndex + 1}: {activeStep?.title}

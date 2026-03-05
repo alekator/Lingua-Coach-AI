@@ -41,9 +41,10 @@ export function VoicePage() {
   return (
     <section className="panel stack">
       <h2>Voice Conversation</h2>
+      <p>Coach mode: upload a short response, review pronunciation feedback, then repeat with one improvement.</p>
       <form className="stack" onSubmit={onSubmit}>
         <label>
-          Upload voice sample
+          Upload voice sample (10-45 sec)
           <input
             type="file"
             accept="audio/*"

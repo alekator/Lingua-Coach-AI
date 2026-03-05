@@ -61,7 +61,7 @@ export function ChatPage() {
   return (
     <section className="panel stack">
       <h2>Coach Chat</h2>
-      <p>Use this mode for correction-first practice. Keep messages short and focused.</p>
+      <p>Coach mode: send one clear idea, get precise corrections, then apply them in the next turn.</p>
       <div className="row">
         <button type="button" onClick={onStart} disabled={!!sessionId}>
           Start coaching session
@@ -74,7 +74,7 @@ export function ChatPage() {
       {error && <ErrorState text={error} />}
       <form onSubmit={onSend} className="stack">
         <label>
-          Message
+          Message to coach
           <input value={text} onChange={(e) => setText(e.target.value)} />
         </label>
         <button type="submit" disabled={!sessionId}>
