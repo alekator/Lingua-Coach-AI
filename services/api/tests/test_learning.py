@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 from fastapi.testclient import TestClient
+from app.schemas.chat import ChatMessageResponse, Correction
 
 
 def test_translate_voice_pipeline(client_factory: Callable[..., TestClient]) -> None:
@@ -61,32 +63,65 @@ def test_exercises_generate_and_grade(client: TestClient) -> None:
     assert body["max_score"] == 3.0
 
 
-def test_plan_today_and_scenarios(client: TestClient) -> None:
-    setup = client.post(
-        "/profile/setup",
-        json={
-            "user_id": 1,
-            "native_lang": "ru",
-            "target_lang": "en",
-            "level": "A2",
-            "goal": "interview",
-            "preferences": {},
-        },
-    )
-    assert setup.status_code == 200
+def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> None:
+    def fake_teacher(_: dict[str, Any]) -> ChatMessageResponse:
+        return ChatMessageResponse(
+            assistant_text="Nice try. One correction.",
+            corrections=[
+                Correction(
+                    type="grammar",
+                    bad="I did a mistake",
+                    good="I made a mistake",
+                    explanation="Use 'make a mistake'",
+                )
+            ],
+            new_words=[],
+            homework_suggestions=[],
+        )
 
-    plan = client.get("/plan/today", params={"user_id": 1, "time_budget_minutes": 20})
-    assert plan.status_code == 200
-    plan_body = plan.json()
-    assert plan_body["user_id"] == 1
-    assert plan_body["time_budget_minutes"] == 20
-    assert len(plan_body["tasks"]) == 3
+    with client_factory(teacher_responder=fake_teacher) as client:
+        setup = client.post(
+            "/profile/setup",
+            json={
+                "user_id": 1,
+                "native_lang": "ru",
+                "target_lang": "en",
+                "level": "A2",
+                "goal": "interview",
+                "preferences": {},
+            },
+        )
+        assert setup.status_code == 200
 
-    scenarios = client.get("/scenarios")
-    assert scenarios.status_code == 200
-    items = scenarios.json()["items"]
-    assert len(items) >= 1
+        # Make one due SRS card and one tracked grammar mistake to drive adaptation.
+        vocab = client.post(
+            "/vocab/add",
+            json={"user_id": 1, "word": "achieve", "translation": "to achieve"},
+        )
+        assert vocab.status_code == 200
 
-    chosen = client.post("/scenarios/select", json={"user_id": 1, "scenario_id": items[0]["id"]})
-    assert chosen.status_code == 200
-    assert chosen.json()["mode"].startswith("scenario:")
+        started = client.post("/chat/start", json={"user_id": 1, "mode": "chat"})
+        session_id = started.json()["session_id"]
+        msg = client.post("/chat/message", json={"session_id": session_id, "text": "I did a mistake"})
+        assert msg.status_code == 200
+
+        plan = client.get("/plan/today", params={"user_id": 1, "time_budget_minutes": 20})
+        assert plan.status_code == 200
+        plan_body = plan.json()
+        assert plan_body["user_id"] == 1
+        assert plan_body["time_budget_minutes"] == 20
+        assert len(plan_body["tasks"]) == 3
+        assert "interview" in plan_body["focus"]
+        assert "grammar" in plan_body["focus"]
+        assert "vocab" in plan_body["focus"]
+        assert "due cards:" in plan_body["tasks"][0]
+        assert "targeted correction drill (grammar)" in plan_body["tasks"][1]
+
+        scenarios = client.get("/scenarios")
+        assert scenarios.status_code == 200
+        items = scenarios.json()["items"]
+        assert len(items) >= 1
+
+        chosen = client.post("/scenarios/select", json={"user_id": 1, "scenario_id": items[0]["id"]})
+        assert chosen.status_code == 200
+        assert chosen.json()["mode"].startswith("scenario:")

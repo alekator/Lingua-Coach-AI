@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import Counter
+
 from app.schemas.learning import ExerciseItem, ScenarioItem
 
 
@@ -39,3 +41,53 @@ def grade_exercises(answers: dict[str, str], expected: dict[str, str]) -> tuple[
             correct += 1
     max_score = float(len(expected))
     return float(correct), max_score, details
+
+
+def build_adaptive_plan(
+    *,
+    goal: str | None,
+    time_budget_minutes: int,
+    recent_mistake_categories: list[str],
+    due_vocab_count: int,
+    recent_user_messages_count: int,
+) -> tuple[list[str], list[str]]:
+    ranked_mistakes = Counter(c for c in recent_mistake_categories if c).most_common()
+
+    focus: list[str] = []
+    if goal:
+        focus.append(goal)
+
+    for category, _ in ranked_mistakes:
+        if category in {"grammar", "verb_form"} and "grammar" not in focus:
+            focus.append("grammar")
+        elif category == "pronunciation" and "pronunciation" not in focus:
+            focus.append("pronunciation")
+        elif category == "vocab" and "vocab" not in focus:
+            focus.append("vocab")
+        if len(focus) >= 3:
+            break
+
+    if due_vocab_count > 0 and "vocab" not in focus:
+        focus.append("vocab")
+    if recent_user_messages_count < 3 and "speaking" not in focus:
+        focus.append("speaking")
+
+    # Keep compact and stable output shape.
+    focus = (focus + ["grammar", "speaking", "vocab"])[:3]
+
+    review_minutes = max(4, min(8, round(time_budget_minutes * 0.3)))
+    coach_minutes = max(4, min(10, round(time_budget_minutes * 0.35)))
+    scenario_minutes = max(3, time_budget_minutes - review_minutes - coach_minutes)
+
+    first_focus = focus[0]
+    review_task = f"{review_minutes} min: quick review ({first_focus})"
+    if due_vocab_count > 0:
+        review_task = f"{review_minutes} min: SRS vocab review (due cards: {due_vocab_count})"
+
+    coach_task = f"{coach_minutes} min: teacher chat focused on {focus[1]}"
+    if ranked_mistakes:
+        top_mistake = ranked_mistakes[0][0]
+        coach_task = f"{coach_minutes} min: targeted correction drill ({top_mistake})"
+
+    scenario_task = f"{scenario_minutes} min: scenario practice ({focus[2]})"
+    return focus, [review_task, coach_task, scenario_task]

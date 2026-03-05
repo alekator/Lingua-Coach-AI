@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import ChatSession, LearnerProfile, User
+from app.models import ChatSession, LearnerProfile, Message, Mistake, SrsState, User, VocabItem
 from app.schemas.learning import (
     ExercisesGenerateRequest,
     ExercisesGenerateResponse,
@@ -20,7 +20,8 @@ from app.schemas.learning import (
     ScenariosResponse,
     TranslateVoiceResponse,
 )
-from app.services.learning import default_scenarios, generate_exercises, grade_exercises
+from app.services.learning import build_adaptive_plan, default_scenarios, generate_exercises, grade_exercises
+from app.services.srs import utcnow
 from app.services.translate import TranslatorFn, TtsSynthesizerFn
 from app.services.voice import AsrTranscriberFn
 
@@ -102,19 +103,37 @@ def plan_today(
 ) -> PlanTodayResponse:
     profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
 
-    focus = ["grammar", "speaking", "vocab"]
-    if profile and profile.goal:
-        focus.insert(0, profile.goal)
+    recent_mistakes = db.scalars(
+        select(Mistake)
+        .where(Mistake.user_id == user_id)
+        .order_by(Mistake.created_at.desc())
+        .limit(40)
+    ).all()
+    due_vocab_count = db.scalar(
+        select(func.count(SrsState.vocab_item_id))
+        .select_from(SrsState)
+        .join(VocabItem, VocabItem.id == SrsState.vocab_item_id)
+        .where(VocabItem.user_id == user_id, SrsState.due_at <= utcnow())
+    )
+    recent_user_messages_count = db.scalar(
+        select(func.count(Message.id))
+        .select_from(Message)
+        .join(ChatSession, ChatSession.id == Message.session_id)
+        .where(ChatSession.user_id == user_id, Message.role == "user")
+    )
 
-    tasks = [
-        f"5 min: quick review ({focus[0]})",
-        "5 min: teacher chat with corrections",
-        f"{max(2, time_budget_minutes - 10)} min: scenario practice",
-    ]
+    focus, tasks = build_adaptive_plan(
+        goal=profile.goal if profile else None,
+        time_budget_minutes=time_budget_minutes,
+        recent_mistake_categories=[m.category for m in recent_mistakes],
+        due_vocab_count=int(due_vocab_count or 0),
+        recent_user_messages_count=int(recent_user_messages_count or 0),
+    )
+
     return PlanTodayResponse(
         user_id=user_id,
         time_budget_minutes=time_budget_minutes,
-        focus=focus[:3],
+        focus=focus,
         tasks=tasks,
     )
 
