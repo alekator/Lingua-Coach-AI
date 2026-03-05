@@ -113,6 +113,34 @@ class CoachDailyChallengeResponse(BaseModel):
     estimated_minutes: int
 
 
+class CoachTrajectoryMilestone(BaseModel):
+    day: int
+    title: str
+    target: str
+
+
+class CoachTrajectoryResponse(BaseModel):
+    user_id: int
+    horizon_days: int
+    current_phase: str
+    retake_recommended: bool
+    milestones: list[CoachTrajectoryMilestone]
+
+
+class CoachRoadmapItem(BaseModel):
+    id: str
+    title: str
+    reason: str
+    route: str
+    priority: int
+
+
+class CoachRoadmapResponse(BaseModel):
+    user_id: int
+    goal: str
+    items: list[CoachRoadmapItem]
+
+
 class ScenarioItem(BaseModel):
     id: str
     title: str

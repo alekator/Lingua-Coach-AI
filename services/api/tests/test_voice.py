@@ -78,6 +78,13 @@ def test_voice_message_pipeline(
         assert len(body["pronunciation_rubric"]["actionable_tips"]) >= 1
         assert [step for step, _ in chain] == ["asr", "teacher", "tts"]
 
+        progress = client.get("/voice/progress", params={"user_id": 77})
+        assert progress.status_code == 200
+        progress_body = progress.json()
+        assert progress_body["user_id"] == 77
+        assert progress_body["trend"] in {"stable", "improving", "declining"}
+        assert "recommendation" in progress_body
+
 
 def test_default_voice_teacher_fallback_respects_strictness(monkeypatch: Any) -> None:
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)

@@ -13,7 +13,11 @@ from app.schemas.learning import (
     CoachNextAction,
     CoachNextActionsResponse,
     CoachReactivationResponse,
+    CoachRoadmapItem,
+    CoachRoadmapResponse,
     CoachSessionTodayResponse,
+    CoachTrajectoryMilestone,
+    CoachTrajectoryResponse,
     ExercisesGenerateRequest,
     ExercisesGenerateResponse,
     ExercisesGradeRequest,
@@ -366,6 +370,96 @@ def coach_daily_challenge(user_id: int, db: Session = Depends(get_db)) -> CoachD
         route="/app/chat",
         estimated_minutes=5,
     )
+
+
+@router.get("/coach/trajectory", response_model=CoachTrajectoryResponse)
+def coach_trajectory(
+    user_id: int,
+    horizon_days: int = 30,
+    db: Session = Depends(get_db),
+) -> CoachTrajectoryResponse:
+    horizon = 30 if horizon_days <= 30 else 60 if horizon_days <= 60 else 90
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    sessions = db.scalars(select(ChatSession).where(ChatSession.user_id == user_id)).all()
+    session_count = len(sessions)
+    level = (profile.level if profile else "A1").upper()
+    goal = (profile.goal if profile and profile.goal else "general communication")
+
+    if session_count < 5:
+        current_phase = "foundation"
+    elif session_count < 15:
+        current_phase = "consolidation"
+    else:
+        current_phase = "expansion"
+
+    retake_recommended = session_count >= 12 or horizon == 90
+
+    milestones = [
+        CoachTrajectoryMilestone(day=7, title="Consistency", target="Reach at least 4 short sessions."),
+        CoachTrajectoryMilestone(day=14, title="Correction Loop", target="Apply top 2 correction patterns reliably."),
+        CoachTrajectoryMilestone(day=30, title="Functional Output", target=f"Handle one full {goal} scenario confidently."),
+    ]
+    if horizon >= 60:
+        milestones.append(
+            CoachTrajectoryMilestone(day=60, title="Fluency Build", target="Sustain multi-turn responses with fewer pauses.")
+        )
+    if horizon >= 90:
+        milestones.append(
+            CoachTrajectoryMilestone(day=90, title="Reassessment", target=f"Run mini placement retake from level {level}.")
+        )
+
+    return CoachTrajectoryResponse(
+        user_id=user_id,
+        horizon_days=horizon,
+        current_phase=current_phase,
+        retake_recommended=retake_recommended,
+        milestones=milestones,
+    )
+
+
+@router.get("/coach/roadmap", response_model=CoachRoadmapResponse)
+def coach_roadmap(user_id: int, db: Session = Depends(get_db)) -> CoachRoadmapResponse:
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    goal = (profile.goal if profile and profile.goal else "general communication")
+    weak_top = db.scalars(
+        select(Mistake.category)
+        .where(Mistake.user_id == user_id)
+        .order_by(Mistake.created_at.desc())
+        .limit(50)
+    ).all()
+    top_weak = next((category for category in weak_top if category), "grammar")
+
+    items = [
+        CoachRoadmapItem(
+            id="roadmap-chat-loop",
+            title="Correction-to-production loop",
+            reason=f"Your current weak area is {top_weak}; chat loop gives fast transfer to output.",
+            route="/app/chat",
+            priority=1,
+        ),
+        CoachRoadmapItem(
+            id="roadmap-drills",
+            title=f"Targeted {top_weak} drills",
+            reason="Convert recurring mistakes into stable patterns with short focused drills.",
+            route="/app/exercises",
+            priority=2,
+        ),
+        CoachRoadmapItem(
+            id="roadmap-scenario",
+            title=f"{goal.title()} scenario rehearsal",
+            reason="Apply corrected language in realistic multi-step context.",
+            route="/app/scenarios",
+            priority=3,
+        ),
+        CoachRoadmapItem(
+            id="roadmap-review",
+            title="Spaced review anchor",
+            reason="Keep retention stable while complexity grows.",
+            route="/app/vocab",
+            priority=4,
+        ),
+    ]
+    return CoachRoadmapResponse(user_id=user_id, goal=goal, items=items)
 
 
 @router.get("/coach/reactivation", response_model=CoachReactivationResponse)

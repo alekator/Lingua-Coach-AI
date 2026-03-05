@@ -10,6 +10,8 @@ import type {
   CoachNextActionsResponse,
   CoachReactivationResponse,
   CoachDailyChallengeResponse,
+  CoachTrajectoryResponse,
+  CoachRoadmapResponse,
   CoachSessionTodayResponse,
   ChatStartResponse,
   ExercisesGenerateResponse,
@@ -37,6 +39,7 @@ import type {
   VocabReviewNextResponse,
   VocabReviewSubmitResponse,
   VoiceMessageResponse,
+  VoiceProgressResponse,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -132,6 +135,12 @@ export const api = {
     request<CoachReactivationResponse>(`/coach/reactivation?user_id=${encodeURIComponent(userId)}`),
   coachDailyChallenge: (userId: number) =>
     request<CoachDailyChallengeResponse>(`/coach/daily-challenge?user_id=${encodeURIComponent(userId)}`),
+  coachTrajectory: (userId: number, horizonDays = 30) =>
+    request<CoachTrajectoryResponse>(
+      `/coach/trajectory?user_id=${encodeURIComponent(userId)}&horizon_days=${encodeURIComponent(horizonDays)}`,
+    ),
+  coachRoadmap: (userId: number) =>
+    request<CoachRoadmapResponse>(`/coach/roadmap?user_id=${encodeURIComponent(userId)}`),
   scenarios: () => request<ScenariosResponse>("/scenarios"),
   selectScenario: (payload: { user_id: number; scenario_id: string }) =>
     request<ScenarioSelectResponse>("/scenarios/select", {
@@ -223,6 +232,8 @@ export const api = {
       body: formData,
     });
   },
+  voiceProgress: (userId: number) =>
+    request<VoiceProgressResponse>(`/voice/progress?user_id=${encodeURIComponent(userId)}`),
   vocabList: (userId: number) => request<VocabListResponse>(`/vocab?user_id=${encodeURIComponent(userId)}`),
   vocabAdd: (payload: { user_id: number; word: string; translation: string; example?: string }) =>
     request<VocabItem>("/vocab/add", {

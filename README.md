@@ -82,11 +82,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `POST /exercises/grade`
   - `GET /plan/today`
   - `GET /coach/session/today`
+  - `GET /coach/trajectory`
+  - `GET /coach/roadmap`
   - `GET /scenarios`
   - `POST /scenarios/select`
 - Voice pipeline:
   - `POST /voice/transcribe`
   - `POST /voice/message`
+  - `GET /voice/progress`
 - Vocabulary + SRS:
   - `GET /vocab`
   - `POST /vocab/add`

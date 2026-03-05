@@ -111,6 +111,30 @@ export type CoachDailyChallengeResponse = {
   estimated_minutes: number;
 };
 
+export type CoachTrajectoryResponse = {
+  user_id: number;
+  horizon_days: number;
+  current_phase: string;
+  retake_recommended: boolean;
+  milestones: Array<{
+    day: number;
+    title: string;
+    target: string;
+  }>;
+};
+
+export type CoachRoadmapResponse = {
+  user_id: number;
+  goal: string;
+  items: Array<{
+    id: string;
+    title: string;
+    reason: string;
+    route: string;
+    priority: number;
+  }>;
+};
+
 export type ScenarioItem = {
   id: string;
   title: string;
@@ -239,6 +263,17 @@ export type VoiceMessageResponse = {
     level_band: string;
     actionable_tips: string[];
   };
+};
+
+export type VoiceProgressResponse = {
+  user_id: number;
+  trend: string;
+  points: Array<{
+    date: string;
+    speaking_score: number;
+  }>;
+  pronunciation_mistakes_7d: number;
+  recommendation: string;
 };
 
 export type VocabItem = {

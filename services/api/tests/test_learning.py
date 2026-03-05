@@ -148,6 +148,20 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert "title" in challenge_body
         assert challenge_body["route"] in {"/app/vocab", "/app/chat"}
 
+        trajectory = client.get("/coach/trajectory", params={"user_id": 1, "horizon_days": 90})
+        assert trajectory.status_code == 200
+        trajectory_body = trajectory.json()
+        assert trajectory_body["horizon_days"] == 90
+        assert trajectory_body["current_phase"] in {"foundation", "consolidation", "expansion"}
+        assert len(trajectory_body["milestones"]) >= 4
+
+        roadmap = client.get("/coach/roadmap", params={"user_id": 1})
+        assert roadmap.status_code == 200
+        roadmap_body = roadmap.json()
+        assert roadmap_body["goal"] == "interview"
+        assert len(roadmap_body["items"]) >= 3
+        assert roadmap_body["items"][0]["priority"] == 1
+
         reactivation_recent = client.get("/coach/reactivation", params={"user_id": 1})
         assert reactivation_recent.status_code == 200
         recent_body = reactivation_recent.json()

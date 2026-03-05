@@ -25,3 +25,16 @@ class VoiceMessageResponse(BaseModel):
     audio_url: str
     pronunciation_feedback: str
     pronunciation_rubric: PronunciationRubric
+
+
+class VoiceProgressPoint(BaseModel):
+    date: str
+    speaking_score: float
+
+
+class VoiceProgressResponse(BaseModel):
+    user_id: int
+    trend: str
+    points: list[VoiceProgressPoint]
+    pronunciation_mistakes_7d: int
+    recommendation: str

@@ -192,6 +192,42 @@ def summarize_weak_topics(mistakes: list[Mistake]) -> list[str]:
     return [topic for topic, _ in ranked]
 
 
+def sanitize_teacher_response(
+    response: ChatMessageResponse,
+    payload: dict[str, Any],
+) -> ChatMessageResponse:
+    policy = payload.get("coaching_policy", {}) or {}
+    max_corrections = int(policy.get("max_corrections", 2))
+    max_homework_items = int(policy.get("max_homework_items", 2))
+    cleaned = []
+    filtered_out = 0
+    for correction in response.corrections:
+        bad = correction.bad.strip()
+        good = correction.good.strip()
+        if not bad or not good:
+            filtered_out += 1
+            continue
+        if bad.lower() == good.lower():
+            filtered_out += 1
+            continue
+        if len(bad) > 180 or len(good) > 180:
+            filtered_out += 1
+            continue
+        cleaned.append(correction)
+
+    response.corrections = cleaned[:max_corrections]
+    response.homework_suggestions = response.homework_suggestions[:max_homework_items]
+    if filtered_out > 0:
+        response.homework_suggestions.append(
+            "One correction was skipped for reliability; rewrite your sentence in a simpler form."
+        )
+    if not response.assistant_text.strip():
+        response.assistant_text = "Good effort. Try one clearer sentence and we will refine it together."
+    if response.rubric is None:
+        response.rubric = build_fallback_rubric(str(payload.get("user_input", "")), response)
+    return response
+
+
 def build_teacher_payload(
     profile: LearnerProfile | None,
     mode: str,
@@ -307,8 +343,6 @@ def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
         text = response.output_text
         parsed = json.loads(text)
         result = ChatMessageResponse.model_validate(parsed)
-        if result.rubric is None:
-            result.rubric = build_fallback_rubric(user_text, result)
-        return result
+        return sanitize_teacher_response(result, payload)
     except Exception as exc:
         return build_resilient_teacher_fallback(payload, reason=f"provider error: {exc}")
