@@ -10,8 +10,11 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import ChatSession, LearnerProfile, Message, Mistake, SkillSnapshot, SrsState, User, VocabItem
 from app.schemas.progress import (
+    AchievementItem,
+    ProgressAchievementsResponse,
     ProgressJournalEntry,
     ProgressJournalResponse,
+    ProgressReportResponse,
     ProgressRewardsResponse,
     ProgressSkillMapResponse,
     ProgressStreakResponse,
@@ -334,6 +337,105 @@ def progress_outcomes(user_id: int, db: Session = Depends(get_db)) -> ProgressOu
         streak_days=streak.streak_days,
         confidence=confidence,
         recommendations=recommendations[:3],
+    )
+
+
+@router.get("/achievements", response_model=ProgressAchievementsResponse)
+def progress_achievements(user_id: int, db: Session = Depends(get_db)) -> ProgressAchievementsResponse:
+    summary = progress_summary(user_id=user_id, db=db)
+    weekly_goal = progress_weekly_goal(user_id=user_id, db=db)
+    journal = progress_journal(user_id=user_id, db=db)
+
+    items: list[AchievementItem] = []
+    streak_target = 7
+    items.append(
+        AchievementItem(
+            id="streak_week",
+            title="7-Day Streak",
+            status="unlocked" if summary.streak_days >= streak_target else "in_progress",
+            progress=f"{min(summary.streak_days, streak_target)}/{streak_target} days",
+        )
+    )
+    weekly_target_sessions = 5
+    items.append(
+        AchievementItem(
+            id="weekly_sessions_5",
+            title="Weekly Consistency",
+            status="unlocked" if journal.weekly_sessions >= weekly_target_sessions else "in_progress",
+            progress=f"{min(journal.weekly_sessions, weekly_target_sessions)}/{weekly_target_sessions} sessions",
+        )
+    )
+    items.append(
+        AchievementItem(
+            id="weekly_goal",
+            title="Weekly Goal Completion",
+            status="unlocked" if weekly_goal.is_completed else "in_progress",
+            progress=f"{weekly_goal.completed_minutes}/{weekly_goal.target_minutes} minutes",
+        )
+    )
+    vocab_target = 50
+    items.append(
+        AchievementItem(
+            id="vocab_50",
+            title="Vocabulary Builder",
+            status="unlocked" if summary.words_learned >= vocab_target else "in_progress",
+            progress=f"{min(summary.words_learned, vocab_target)}/{vocab_target} words",
+        )
+    )
+    return ProgressAchievementsResponse(user_id=user_id, items=items)
+
+
+@router.get("/report", response_model=ProgressReportResponse)
+def progress_report(user_id: int, period_days: int = 30, db: Session = Depends(get_db)) -> ProgressReportResponse:
+    period = max(7, min(120, period_days))
+    summary = progress_summary(user_id=user_id, db=db)
+    outcomes = progress_outcomes(user_id=user_id, db=db)
+    weekly = progress_weekly_review(user_id=user_id, db=db)
+    achievements = progress_achievements(user_id=user_id, db=db)
+    unlocked_count = len([item for item in achievements.items if item.status == "unlocked"])
+
+    highlights = [
+        f"Current level: {outcomes.current_level} (estimated from skills: {outcomes.estimated_level_from_skills}).",
+        f"Weekly activity: {weekly.weekly_sessions} sessions and {weekly.weekly_minutes} minutes.",
+        f"Streak: {summary.streak_days} days. Words learned: {summary.words_learned}.",
+        f"Unlocked achievements: {unlocked_count}/{len(achievements.items)}.",
+    ]
+    summary_block: dict[str, str | int | float] = {
+        "level": outcomes.current_level,
+        "estimated_level": outcomes.estimated_level_from_skills,
+        "avg_skill_score": outcomes.avg_skill_score,
+        "improvement_7d_points": outcomes.improvement_7d_points,
+        "streak_days": summary.streak_days,
+        "weekly_sessions": weekly.weekly_sessions,
+        "weekly_minutes": weekly.weekly_minutes,
+        "words_learned": summary.words_learned,
+    }
+    markdown = "\n".join(
+        [
+            f"# LinguaCoach Progress Report ({period} days)",
+            "",
+            f"- Level: {outcomes.current_level} (estimated: {outcomes.estimated_level_from_skills})",
+            f"- Avg skill score: {outcomes.avg_skill_score}",
+            f"- 7d improvement: {outcomes.improvement_7d_points}",
+            f"- Weekly sessions/minutes: {weekly.weekly_sessions}/{weekly.weekly_minutes}",
+            f"- Streak: {summary.streak_days} days",
+            f"- Words learned: {summary.words_learned}",
+            "",
+            "## Highlights",
+            *[f"- {line}" for line in highlights],
+            "",
+            "## Recommendations",
+            *[f"- {rec}" for rec in outcomes.recommendations],
+        ]
+    )
+
+    return ProgressReportResponse(
+        user_id=user_id,
+        period_days=period,
+        generated_at=datetime.now(UTC).isoformat(),
+        summary=summary_block,
+        highlights=highlights,
+        export_markdown=markdown,
     )
 
 

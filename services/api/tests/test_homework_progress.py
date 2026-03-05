@@ -134,3 +134,16 @@ def test_progress_endpoints(client: TestClient) -> None:
     assert outcomes_body["current_level"] in {"A1", "A2", "B1", "B2", "C1", "C2"}
     assert outcomes_body["estimated_level_from_skills"] in {"A1", "A2", "B1", "B2", "C1", "C2"}
     assert "recommendations" in outcomes_body
+
+    achievements = client.get("/progress/achievements", params={"user_id": 901})
+    assert achievements.status_code == 200
+    achievements_body = achievements.json()
+    assert len(achievements_body["items"]) >= 3
+    assert achievements_body["items"][0]["status"] in {"unlocked", "in_progress"}
+
+    report = client.get("/progress/report", params={"user_id": 901, "period_days": 30})
+    assert report.status_code == 200
+    report_body = report.json()
+    assert report_body["period_days"] == 30
+    assert "export_markdown" in report_body
+    assert "Highlights" in report_body["export_markdown"]

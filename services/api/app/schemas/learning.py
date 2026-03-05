@@ -141,6 +141,20 @@ class CoachRoadmapResponse(BaseModel):
     items: list[CoachRoadmapItem]
 
 
+class OutcomePackItem(BaseModel):
+    id: str
+    title: str
+    target_level: str
+    readiness: str
+    missing_signals: list[str]
+    recommended_route: str
+
+
+class OutcomePacksResponse(BaseModel):
+    user_id: int
+    items: list[OutcomePackItem]
+
+
 class ScenarioItem(BaseModel):
     id: str
     title: str

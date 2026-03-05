@@ -162,6 +162,12 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert len(roadmap_body["items"]) >= 3
         assert roadmap_body["items"][0]["priority"] == 1
 
+        outcome_packs = client.get("/coach/outcome-packs", params={"user_id": 1})
+        assert outcome_packs.status_code == 200
+        packs_body = outcome_packs.json()
+        assert len(packs_body["items"]) >= 3
+        assert packs_body["items"][0]["readiness"] in {"ready", "almost_ready", "not_ready"}
+
         reactivation_recent = client.get("/coach/reactivation", params={"user_id": 1})
         assert reactivation_recent.status_code == 200
         recent_body = reactivation_recent.json()

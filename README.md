@@ -84,6 +84,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `GET /coach/session/today`
   - `GET /coach/trajectory`
   - `GET /coach/roadmap`
+  - `GET /coach/outcome-packs`
   - `GET /scenarios`
   - `POST /scenarios/select`
 - Voice pipeline:
@@ -107,6 +108,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `GET /progress/weekly-review`
   - `GET /progress/outcomes`
   - `GET /progress/rewards`
+  - `GET /progress/achievements`
+  - `GET /progress/report`
   - `GET /coach/daily-challenge`
   - `GET /coach/reactivation`
 

@@ -135,6 +135,18 @@ export type CoachRoadmapResponse = {
   }>;
 };
 
+export type OutcomePacksResponse = {
+  user_id: number;
+  items: Array<{
+    id: string;
+    title: string;
+    target_level: string;
+    readiness: "ready" | "almost_ready" | "not_ready";
+    missing_signals: string[];
+    recommended_route: string;
+  }>;
+};
+
 export type ScenarioItem = {
   id: string;
   title: string;
@@ -392,4 +404,23 @@ export type ProgressWeeklyReview = {
   top_weak_area?: string | null;
   wins: string[];
   next_focus: string;
+};
+
+export type ProgressAchievements = {
+  user_id: number;
+  items: Array<{
+    id: string;
+    title: string;
+    status: "unlocked" | "in_progress";
+    progress: string;
+  }>;
+};
+
+export type ProgressReport = {
+  user_id: number;
+  period_days: number;
+  generated_at: string;
+  summary: Record<string, string | number>;
+  highlights: string[];
+  export_markdown: string;
 };

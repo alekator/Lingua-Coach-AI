@@ -106,3 +106,24 @@ class ProgressOutcomesResponse(BaseModel):
     streak_days: int
     confidence: str
     recommendations: list[str]
+
+
+class AchievementItem(BaseModel):
+    id: str
+    title: str
+    status: str
+    progress: str
+
+
+class ProgressAchievementsResponse(BaseModel):
+    user_id: int
+    items: list[AchievementItem]
+
+
+class ProgressReportResponse(BaseModel):
+    user_id: int
+    period_days: int
+    generated_at: str
+    summary: dict[str, str | int | float]
+    highlights: list[str]
+    export_markdown: str

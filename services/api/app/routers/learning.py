@@ -26,6 +26,8 @@ from app.schemas.learning import (
     GrammarAnalyzeResponse,
     GrammarError,
     PlanTodayResponse,
+    OutcomePackItem,
+    OutcomePacksResponse,
     ScenarioSelectRequest,
     ScenarioSelectResponse,
     ScenarioScriptResponse,
@@ -51,6 +53,7 @@ from app.services.translate import TranslatorFn, TtsSynthesizerFn
 from app.services.voice import AsrTranscriberFn
 
 router = APIRouter(tags=["learning"])
+CEFR_RANK = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
 
 
 def _to_utc_date(dt: datetime) -> datetime.date:
@@ -460,6 +463,47 @@ def coach_roadmap(user_id: int, db: Session = Depends(get_db)) -> CoachRoadmapRe
         ),
     ]
     return CoachRoadmapResponse(user_id=user_id, goal=goal, items=items)
+
+
+@router.get("/coach/outcome-packs", response_model=OutcomePacksResponse)
+def coach_outcome_packs(user_id: int, db: Session = Depends(get_db)) -> OutcomePacksResponse:
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    current_level = (profile.level if profile else "A1").upper()
+    level_rank = CEFR_RANK.get(current_level, 1)
+    weekly_sessions = len(
+        [
+            s
+            for s in db.scalars(select(ChatSession).where(ChatSession.user_id == user_id)).all()
+            if s.started_at and _to_utc_datetime(s.started_at) >= (datetime.now(UTC) - timedelta(days=7))
+        ]
+    )
+
+    packs = [
+        ("job-pack", "Job Interview Pack", "B1", "/app/scenarios"),
+        ("relocation-pack", "Relocation Essentials Pack", "A2", "/app/scenarios"),
+        ("exam-pack", "Exam Readiness Pack", "B2", "/app/exercises"),
+    ]
+    items: list[OutcomePackItem] = []
+    for pack_id, title, target_level, route in packs:
+        target_rank = CEFR_RANK[target_level]
+        missing: list[str] = []
+        if level_rank < target_rank:
+            missing.append(f"Level below target ({current_level} -> {target_level})")
+        if weekly_sessions < 3:
+            missing.append("Need at least 3 sessions this week")
+        readiness = "ready" if not missing else "almost_ready" if len(missing) == 1 else "not_ready"
+        items.append(
+            OutcomePackItem(
+                id=pack_id,
+                title=title,
+                target_level=target_level,
+                readiness=readiness,
+                missing_signals=missing,
+                recommended_route=route,
+            )
+        )
+
+    return OutcomePacksResponse(user_id=user_id, items=items)
 
 
 @router.get("/coach/reactivation", response_model=CoachReactivationResponse)

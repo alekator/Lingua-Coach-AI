@@ -12,6 +12,7 @@ import type {
   CoachDailyChallengeResponse,
   CoachTrajectoryResponse,
   CoachRoadmapResponse,
+  OutcomePacksResponse,
   CoachSessionTodayResponse,
   ChatStartResponse,
   ExercisesGenerateResponse,
@@ -28,6 +29,8 @@ import type {
   ProgressSummary,
   ProgressRewards,
   ProgressWeeklyReview,
+  ProgressAchievements,
+  ProgressReport,
   ScenarioSelectResponse,
   ScenarioScriptResponse,
   ScenarioTurnResponse,
@@ -141,6 +144,8 @@ export const api = {
     ),
   coachRoadmap: (userId: number) =>
     request<CoachRoadmapResponse>(`/coach/roadmap?user_id=${encodeURIComponent(userId)}`),
+  coachOutcomePacks: (userId: number) =>
+    request<OutcomePacksResponse>(`/coach/outcome-packs?user_id=${encodeURIComponent(userId)}`),
   scenarios: () => request<ScenariosResponse>("/scenarios"),
   selectScenario: (payload: { user_id: number; scenario_id: string }) =>
     request<ScenarioSelectResponse>("/scenarios/select", {
@@ -289,4 +294,10 @@ export const api = {
     }),
   progressWeeklyReview: (userId: number) =>
     request<ProgressWeeklyReview>(`/progress/weekly-review?user_id=${encodeURIComponent(userId)}`),
+  progressAchievements: (userId: number) =>
+    request<ProgressAchievements>(`/progress/achievements?user_id=${encodeURIComponent(userId)}`),
+  progressReport: (userId: number, periodDays = 30) =>
+    request<ProgressReport>(
+      `/progress/report?user_id=${encodeURIComponent(userId)}&period_days=${encodeURIComponent(periodDays)}`,
+    ),
 };
