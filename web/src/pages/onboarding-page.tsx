@@ -1,7 +1,10 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
+import { ErrorState } from "../components/feedback";
+import { getErrorMessage } from "../lib/errors";
 import { useAppStore } from "../store/app-store";
+import { useToastStore } from "../store/toast-store";
 
 export function OnboardingPage() {
   const navigate = useNavigate();
@@ -11,19 +14,31 @@ export function OnboardingPage() {
   const [level, setLevel] = useState("A2");
   const [goal, setGoal] = useState("travel");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const pushToast = useToastStore((s) => s.push);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitting(true);
-    await api.profileSetup({
-      user_id: userId,
-      native_lang: nativeLang,
-      target_lang: targetLang,
-      level,
-      goal,
-      preferences: { strictness: "medium" },
-    });
-    navigate("/app");
+    try {
+      await api.profileSetup({
+        user_id: userId,
+        native_lang: nativeLang,
+        target_lang: targetLang,
+        level,
+        goal,
+        preferences: { strictness: "medium" },
+      });
+      setError("");
+      pushToast("success", "Profile saved");
+      navigate("/app");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setError(msg);
+      pushToast("error", msg);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -51,6 +66,7 @@ export function OnboardingPage() {
           {submitting ? "Saving..." : "Save and continue"}
         </button>
       </form>
+      {error && <ErrorState text={error} />}
     </section>
   );
 }

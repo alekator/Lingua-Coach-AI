@@ -100,3 +100,64 @@ pre {
   border: 1px solid #cbd5e1;
   padding: 10px;
 }
+
+.status {
+  border-radius: 10px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+}
+
+.status.loading {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.status.empty {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.status.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.toast-viewport {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(420px, 90vw);
+  z-index: 50;
+}
+
+.toast {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  padding: 10px 12px;
+  box-shadow: 0 6px 22px rgba(15, 23, 42, 0.08);
+}
+
+.toast button {
+  padding: 4px 8px;
+}
+
+.toast-success {
+  border-color: #86efac;
+}
+
+.toast-error {
+  border-color: #fca5a5;
+}
+
+.toast-info {
+  border-color: #93c5fd;
+}

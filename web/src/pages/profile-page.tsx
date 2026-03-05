@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { useAppStore } from "../store/app-store";
 
 export function ProfilePage() {
@@ -16,6 +17,11 @@ export function ProfilePage() {
   return (
     <section className="panel stack">
       <h2>Profile & Progress</h2>
+      {(streak.isPending || skillMap.isPending) && <LoadingState text="Loading profile analytics..." />}
+      {(streak.isError || skillMap.isError) && <ErrorState text="Failed to load progress analytics." />}
+      {streak.isSuccess && skillMap.isSuccess && streak.data.streak_days === 0 && (
+        <EmptyState text="No tracked activity yet. Start a lesson to populate progress." />
+      )}
       {streak.isSuccess && (
         <article className="panel">
           <h3>Streak</h3>

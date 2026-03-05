@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { useAppStore } from "../store/app-store";
 
 export function DashboardPage() {
@@ -16,7 +17,11 @@ export function DashboardPage() {
   return (
     <section className="panel">
       <h2>Dashboard</h2>
-      {summary.isPending && <p>Loading progress...</p>}
+      {summary.isPending && <LoadingState text="Loading progress..." />}
+      {summary.isError && <ErrorState text="Failed to load progress summary." />}
+      {summary.isSuccess && summary.data.minutes_practiced === 0 && (
+        <EmptyState text="No study activity yet. Start chat, voice, or exercises." />
+      )}
       {summary.isSuccess && (
         <div className="grid">
           <article>
@@ -33,6 +38,8 @@ export function DashboardPage() {
           </article>
         </div>
       )}
+      {plan.isPending && <LoadingState text="Generating today plan..." />}
+      {plan.isError && <ErrorState text="Failed to load daily plan." />}
       {plan.isSuccess && (
         <article className="panel">
           <h3>Today Plan ({plan.data.time_budget_minutes} min)</h3>

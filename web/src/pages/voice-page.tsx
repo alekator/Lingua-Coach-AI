@@ -1,24 +1,37 @@
 import { FormEvent, useState } from "react";
 import { api } from "../api/client";
+import { ErrorState } from "../components/feedback";
+import { getErrorMessage } from "../lib/errors";
 import { useAppStore } from "../store/app-store";
+import { useToastStore } from "../store/toast-store";
 
 export function VoicePage() {
   const userId = useAppStore((s) => s.userId) ?? 1;
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState("");
+  const [error, setError] = useState("");
+  const pushToast = useToastStore((s) => s.push);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!file) return;
-    const response = await api.voiceMessage({
-      file,
-      user_id: userId,
-      target_lang: "en",
-      language_hint: "en",
-    });
-    setResult(
-      `Transcript: ${response.transcript}\nTeacher: ${response.teacher_text}\nAudio: ${response.audio_url}\nTip: ${response.pronunciation_feedback}`,
-    );
+    try {
+      const response = await api.voiceMessage({
+        file,
+        user_id: userId,
+        target_lang: "en",
+        language_hint: "en",
+      });
+      setResult(
+        `Transcript: ${response.transcript}\nTeacher: ${response.teacher_text}\nAudio: ${response.audio_url}\nTip: ${response.pronunciation_feedback}`,
+      );
+      setError("");
+      pushToast("success", "Voice message processed");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setError(msg);
+      pushToast("error", msg);
+    }
   }
 
   return (
@@ -37,6 +50,7 @@ export function VoicePage() {
           Process voice
         </button>
       </form>
+      {error && <ErrorState text={error} />}
       {result && <pre>{result}</pre>}
     </section>
   );

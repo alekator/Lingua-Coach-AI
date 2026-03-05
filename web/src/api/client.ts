@@ -25,6 +25,17 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
+export class ApiError extends Error {
+  status: number;
+  requestId?: string;
+
+  constructor(message: string, status: number, requestId?: string) {
+    super(message);
+    this.status = status;
+    this.requestId = requestId;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
   const response = await fetch(`${API_BASE}${path}`, {
@@ -38,7 +49,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`API ${response.status}: ${text}`);
+    let detail = text;
+    let requestId = response.headers.get("X-Request-ID") ?? undefined;
+    try {
+      const parsed = JSON.parse(text) as { detail?: string; error?: string; request_id?: string };
+      detail = parsed.detail ?? parsed.error ?? text;
+      requestId = parsed.request_id ?? requestId;
+    } catch {
+      // keep fallback text
+    }
+    throw new ApiError(detail, response.status, requestId);
   }
   return (await response.json()) as T;
 }

@@ -1,25 +1,42 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api/client";
+import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
+import { getErrorMessage } from "../lib/errors";
 import { useAppStore } from "../store/app-store";
+import { useToastStore } from "../store/toast-store";
 
 export function ScenariosPage() {
   const userId = useAppStore((s) => s.userId) ?? 1;
   const [selectionResult, setSelectionResult] = useState("");
+  const [actionError, setActionError] = useState("");
+  const pushToast = useToastStore((s) => s.push);
   const scenarios = useQuery({
     queryKey: ["scenarios"],
     queryFn: api.scenarios,
   });
 
   async function onSelect(scenarioId: string) {
-    const response = await api.selectScenario({ user_id: userId, scenario_id: scenarioId });
-    setSelectionResult(`Session ${response.session_id} started in mode ${response.mode}`);
+    try {
+      const response = await api.selectScenario({ user_id: userId, scenario_id: scenarioId });
+      setSelectionResult(`Session ${response.session_id} started in mode ${response.mode}`);
+      setActionError("");
+      pushToast("success", "Scenario session started");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setActionError(msg);
+      pushToast("error", msg);
+    }
   }
 
   return (
     <section className="panel stack">
       <h2>Scenarios</h2>
-      {scenarios.isPending && <p>Loading scenarios...</p>}
+      {scenarios.isPending && <LoadingState text="Loading scenarios..." />}
+      {scenarios.isError && <ErrorState text="Failed to load scenarios." />}
+      {scenarios.isSuccess && scenarios.data.items.length === 0 && (
+        <EmptyState text="No scenarios available yet." />
+      )}
       {scenarios.isSuccess && (
         <div className="stack">
           {scenarios.data.items.map((item) => (
@@ -33,6 +50,7 @@ export function ScenariosPage() {
           ))}
         </div>
       )}
+      {actionError && <ErrorState text={actionError} />}
       {selectionResult && <p>{selectionResult}</p>}
     </section>
   );
