@@ -12,6 +12,7 @@ export function ExercisesPage() {
   >([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [score, setScore] = useState<string>("");
+  const [rubricRows, setRubricRows] = useState<string[]>([]);
   const [error, setError] = useState("");
   const pushToast = useToastStore((s) => s.push);
 
@@ -27,6 +28,7 @@ export function ExercisesPage() {
       setItems(response.items);
       setAnswers({});
       setScore("");
+      setRubricRows([]);
       setError("");
       pushToast("success", "Exercises generated");
     } catch (err) {
@@ -42,6 +44,10 @@ export function ExercisesPage() {
     try {
       const response = await api.gradeExercises({ answers, expected });
       setScore(`${response.score}/${response.max_score}`);
+      const rows = Object.entries(response.rubric ?? {}).map(
+        ([itemId, row]) => `${itemId}: ${row.item_score} (${row.feedback})`,
+      );
+      setRubricRows(rows);
       setError("");
       pushToast("info", `Scored ${response.score}/${response.max_score}`);
     } catch (err) {
@@ -55,9 +61,10 @@ export function ExercisesPage() {
 
   return (
     <section className="panel stack">
-      <h2>Exercises</h2>
+      <h2>Targeted Drills</h2>
+      <p>Generate a compact drill set, then grade with rubric-backed feedback.</p>
       <form onSubmit={onGenerate}>
-        <button type="submit">Generate set</button>
+        <button type="submit">Generate drill set</button>
       </form>
       {error && <ErrorState text={error} />}
       {!hasItems && <EmptyState text="Generate a set to start practice." />}
@@ -72,10 +79,18 @@ export function ExercisesPage() {
               />
             </label>
           ))}
-          <button type="submit">Grade answers</button>
+          <button type="submit">Grade with coach rubric</button>
         </form>
       )}
       {score && <p>Score: {score}</p>}
+      {rubricRows.length > 0 && (
+        <article className="panel">
+          <h3>Coach Rubric Notes</h3>
+          {rubricRows.map((row) => (
+            <p key={row}>- {row}</p>
+          ))}
+        </article>
+      )}
     </section>
   );
 }

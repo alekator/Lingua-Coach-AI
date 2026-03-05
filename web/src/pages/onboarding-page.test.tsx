@@ -74,7 +74,7 @@ describe("OnboardingPage", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Start placement test" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start coaching placement" }));
 
     await waitFor(() => {
       expect(screen.getByText("Tell me about your day.")).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("OnboardingPage", () => {
     fireEvent.change(screen.getByLabelText("Your answer"), {
       target: { value: "I usually start with coffee and then work." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit to coach" }));
 
     await waitFor(() => {
       expect(mocks.placementFinish).toHaveBeenCalledWith({ session_id: 77 });

@@ -121,7 +121,7 @@ describe("ProfilePage", () => {
       expect(screen.getByDisplayValue("B1")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Retake placement test" }));
+    fireEvent.click(screen.getByRole("button", { name: "Recalibrate level" }));
 
     await waitFor(() => {
       expect(screen.getByText("Describe your last weekend.")).toBeInTheDocument();

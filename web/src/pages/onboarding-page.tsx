@@ -86,7 +86,7 @@ export function OnboardingPage() {
       <h2>First Launch Setup</h2>
       {!sessionId && (
         <form className="stack" onSubmit={(event) => event.preventDefault()}>
-          <p>Set languages, then pass a short placement test to detect your starting level.</p>
+          <p>Let your coach calibrate your starting point. Set languages and complete a quick placement test.</p>
           <label>
             Native language
             <input value={nativeLang} onChange={(e) => setNativeLang(e.target.value)} />
@@ -100,7 +100,7 @@ export function OnboardingPage() {
             <input value={goal} onChange={(e) => setGoal(e.target.value)} />
           </label>
           <button disabled={submitting} type="button" onClick={onStart}>
-            {submitting ? "Starting..." : "Start placement test"}
+            {submitting ? "Starting..." : "Start coaching placement"}
           </button>
         </form>
       )}
@@ -115,7 +115,7 @@ export function OnboardingPage() {
             <input value={answer} onChange={(e) => setAnswer(e.target.value)} />
           </label>
           <button disabled={submitting || !answer.trim()} type="submit">
-            {submitting ? "Checking..." : "Submit answer"}
+            {submitting ? "Checking..." : "Submit to coach"}
           </button>
         </form>
       )}

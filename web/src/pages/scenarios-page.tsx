@@ -31,7 +31,8 @@ export function ScenariosPage() {
 
   return (
     <section className="panel stack">
-      <h2>Scenarios</h2>
+      <h2>Roleplay Scenarios</h2>
+      <p>Choose one realistic situation and train short responses under coach guidance.</p>
       {scenarios.isPending && <LoadingState text="Loading scenarios..." />}
       {scenarios.isError && <ErrorState text="Failed to load scenarios." />}
       {scenarios.isSuccess && scenarios.data.items.length === 0 && (
@@ -44,14 +45,14 @@ export function ScenariosPage() {
               <h3>{item.title}</h3>
               <p>{item.description}</p>
               <button onClick={() => onSelect(item.id)} type="button">
-                Start scenario
+                Start roleplay
               </button>
             </article>
           ))}
         </div>
       )}
       {actionError && <ErrorState text={actionError} />}
-      {selectionResult && <p>{selectionResult}</p>}
+      {selectionResult && <p>Coach session ready: {selectionResult}</p>}
     </section>
   );
 }

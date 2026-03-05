@@ -138,7 +138,8 @@ export function ProfilePage() {
 
   return (
     <section className="panel stack">
-      <h2>Profile & Progress</h2>
+      <h2>Coach Profile & Progress</h2>
+      <p>Tune your learning profile and inspect how your skills evolve over time.</p>
       {profile.isPending && <LoadingState text="Loading profile settings..." />}
       {profile.isError && <ErrorState text="Failed to load profile settings." />}
       {profile.isSuccess && (
@@ -167,7 +168,7 @@ export function ProfilePage() {
             disabled={retakeBusy || !nativeLang.trim() || !targetLang.trim()}
             onClick={onRetakeStart}
           >
-            {retakeBusy && !retakeOpen ? "Starting..." : "Retake placement test"}
+            {retakeBusy && !retakeOpen ? "Starting..." : "Recalibrate level"}
           </button>
         </form>
       )}
@@ -175,7 +176,7 @@ export function ProfilePage() {
       {placementError && <ErrorState text={placementError} />}
       {retakeOpen && (
         <form className="panel stack" onSubmit={onRetakeAnswer}>
-          <h3>Placement Retake</h3>
+          <h3>Level Recalibration</h3>
           <p>
             Question {retakeQuestionIndex + 1} / {retakeTotalQuestions}
           </p>

@@ -58,7 +58,8 @@ export function HomeworkPage() {
 
   return (
     <section className="panel stack">
-      <h2>Homework</h2>
+      <h2>Coach Homework</h2>
+      <p>Assign focused tasks and submit sample answers to get structured grading.</p>
       <form onSubmit={onCreate} className="stack">
         <label>
           Homework title
@@ -78,7 +79,7 @@ export function HomeworkPage() {
               <h3>{item.title}</h3>
               <p>Status: {item.status}</p>
               <button type="button" onClick={() => onSubmit(item.id)} disabled={item.status === "submitted"}>
-                Submit sample answers
+                Submit to coach
               </button>
             </article>
           ))}

@@ -2,15 +2,15 @@ import { Link, Outlet } from "react-router-dom";
 
 const links = [
   ["/app", "Dashboard"],
-  ["/app/chat", "Chat"],
-  ["/app/voice", "Voice"],
+  ["/app/chat", "Coach Chat"],
+  ["/app/voice", "Speaking"],
   ["/app/translate", "Translate"],
-  ["/app/vocab", "Vocab"],
-  ["/app/exercises", "Exercises"],
-  ["/app/scenarios", "Scenarios"],
+  ["/app/vocab", "Word Bank"],
+  ["/app/exercises", "Drills"],
+  ["/app/scenarios", "Roleplays"],
   ["/app/grammar", "Grammar"],
   ["/app/homework", "Homework"],
-  ["/app/profile", "Progress"],
+  ["/app/profile", "Profile"],
 ] as const;
 
 export function AppLayout() {
@@ -18,6 +18,7 @@ export function AppLayout() {
     <div className="app-shell">
       <header className="topbar">
         <h1>LinguaCoach AI</h1>
+        <p>Plan - Practice - Feedback - Progress</p>
         <nav>
           {links.map(([to, label]) => (
             <Link key={to} to={to}>

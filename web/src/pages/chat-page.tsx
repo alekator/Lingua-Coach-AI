@@ -60,13 +60,14 @@ export function ChatPage() {
 
   return (
     <section className="panel stack">
-      <h2>Teacher Chat</h2>
+      <h2>Coach Chat</h2>
+      <p>Use this mode for correction-first practice. Keep messages short and focused.</p>
       <div className="row">
         <button type="button" onClick={onStart} disabled={!!sessionId}>
-          Start session
+          Start coaching session
         </button>
         <button type="button" onClick={onEnd} disabled={!sessionId}>
-          End session
+          End coaching session
         </button>
       </div>
       {status && <p>{status}</p>}
@@ -77,7 +78,7 @@ export function ChatPage() {
           <input value={text} onChange={(e) => setText(e.target.value)} />
         </label>
         <button type="submit" disabled={!sessionId}>
-          Send to teacher
+          Send to coach
         </button>
       </form>
       {reply && (
