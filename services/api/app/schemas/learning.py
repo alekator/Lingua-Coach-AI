@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime, date
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -78,6 +81,33 @@ class CoachSessionTodayResponse(BaseModel):
     time_budget_minutes: int
     focus: list[str]
     steps: list[CoachSessionStep]
+
+
+SessionStepStatus = Literal["pending", "in_progress", "completed"]
+
+
+class CoachSessionStepProgressItem(BaseModel):
+    step_id: str
+    title: str
+    status: SessionStepStatus
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+
+
+class CoachSessionProgressResponse(BaseModel):
+    user_id: int
+    session_date: date
+    total_steps: int
+    completed_steps: int
+    completion_percent: int
+    items: list[CoachSessionStepProgressItem]
+
+
+class CoachSessionProgressUpsertRequest(BaseModel):
+    user_id: int = Field(ge=1)
+    step_id: str = Field(min_length=2, max_length=64)
+    status: SessionStepStatus
+    time_budget_minutes: int = Field(default=15, ge=5, le=120)
 
 
 class CoachNextAction(BaseModel):

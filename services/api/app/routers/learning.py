@@ -7,11 +7,25 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import ChatSession, Homework, LearnerProfile, Message, Mistake, SkillSnapshot, SrsState, User, VocabItem
+from app.models import (
+    ChatSession,
+    Homework,
+    LearnerProfile,
+    Message,
+    Mistake,
+    SessionStepProgress,
+    SkillSnapshot,
+    SrsState,
+    User,
+    VocabItem,
+)
 from app.schemas.learning import (
     CoachDailyChallengeResponse,
     CoachNextAction,
     CoachNextActionsResponse,
+    CoachSessionProgressResponse,
+    CoachSessionProgressUpsertRequest,
+    CoachSessionStepProgressItem,
     CoachReactivationResponse,
     CoachRoadmapItem,
     CoachRoadmapResponse,
@@ -225,6 +239,115 @@ def coach_session_today(
         time_budget_minutes=plan.time_budget_minutes,
         focus=plan.focus,
         steps=build_today_session_steps(plan.focus, plan.time_budget_minutes),
+    )
+
+
+def _build_session_progress_response(
+    user_id: int,
+    time_budget_minutes: int,
+    db: Session,
+) -> CoachSessionProgressResponse:
+    plan = plan_today(user_id=user_id, time_budget_minutes=time_budget_minutes, db=db)
+    steps = build_today_session_steps(plan.focus, plan.time_budget_minutes)
+    today = datetime.now(UTC).date()
+    rows = db.scalars(
+        select(SessionStepProgress).where(
+            SessionStepProgress.user_id == user_id,
+            SessionStepProgress.session_date == today,
+        )
+    ).all()
+    status_by_step = {row.step_id: row for row in rows}
+    items: list[CoachSessionStepProgressItem] = []
+    completed_steps = 0
+    for step in steps:
+        row = status_by_step.get(step.id)
+        status = "pending"
+        started_at = None
+        completed_at = None
+        if row is not None:
+            status = row.status if row.status in {"pending", "in_progress", "completed"} else "pending"
+            started_at = row.started_at
+            completed_at = row.completed_at
+        if status == "completed":
+            completed_steps += 1
+        items.append(
+            CoachSessionStepProgressItem(
+                step_id=step.id,
+                title=step.title,
+                status=status,
+                started_at=started_at,
+                completed_at=completed_at,
+            )
+        )
+    total_steps = len(items)
+    completion_percent = int(round((completed_steps / max(1, total_steps)) * 100))
+    return CoachSessionProgressResponse(
+        user_id=user_id,
+        session_date=today,
+        total_steps=total_steps,
+        completed_steps=completed_steps,
+        completion_percent=completion_percent,
+        items=items,
+    )
+
+
+@router.get("/coach/session/progress", response_model=CoachSessionProgressResponse)
+def coach_session_progress(
+    user_id: int,
+    time_budget_minutes: int = 15,
+    db: Session = Depends(get_db),
+) -> CoachSessionProgressResponse:
+    return _build_session_progress_response(user_id=user_id, time_budget_minutes=time_budget_minutes, db=db)
+
+
+@router.post("/coach/session/progress", response_model=CoachSessionProgressResponse)
+def coach_session_progress_upsert(
+    payload: CoachSessionProgressUpsertRequest,
+    db: Session = Depends(get_db),
+) -> CoachSessionProgressResponse:
+    plan = plan_today(user_id=payload.user_id, time_budget_minutes=payload.time_budget_minutes, db=db)
+    valid_step_ids = {step.id for step in build_today_session_steps(plan.focus, plan.time_budget_minutes)}
+    if payload.step_id not in valid_step_ids:
+        raise HTTPException(status_code=400, detail="Invalid step_id for today's session")
+
+    now = datetime.now(UTC)
+    today = now.date()
+    row = db.scalar(
+        select(SessionStepProgress).where(
+            SessionStepProgress.user_id == payload.user_id,
+            SessionStepProgress.session_date == today,
+            SessionStepProgress.step_id == payload.step_id,
+        )
+    )
+    if row is None:
+        row = SessionStepProgress(
+            user_id=payload.user_id,
+            session_date=today,
+            step_id=payload.step_id,
+            status="pending",
+        )
+        db.add(row)
+        db.flush()
+
+    if payload.status == "in_progress":
+        row.status = "in_progress"
+        if row.started_at is None:
+            row.started_at = now
+        row.completed_at = None
+    elif payload.status == "completed":
+        row.status = "completed"
+        if row.started_at is None:
+            row.started_at = now
+        row.completed_at = now
+    else:
+        row.status = "pending"
+        row.completed_at = None
+
+    db.commit()
+    return _build_session_progress_response(
+        user_id=payload.user_id,
+        time_budget_minutes=payload.time_budget_minutes,
+        db=db,
     )
 
 

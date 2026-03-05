@@ -223,3 +223,76 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert "feedback" in turn_body
         if turn_body["suggested_reply"]:
             assert "Example:" in turn_body["suggested_reply"]
+
+
+def test_coach_session_progress_lifecycle(client: TestClient) -> None:
+    setup = client.post(
+        "/profile/setup",
+        json={
+            "user_id": 1,
+            "native_lang": "de",
+            "target_lang": "en",
+            "level": "A2",
+            "goal": "travel",
+            "preferences": {},
+        },
+    )
+    assert setup.status_code == 200
+    workspace_user_id = setup.json()["user_id"]
+
+    progress = client.get(
+        "/coach/session/progress",
+        params={"user_id": workspace_user_id, "time_budget_minutes": 15},
+    )
+    assert progress.status_code == 200
+    body = progress.json()
+    assert body["user_id"] == workspace_user_id
+    assert body["total_steps"] == 5
+    assert body["completed_steps"] == 0
+    step_id = body["items"][0]["step_id"]
+    assert body["items"][0]["status"] == "pending"
+
+    started = client.post(
+        "/coach/session/progress",
+        json={
+            "user_id": workspace_user_id,
+            "step_id": step_id,
+            "status": "in_progress",
+            "time_budget_minutes": 15,
+        },
+    )
+    assert started.status_code == 200
+    started_body = started.json()
+    first_item = next(item for item in started_body["items"] if item["step_id"] == step_id)
+    assert first_item["status"] == "in_progress"
+    assert first_item["started_at"] is not None
+    assert first_item["completed_at"] is None
+
+    completed = client.post(
+        "/coach/session/progress",
+        json={
+            "user_id": workspace_user_id,
+            "step_id": step_id,
+            "status": "completed",
+            "time_budget_minutes": 15,
+        },
+    )
+    assert completed.status_code == 200
+    completed_body = completed.json()
+    first_item_done = next(item for item in completed_body["items"] if item["step_id"] == step_id)
+    assert first_item_done["status"] == "completed"
+    assert first_item_done["completed_at"] is not None
+    assert completed_body["completed_steps"] == 1
+    assert completed_body["completion_percent"] == 20
+
+    invalid = client.post(
+        "/coach/session/progress",
+        json={
+            "user_id": workspace_user_id,
+            "step_id": "nonexistent-step",
+            "status": "completed",
+            "time_budget_minutes": 15,
+        },
+    )
+    assert invalid.status_code == 400
+    assert invalid.json()["detail"] == "Invalid step_id for today's session"

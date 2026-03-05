@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import date, datetime, UTC
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -248,3 +248,22 @@ class HomeworkSubmission(Base):
     )
 
     homework: Mapped["Homework"] = relationship(back_populates="submissions")
+
+
+class SessionStepProgress(Base):
+    __tablename__ = "session_step_progress"
+    __table_args__ = (UniqueConstraint("user_id", "session_date", "step_id", name="uq_session_step_progress"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    step_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )

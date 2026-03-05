@@ -1,17 +1,27 @@
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { ErrorState, LoadingState } from "../components/feedback";
+import { getErrorMessage } from "../lib/errors";
 import { useAppStore } from "../store/app-store";
+import { useToastStore } from "../store/toast-store";
 
 export function SessionPage() {
+  const queryClient = useQueryClient();
   const userId = useAppStore((s) => s.userId) ?? 1;
   const dailyMinutes = useAppStore((s) => s.dailyMinutes);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [actionError, setActionError] = useState("");
+  const [updating, setUpdating] = useState(false);
+  const pushToast = useToastStore((s) => s.push);
   const session = useQuery({
     queryKey: ["coach-session-today", userId, dailyMinutes],
     queryFn: () => api.coachSessionToday(userId, dailyMinutes),
+  });
+  const progress = useQuery({
+    queryKey: ["coach-session-progress", userId, dailyMinutes],
+    queryFn: () => api.coachSessionProgress(userId, dailyMinutes),
   });
 
   const activeStep = useMemo(() => {
@@ -19,17 +29,63 @@ export function SessionPage() {
     return session.data.steps[activeIndex] ?? null;
   }, [session.data, activeIndex]);
 
+  const statusByStep = useMemo(() => {
+    const map = new Map<string, "pending" | "in_progress" | "completed">();
+    for (const item of progress.data?.items ?? []) {
+      map.set(item.step_id, item.status);
+    }
+    return map;
+  }, [progress.data]);
+
+  useEffect(() => {
+    if (!session.data || !progress.data) return;
+    const firstOpenIndex = session.data.steps.findIndex((step) => statusByStep.get(step.id) !== "completed");
+    if (firstOpenIndex >= 0) {
+      setActiveIndex(firstOpenIndex);
+    }
+  }, [session.data, progress.data, statusByStep]);
+
+  async function markStep(status: "in_progress" | "completed") {
+    if (!activeStep) return;
+    setUpdating(true);
+    try {
+      await api.coachSessionProgressUpsert({
+        user_id: userId,
+        step_id: activeStep.id,
+        status,
+        time_budget_minutes: dailyMinutes,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["coach-session-progress", userId, dailyMinutes] });
+      setActionError("");
+      pushToast("success", status === "completed" ? "Step marked as completed" : "Step started");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setActionError(msg);
+      pushToast("error", msg);
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   return (
     <section className="panel stack">
       <h2>Coach Session</h2>
       <p>Follow your guided flow: warmup, focused practice, quick drill, vocab review, and recap.</p>
       {session.isPending && <LoadingState text="Preparing your session..." />}
       {session.isError && <ErrorState text="Failed to load daily session." />}
+      {progress.isPending && <LoadingState text="Loading session progress..." />}
+      {progress.isError && <ErrorState text="Failed to load session progress." />}
       {session.isSuccess && (
         <>
           <p>
             Time budget: {session.data.time_budget_minutes} min | Focus: {session.data.focus.join(", ")}
           </p>
+          {progress.data && (
+            <p>
+              Progress: {progress.data.completed_steps}/{progress.data.total_steps} steps ({progress.data.completion_percent}
+              %)
+            </p>
+          )}
           <p>Coach note: complete each step in order, even if you keep responses short.</p>
           <article className="panel">
             <h3>
@@ -37,12 +93,30 @@ export function SessionPage() {
             </h3>
             <p>{activeStep?.description}</p>
             <p>Recommended time: {activeStep?.duration_minutes} min</p>
-            {activeStep && (
-              <Link to={activeStep.route}>
-                <button type="button">Start step</button>
-              </Link>
-            )}
+            {activeStep && <p>Status: {statusByStep.get(activeStep.id) ?? "pending"}</p>}
+            <div className="row">
+              {activeStep && (
+                <Link to={activeStep.route}>
+                  <button type="button">Open activity</button>
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => markStep("in_progress")}
+                disabled={!activeStep || updating || (activeStep ? statusByStep.get(activeStep.id) === "completed" : true)}
+              >
+                Mark step started
+              </button>
+              <button
+                type="button"
+                onClick={() => markStep("completed")}
+                disabled={!activeStep || updating || (activeStep ? statusByStep.get(activeStep.id) === "completed" : true)}
+              >
+                Mark step completed
+              </button>
+            </div>
           </article>
+          {actionError && <ErrorState text={actionError} />}
           <div className="row">
             <button type="button" disabled={activeIndex === 0} onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}>
               Previous step
@@ -59,7 +133,7 @@ export function SessionPage() {
             <h3>Today step roadmap</h3>
             {session.data.steps.map((step, index) => (
               <p key={step.id}>
-                {index + 1}. {step.title} ({step.duration_minutes} min)
+                {index + 1}. {step.title} ({step.duration_minutes} min) - {statusByStep.get(step.id) ?? "pending"}
               </p>
             ))}
           </article>

@@ -137,6 +137,21 @@ export type CoachSessionTodayResponse = {
   }>;
 };
 
+export type CoachSessionProgressResponse = {
+  user_id: number;
+  session_date: string;
+  total_steps: number;
+  completed_steps: number;
+  completion_percent: number;
+  items: Array<{
+    step_id: string;
+    title: string;
+    status: "pending" | "in_progress" | "completed";
+    started_at?: string | null;
+    completed_at?: string | null;
+  }>;
+};
+
 export type CoachNextActionsResponse = {
   user_id: number;
   items: Array<{

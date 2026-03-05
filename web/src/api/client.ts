@@ -15,6 +15,7 @@ import type {
   CoachRoadmapResponse,
   OutcomePacksResponse,
   CoachSessionTodayResponse,
+  CoachSessionProgressResponse,
   ChatStartResponse,
   ExercisesGenerateResponse,
   ExercisesGradeResponse,
@@ -170,6 +171,20 @@ export const api = {
     request<CoachSessionTodayResponse>(
       `/coach/session/today?user_id=${encodeURIComponent(userId)}&time_budget_minutes=${encodeURIComponent(timeBudgetMinutes)}`,
     ),
+  coachSessionProgress: (userId: number, timeBudgetMinutes = 15) =>
+    request<CoachSessionProgressResponse>(
+      `/coach/session/progress?user_id=${encodeURIComponent(userId)}&time_budget_minutes=${encodeURIComponent(timeBudgetMinutes)}`,
+    ),
+  coachSessionProgressUpsert: (payload: {
+    user_id: number;
+    step_id: string;
+    status: "pending" | "in_progress" | "completed";
+    time_budget_minutes?: number;
+  }) =>
+    request<CoachSessionProgressResponse>("/coach/session/progress", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   coachNextActions: (userId: number) =>
     request<CoachNextActionsResponse>(`/coach/next-actions?user_id=${encodeURIComponent(userId)}`),
   coachReactivation: (userId: number) =>
