@@ -65,7 +65,7 @@ describe("ChatPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Start coaching session" }));
     await waitFor(() => {
-      expect(screen.getByText("Session 42 started")).toBeInTheDocument();
+      expect(screen.getByText("Coach session 42 started")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Send to coach" }));

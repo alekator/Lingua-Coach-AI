@@ -21,8 +21,8 @@ export function SessionPage() {
 
   return (
     <section className="panel stack">
-      <h2>Daily Session</h2>
-      <p>Coach flow: warmup, focused practice, quick drill, vocab review, and recap.</p>
+      <h2>Coach Session</h2>
+      <p>Follow your guided flow: warmup, focused practice, quick drill, vocab review, and recap.</p>
       {session.isPending && <LoadingState text="Preparing your session..." />}
       {session.isError && <ErrorState text="Failed to load daily session." />}
       {session.isSuccess && (
@@ -39,7 +39,7 @@ export function SessionPage() {
             <p>Recommended time: {activeStep?.duration_minutes} min</p>
             {activeStep && (
               <Link to={activeStep.route}>
-                <button type="button">Open activity</button>
+                <button type="button">Start step</button>
               </Link>
             )}
           </article>
@@ -56,7 +56,7 @@ export function SessionPage() {
             </button>
           </div>
           <article className="panel">
-            <h3>Session roadmap</h3>
+            <h3>Today step roadmap</h3>
             {session.data.steps.map((step, index) => (
               <p key={step.id}>
                 {index + 1}. {step.title} ({step.duration_minutes} min)

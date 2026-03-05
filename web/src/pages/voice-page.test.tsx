@@ -48,15 +48,15 @@ describe("VoicePage", () => {
     const fileInput = screen.getByLabelText("Upload voice sample (10-45 sec)") as HTMLInputElement;
     const file = new File(["voice-bytes"], "voice.webm", { type: "audio/webm" });
     fireEvent.change(fileInput, { target: { files: [file] } });
-    fireEvent.click(screen.getByRole("button", { name: "Process voice" }));
+    fireEvent.click(screen.getByRole("button", { name: "Analyze voice" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Coach Voice Feedback")).toBeInTheDocument();
+      expect(screen.getByText("Coach feedback")).toBeInTheDocument();
       expect(screen.getByText("Transcript: I goed to school")).toBeInTheDocument();
       expect(screen.getByText(/Rubric: 56 \(developing\)/)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Use coach target for next try" }));
+    fireEvent.click(screen.getByRole("button", { name: "Use coach target for retry" }));
 
     await waitFor(() => {
       const phraseInput = screen.getByPlaceholderText("Example: I went to school yesterday.") as HTMLInputElement;

@@ -19,7 +19,7 @@ export function ChatPage() {
     try {
       const response = await api.chatStart({ user_id: userId, mode: "chat" });
       setSessionId(response.session_id);
-      setStatus(`Session ${response.session_id} started`);
+      setStatus(`Coach session ${response.session_id} started`);
       setError("");
       pushToast("success", "Chat session started");
     } catch (err) {
@@ -47,7 +47,7 @@ export function ChatPage() {
     if (!sessionId) return;
     try {
       const response = await api.chatEnd({ session_id: sessionId });
-      setStatus(`Session ${response.session_id} ${response.status}`);
+      setStatus(`Coach session ${response.session_id} ${response.status}`);
       setSessionId(null);
       setError("");
       pushToast("info", "Chat session ended");
@@ -60,8 +60,8 @@ export function ChatPage() {
 
   return (
     <section className="panel stack">
-      <h2>Coach Chat</h2>
-      <p>Coach mode: send one clear idea, get precise corrections, then apply them in the next turn.</p>
+      <h2>Coach Chat Practice</h2>
+      <p>Send one clear idea, review corrections, and apply them in your next turn.</p>
       <div className="row">
         <button type="button" onClick={onStart} disabled={!!sessionId}>
           Start coaching session
@@ -74,7 +74,7 @@ export function ChatPage() {
       {error && <ErrorState text={error} />}
       <form onSubmit={onSend} className="stack">
         <label>
-          Message to coach
+          Your message to coach
           <input value={text} onChange={(e) => setText(e.target.value)} />
         </label>
         <button type="submit" disabled={!sessionId}>
@@ -83,6 +83,7 @@ export function ChatPage() {
       </form>
       {reply && (
         <article className="panel">
+          <h3>Coach feedback</h3>
           <p>{reply.assistant_text}</p>
           {reply.corrections.map((c, idx) => (
             <p key={`${c.type}-${idx}`}>

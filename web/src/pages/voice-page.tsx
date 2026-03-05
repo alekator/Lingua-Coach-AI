@@ -45,10 +45,10 @@ export function VoicePage() {
 
   return (
     <section className="panel stack">
-      <h2>Voice Conversation</h2>
-      <p>Coach mode: upload a short response, review pronunciation feedback, then repeat with one improvement.</p>
+      <h2>Coach Voice Practice</h2>
+      <p>Upload one short response, review feedback, then retry with one clear improvement.</p>
       <label>
-        Practice phrase (optional)
+        Practice phrase (optional retry line)
         <input
           placeholder="Example: I went to school yesterday."
           value={practicePhrase}
@@ -66,13 +66,13 @@ export function VoicePage() {
           />
         </label>
         <button type="submit" disabled={!file}>
-          Process voice
+          Analyze voice
         </button>
       </form>
       {error && <ErrorState text={error} />}
       {result && (
         <article className="panel stack">
-          <h3>Coach Voice Feedback</h3>
+          <h3>Coach feedback</h3>
           <p>Transcript: {result.transcript}</p>
           <p>Coach: {result.teacher_text}</p>
           <p>Pronunciation tip: {result.pronunciation_feedback}</p>
@@ -90,7 +90,7 @@ export function VoicePage() {
               ))}
             </>
           )}
-          <p>Coach audio: {result.audio_url}</p>
+          <p>Coach audio reply: {result.audio_url}</p>
           {coachTarget && (
             <button
               type="button"
@@ -99,7 +99,7 @@ export function VoicePage() {
                 pushToast("info", "Coach target applied for retry");
               }}
             >
-              Use coach target for next try
+              Use coach target for retry
             </button>
           )}
         </article>

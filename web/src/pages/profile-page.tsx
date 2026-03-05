@@ -259,11 +259,11 @@ export function ProfilePage() {
 
   return (
     <section className="panel stack">
-      <h2>Coach Profile & Progress</h2>
-      <p>Set your learning preferences and track coach signals for steady progress.</p>
+      <h2>Coach Profile</h2>
+      <p>Manage your learning spaces, preferences, and progress signals in one place.</p>
       <article className="panel stack">
         <h3>Learning Spaces</h3>
-        <p>Each language pair keeps isolated progress, sessions, and recommendations.</p>
+        <p>Each language pair is an isolated coach space with its own progress and recommendations.</p>
         {workspaces.isPending && <LoadingState text="Loading learning spaces..." />}
         {workspaces.isError && <ErrorState text="Failed to load learning spaces." />}
         {workspaces.isSuccess && (
@@ -432,7 +432,7 @@ export function ProfilePage() {
           </p>
           <p>Weak areas: {journal.data.weak_areas.join(", ") || "none detected"}</p>
           <h4>Next actions</h4>
-          <p>Coach recommendation: pick one action and complete it today.</p>
+          <p>Coach recommendation: choose one action and complete it today.</p>
           {journal.data.next_actions.map((action) => (
             <p key={action}>- {action}</p>
           ))}
