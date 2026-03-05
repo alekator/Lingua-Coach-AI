@@ -1,0 +1,184 @@
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.db import get_db
+from app.models import LearnerProfile, PlacementAnswer, PlacementSession, SkillSnapshot, User
+from app.schemas.profile import (
+    PlacementAnswerRequest,
+    PlacementAnswerResponse,
+    PlacementFinishRequest,
+    PlacementFinishResponse,
+    PlacementStartRequest,
+    PlacementStartResponse,
+    ProfileSetupRequest,
+    ProfileSetupResponse,
+)
+from app.services.placement import (
+    baseline_skill_map,
+    build_placement_questions,
+    score_answer,
+    score_to_cefr,
+    utcnow,
+)
+
+router = APIRouter(prefix="/profile", tags=["profile"])
+
+
+def _get_or_create_user(db: Session, user_id: int) -> User:
+    user = db.get(User, user_id)
+    if user:
+        return user
+
+    user = User(id=user_id)
+    db.add(user)
+    db.flush()
+    return user
+
+
+@router.post("/setup", response_model=ProfileSetupResponse)
+def profile_setup(payload: ProfileSetupRequest, db: Session = Depends(get_db)) -> ProfileSetupResponse:
+    _get_or_create_user(db, payload.user_id)
+
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == payload.user_id))
+    if profile is None:
+        profile = LearnerProfile(
+            user_id=payload.user_id,
+            native_lang=payload.native_lang,
+            target_lang=payload.target_lang,
+            level=payload.level,
+            goal=payload.goal,
+            preferences=payload.preferences,
+        )
+        db.add(profile)
+    else:
+        profile.native_lang = payload.native_lang
+        profile.target_lang = payload.target_lang
+        profile.level = payload.level
+        profile.goal = payload.goal
+        profile.preferences = payload.preferences
+
+    db.commit()
+    db.refresh(profile)
+    return ProfileSetupResponse(
+        user_id=profile.user_id,
+        native_lang=profile.native_lang,
+        target_lang=profile.target_lang,
+        level=profile.level,
+        goal=profile.goal,
+        preferences=profile.preferences,
+    )
+
+
+@router.post("/placement-test/start", response_model=PlacementStartResponse)
+def placement_start(
+    payload: PlacementStartRequest, db: Session = Depends(get_db)
+) -> PlacementStartResponse:
+    _get_or_create_user(db, payload.user_id)
+    questions = build_placement_questions(payload.target_lang)
+
+    session = PlacementSession(
+        user_id=payload.user_id,
+        native_lang=payload.native_lang,
+        target_lang=payload.target_lang,
+        status="in_progress",
+        current_question_index=0,
+        questions=questions,
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return PlacementStartResponse(
+        session_id=session.id,
+        question_index=0,
+        question=questions[0],
+        total_questions=len(questions),
+    )
+
+
+@router.post("/placement-test/answer", response_model=PlacementAnswerResponse)
+def placement_answer(
+    payload: PlacementAnswerRequest, db: Session = Depends(get_db)
+) -> PlacementAnswerResponse:
+    session = db.get(PlacementSession, payload.session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Placement session not found")
+    if session.status != "in_progress":
+        raise HTTPException(status_code=409, detail="Placement session already finished")
+
+    idx = session.current_question_index
+    questions = session.questions
+    if idx >= len(questions):
+        raise HTTPException(status_code=409, detail="No remaining questions")
+
+    answer_row = PlacementAnswer(
+        session_id=session.id,
+        question_index=idx,
+        prompt=questions[idx],
+        answer_text=payload.answer,
+        score=score_answer(payload.answer),
+    )
+    db.add(answer_row)
+
+    next_idx = idx + 1
+    done = next_idx >= len(questions)
+    session.current_question_index = next_idx
+    if done:
+        session.status = "ready_to_finish"
+
+    db.commit()
+    return PlacementAnswerResponse(
+        session_id=session.id,
+        accepted_question_index=idx,
+        done=done,
+        next_question_index=None if done else next_idx,
+        next_question=None if done else questions[next_idx],
+    )
+
+
+@router.post("/placement-test/finish", response_model=PlacementFinishResponse)
+def placement_finish(
+    payload: PlacementFinishRequest, db: Session = Depends(get_db)
+) -> PlacementFinishResponse:
+    session = db.get(PlacementSession, payload.session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Placement session not found")
+
+    answers = db.scalars(select(PlacementAnswer).where(PlacementAnswer.session_id == session.id)).all()
+    if not answers:
+        raise HTTPException(status_code=400, detail="No answers submitted")
+
+    avg_score = round(sum(a.score for a in answers) / len(answers), 3)
+    level = score_to_cefr(avg_score)
+    skill_map = baseline_skill_map(avg_score)
+
+    session.status = "finished"
+    session.recommended_level = level
+    session.finished_at = utcnow()
+
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == session.user_id))
+    if profile is None:
+        profile = LearnerProfile(
+            user_id=session.user_id,
+            native_lang=session.native_lang,
+            target_lang=session.target_lang,
+            level=level,
+            preferences={},
+        )
+        db.add(profile)
+    else:
+        profile.level = level
+
+    snapshot = SkillSnapshot(user_id=session.user_id, **skill_map)
+    db.add(snapshot)
+
+    db.commit()
+
+    return PlacementFinishResponse(
+        session_id=session.id,
+        level=level,
+        avg_score=avg_score,
+        skill_map=skill_map,
+    )

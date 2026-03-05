@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any, Callable
 
 from fastapi import FastAPI, HTTPException
 from openai import OpenAI
 from pydantic import BaseModel
+
+from app.db import init_db
+from app.routers.profile import router as profile_router
 
 
 class HealthResponse(BaseModel):
@@ -33,8 +38,14 @@ def default_openai_probe() -> tuple[str, str]:
         return ("error", str(exc))
 
 
+@asynccontextmanager
+async def app_lifespan(_: FastAPI) -> AsyncIterator[None]:
+    init_db()
+    yield
+
+
 def create_app(openai_probe: Callable[[], tuple[str, str]] | None = None) -> FastAPI:
-    app = FastAPI(title="LinguaCoach API", version="0.1.0")
+    app = FastAPI(title="LinguaCoach API", version="0.1.0", lifespan=app_lifespan)
     probe = openai_probe or default_openai_probe
 
     @app.get("/health", response_model=HealthResponse)
@@ -67,6 +78,8 @@ def create_app(openai_probe: Callable[[], tuple[str, str]] | None = None) -> Fas
                 "/scenarios",
             ]
         }
+
+    app.include_router(profile_router)
 
     return app
 
