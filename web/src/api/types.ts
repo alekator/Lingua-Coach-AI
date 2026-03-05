@@ -77,3 +77,90 @@ export type TranslateVoiceResponse = {
   translated_text: string;
   audio_url: string;
 };
+
+export type ChatStartResponse = {
+  session_id: number;
+  mode: string;
+  status: string;
+};
+
+export type ChatMessageResponse = {
+  assistant_text: string;
+  corrections: Array<{ type: string; bad: string; good: string; explanation?: string | null }>;
+  new_words: Array<{ word: string; translation: string; example?: string | null; phonetics?: string | null }>;
+  homework_suggestions: string[];
+};
+
+export type VoiceMessageResponse = {
+  transcript: string;
+  teacher_text: string;
+  audio_url: string;
+  pronunciation_feedback: string;
+};
+
+export type VocabItem = {
+  id: number;
+  user_id: number;
+  word: string;
+  translation: string;
+  example?: string | null;
+  phonetics?: string | null;
+  due_at?: string | null;
+  interval_days?: number | null;
+  ease?: number | null;
+};
+
+export type VocabListResponse = {
+  items: VocabItem[];
+};
+
+export type VocabReviewNextResponse = {
+  has_item: boolean;
+  item?: VocabItem | null;
+};
+
+export type VocabReviewSubmitResponse = {
+  vocab_item_id: number;
+  rating: string;
+  next_due_at: string;
+  interval_days: number;
+  ease: number;
+};
+
+export type HomeworkItem = {
+  id: number;
+  user_id: number;
+  title: string;
+  tasks: Array<Record<string, unknown>>;
+  status: string;
+  created_at: string;
+  due_at?: string | null;
+};
+
+export type HomeworkListResponse = {
+  items: HomeworkItem[];
+};
+
+export type HomeworkSubmitResponse = {
+  homework_id: number;
+  status: string;
+  grade: {
+    score: number;
+    max_score: number;
+    feedback: string;
+  };
+};
+
+export type ProgressSkillMap = {
+  speaking: number;
+  listening: number;
+  grammar: number;
+  vocab: number;
+  reading: number;
+  writing: number;
+};
+
+export type ProgressStreak = {
+  streak_days: number;
+  active_dates: string[];
+};

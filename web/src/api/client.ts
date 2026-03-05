@@ -1,14 +1,26 @@
 import type {
   AppBootstrapResponse,
+  ChatMessageResponse,
+  ChatStartResponse,
   ExercisesGenerateResponse,
   ExercisesGradeResponse,
   GrammarAnalyzeResponse,
+  HomeworkItem,
+  HomeworkListResponse,
+  HomeworkSubmitResponse,
   PlanTodayResponse,
+  ProgressSkillMap,
+  ProgressStreak,
   ProgressSummary,
   ScenarioSelectResponse,
   ScenariosResponse,
   TranslateResponse,
   TranslateVoiceResponse,
+  VocabItem,
+  VocabListResponse,
+  VocabReviewNextResponse,
+  VocabReviewSubmitResponse,
+  VoiceMessageResponse,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -98,4 +110,74 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  chatStart: (payload: { user_id: number; mode?: string }) =>
+    request<ChatStartResponse>("/chat/start", {
+      method: "POST",
+      body: JSON.stringify({ user_id: payload.user_id, mode: payload.mode ?? "chat" }),
+    }),
+  chatMessage: (payload: { session_id: number; text: string }) =>
+    request<ChatMessageResponse>("/chat/message", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  chatEnd: (payload: { session_id: number }) =>
+    request<{ session_id: number; status: string }>("/chat/end", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  voiceMessage: (payload: {
+    file: File;
+    user_id: number;
+    target_lang: string;
+    language_hint?: string;
+    voice_name?: string;
+  }) => {
+    const formData = new FormData();
+    formData.set("file", payload.file);
+    formData.set("user_id", String(payload.user_id));
+    formData.set("target_lang", payload.target_lang);
+    formData.set("language_hint", payload.language_hint ?? payload.target_lang);
+    formData.set("voice_name", payload.voice_name ?? "alloy");
+    return request<VoiceMessageResponse>("/voice/message", {
+      method: "POST",
+      body: formData,
+    });
+  },
+  vocabList: (userId: number) => request<VocabListResponse>(`/vocab?user_id=${encodeURIComponent(userId)}`),
+  vocabAdd: (payload: { user_id: number; word: string; translation: string; example?: string }) =>
+    request<VocabItem>("/vocab/add", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  vocabReviewNext: (payload: { user_id: number }) =>
+    request<VocabReviewNextResponse>("/vocab/review/next", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  vocabReviewSubmit: (payload: { user_id: number; vocab_item_id: number; rating: "again" | "hard" | "good" | "easy" }) =>
+    request<VocabReviewSubmitResponse>("/vocab/review/submit", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  homeworkCreate: (payload: {
+    user_id: number;
+    title: string;
+    tasks: Array<Record<string, unknown>>;
+    due_at?: string;
+  }) =>
+    request<HomeworkItem>("/homework/create", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  homeworkList: (userId: number) =>
+    request<HomeworkListResponse>(`/homework?user_id=${encodeURIComponent(userId)}`),
+  homeworkSubmit: (payload: { homework_id: number; answers: Record<string, string> }) =>
+    request<HomeworkSubmitResponse>("/homework/submit", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  progressSkillMap: (userId: number) =>
+    request<ProgressSkillMap>(`/progress/skill-map?user_id=${encodeURIComponent(userId)}`),
+  progressStreak: (userId: number) =>
+    request<ProgressStreak>(`/progress/streak?user_id=${encodeURIComponent(userId)}`),
 };

@@ -3,13 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { api } from "./api/client";
 import { AppLayout } from "./components/layout";
+import { ChatPage } from "./pages/chat-page";
 import { DashboardPage } from "./pages/dashboard-page";
 import { ExercisesPage } from "./pages/exercises-page";
 import { GrammarPage } from "./pages/grammar-page";
+import { HomeworkPage } from "./pages/homework-page";
 import { OnboardingPage } from "./pages/onboarding-page";
-import { PlaceholderPage } from "./pages/placeholder-page";
+import { ProfilePage } from "./pages/profile-page";
 import { ScenariosPage } from "./pages/scenarios-page";
 import { TranslatePage } from "./pages/translate-page";
+import { VocabPage } from "./pages/vocab-page";
+import { VoicePage } from "./pages/voice-page";
 import { useAppStore } from "./store/app-store";
 
 function BootstrapGate() {
@@ -51,42 +55,15 @@ function RoutesMap() {
       <Route path="/" element={<OnboardingPage />} />
       <Route path="/app" element={<AppLayout />}>
         <Route index element={<DashboardPage />} />
-        <Route
-          path="chat"
-          element={<PlaceholderPage title="Chat" description="Teacher chat UI wiring goes here." />}
-        />
-        <Route
-          path="voice"
-          element={<PlaceholderPage title="Voice" description="Press-to-talk UI goes here." />}
-        />
-        <Route
-          path="translate"
-          element={<TranslatePage />}
-        />
-        <Route
-          path="exercises"
-          element={<ExercisesPage />}
-        />
-        <Route
-          path="scenarios"
-          element={<ScenariosPage />}
-        />
-        <Route
-          path="vocab"
-          element={<PlaceholderPage title="Vocab + SRS" description="Review queue UI goes here." />}
-        />
-        <Route
-          path="grammar"
-          element={<GrammarPage />}
-        />
-        <Route
-          path="homework"
-          element={<PlaceholderPage title="Homework" description="Homework flow UI goes here." />}
-        />
-        <Route
-          path="profile"
-          element={<PlaceholderPage title="Profile & Skill Map" description="Analytics page goes here." />}
-        />
+        <Route path="chat" element={<ChatPage />} />
+        <Route path="voice" element={<VoicePage />} />
+        <Route path="translate" element={<TranslatePage />} />
+        <Route path="exercises" element={<ExercisesPage />} />
+        <Route path="scenarios" element={<ScenariosPage />} />
+        <Route path="vocab" element={<VocabPage />} />
+        <Route path="grammar" element={<GrammarPage />} />
+        <Route path="homework" element={<HomeworkPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>
