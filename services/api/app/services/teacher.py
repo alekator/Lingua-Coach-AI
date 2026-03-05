@@ -115,10 +115,18 @@ def _normalize_daily_minutes(preferences: dict[str, Any]) -> int:
     return 15
 
 
+def _normalize_persona_style(preferences: dict[str, Any]) -> str:
+    raw = str(preferences.get("persona_style", "coach")).lower()
+    if raw in {"coach", "friendly", "examiner"}:
+        return raw
+    return "coach"
+
+
 def _build_coaching_policy(profile: LearnerProfile | None) -> dict[str, Any]:
     prefs = (profile.preferences if profile else {}) or {}
     strictness = _normalize_strictness(prefs)
     daily_minutes = _normalize_daily_minutes(prefs)
+    persona_style = _normalize_persona_style(prefs)
     level = (profile.level if profile else "A1").upper()
 
     max_corrections = {"low": 1, "medium": 2, "high": 3}[strictness]
@@ -132,12 +140,15 @@ def _build_coaching_policy(profile: LearnerProfile | None) -> dict[str, Any]:
         "daily_minutes": daily_minutes,
         "session_intensity": session_intensity,
         "reply_style": reply_style,
+        "persona_style": persona_style,
         "max_corrections": max_corrections,
         "max_new_words": 2,
         "max_homework_items": 2,
         "must_reference_goal": True,
         "must_consider_weak_topics": True,
         "must_keep_reply_short_for_low_levels": True,
+        "must_sound_human": True,
+        "must_avoid_repetitive_openers": True,
         "must_return_rubric": True,
     }
 
@@ -146,12 +157,15 @@ def build_resilient_teacher_fallback(payload: dict[str, Any], reason: str | None
     user_text = str(payload.get("user_input", "")).strip() or "your latest message"
     learner_profile = payload.get("learner_profile", {}) or {}
     level = str(learner_profile.get("level", "A1"))
+    goal = str(learner_profile.get("goal") or "general communication")
+    weak_topics = learner_profile.get("weak_topics", []) or []
+    top_weak = str(weak_topics[0]) if weak_topics else "grammar"
     preferences = learner_profile.get("preferences", {}) or {}
     strictness = _normalize_strictness(preferences)
-    opener = {
-        "low": "Good effort.",
-        "medium": "Good practice.",
-        "high": "Direct feedback.",
+    opener, action_template = {
+        "low": ("Nice try.", "Micro-step: rewrite it once with simpler words."),
+        "medium": ("Solid attempt.", "Micro-step: rewrite it once with one clean correction."),
+        "high": ("Direct feedback.", "Micro-step: rewrite it now with precise grammar and one detail."),
     }[strictness]
     recovery_note = "I switched to local fallback guidance for this turn."
     if reason:
@@ -159,12 +173,13 @@ def build_resilient_teacher_fallback(payload: dict[str, Any], reason: str | None
 
     response = ChatMessageResponse(
         assistant_text=(
-            f"{opener} Practice ({level}): {user_text}. "
-            f"{recovery_note} Apply one correction-ready sentence now."
+            f"{opener} Goal focus: {goal}. "
+            f"Practice ({level}) on {top_weak}: {user_text}. "
+            f"{action_template} {recovery_note}"
         ),
         corrections=[],
         new_words=[],
-        homework_suggestions=["Rewrite your last message in one cleaner version."],
+        homework_suggestions=[f"Write 3 short lines about {goal} with clean {top_weak}."],
     )
     response.rubric = build_fallback_rubric(user_text, response)
     return response
@@ -198,12 +213,20 @@ def build_teacher_payload(
     ]
 
     coaching_policy = _build_coaching_policy(profile)
+    top_weak = learner_profile["weak_topics"][0] if learner_profile["weak_topics"] else "grammar"
+    focus_word = learner_profile["active_vocab"][0]["word"] if learner_profile["active_vocab"] else None
 
     return {
         "learner_profile": learner_profile,
         "mode": mode,
         "history": compact_history,
         "user_input": user_text[:900],
+        "session_context": {
+            "top_weak_topic": top_weak,
+            "focus_word": focus_word,
+            "history_turns": len(compact_history),
+            "target_behavior": "sound natural and specific, not generic",
+        },
         "recent_mistakes": [
             {
                 "category": m.category,
@@ -263,7 +286,9 @@ def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
         "2) keep assistant_text short and actionable; "
         "3) follow max_corrections/max_new_words from coaching_policy; "
         "4) corrections must be concrete bad->good transformations and explain briefly; "
-        "5) prefer one next action aligned with learner goal and session intensity."
+        "5) prefer one next action aligned with learner goal and session intensity; "
+        "6) vary opener phrasing and avoid repetitive generic intros; "
+        "7) when possible, include one realistic mini-example for user's context."
     )
     developer_prompt = json.dumps(payload, ensure_ascii=False)
 

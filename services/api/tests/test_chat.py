@@ -90,8 +90,11 @@ def test_chat_flow_with_memory_updates(
         assert payloads[0]["coaching_policy"]["strictness"] == "medium"
         assert payloads[0]["coaching_policy"]["max_corrections"] == 2
         assert payloads[0]["coaching_policy"]["session_intensity"] == "balanced"
+        assert payloads[0]["coaching_policy"]["persona_style"] == "coach"
         assert payloads[1]["recent_mistakes"][0]["category"] == "grammar"
         assert any(word["word"] == "achieve" for word in payloads[1]["learner_profile"]["active_vocab"])
+        assert payloads[1]["session_context"]["top_weak_topic"] == "grammar"
+        assert payloads[1]["session_context"]["target_behavior"] == "sound natural and specific, not generic"
         assert "rubric" in payloads[0]["schema"]
         homework_after_msg2 = client.get("/homework", params={"user_id": 7})
         assert homework_after_msg2.status_code == 200
@@ -163,7 +166,7 @@ def test_teacher_payload_uses_high_strictness_and_daily_minutes(
                 "target_lang": "en",
                 "level": "B1",
                 "goal": "work",
-                "preferences": {"strictness": "high", "daily_minutes": 45},
+                "preferences": {"strictness": "high", "daily_minutes": 45, "persona_style": "examiner"},
             },
         )
         assert setup.status_code == 200
@@ -175,3 +178,4 @@ def test_teacher_payload_uses_high_strictness_and_daily_minutes(
         assert payloads[0]["coaching_policy"]["max_corrections"] == 3
         assert payloads[0]["coaching_policy"]["session_intensity"] == "intense"
         assert payloads[0]["coaching_policy"]["tone"] == "direct_coach"
+        assert payloads[0]["coaching_policy"]["persona_style"] == "examiner"

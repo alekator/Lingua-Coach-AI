@@ -91,6 +91,7 @@ def test_default_voice_teacher_fallback_respects_strictness(monkeypatch: Any) ->
     )
     text = default_voice_teacher("I goed home", profile, "en")
     assert text.startswith("Direct note.")
+    assert "went" in text
 
 
 def test_voice_message_teacher_failure_uses_router_fallback(

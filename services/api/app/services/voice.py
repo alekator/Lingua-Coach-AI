@@ -36,12 +36,18 @@ def default_asr_transcriber(
 def default_voice_teacher(transcript: str, profile: LearnerProfile | None, target_lang: str) -> str:
     clean_transcript = transcript.strip()[:900]
     profile_block = build_learner_profile_block(profile)
+    weak_topics = profile_block.get("weak_topics", []) or []
+    top_weak = weak_topics[0] if weak_topics else "fluency"
+    goal = str(profile_block.get("goal") or "daily communication")
     preferences = profile_block.get("preferences", {}) or {}
     strictness = str(preferences.get("strictness", "medium")).lower()
     if strictness not in {"low", "medium", "high"}:
         strictness = "medium"
+    persona_style = str(preferences.get("persona_style", "coach")).lower()
+    if persona_style not in {"coach", "friendly", "examiner"}:
+        persona_style = "coach"
 
-    cache_key = ("voice_teacher", target_lang.lower(), strictness, clean_transcript.lower())
+    cache_key = ("voice_teacher", target_lang.lower(), strictness, persona_style, clean_transcript.lower())
     cached = _voice_teacher_cache.get(cache_key)
     if isinstance(cached, str):
         return cached
@@ -53,14 +59,22 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
             "medium": "Good practice.",
             "high": "Direct note.",
         }[strictness]
-        fallback = f"{opening} Let's continue in {target_lang}. You said: {clean_transcript}"
+        quick_fix = ""
+        lower_text = clean_transcript.lower()
+        if "goed" in lower_text:
+            quick_fix = " Quick fix: say 'went' instead of 'goed'."
+        fallback = (
+            f"{opening} Let's continue in {target_lang}. Goal: {goal}. "
+            f"Focus now: {top_weak}. You said: {clean_transcript}.{quick_fix}"
+        )
         _voice_teacher_cache.set(cache_key, fallback)
         return fallback
 
     prompt = (
         "You are a language tutor. Reply briefly in target language practice mode "
         "and include one short correction if needed. "
-        "Adapt tone to strictness: low=supportive, medium=balanced, high=direct."
+        "Adapt tone to strictness: low=supportive, medium=balanced, high=direct. "
+        "Be human and specific: mention one concrete next micro-step for this learner goal."
     )
     client = OpenAI(api_key=api_key)
     response = client.responses.create(
@@ -78,6 +92,9 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
                         "transcript": clean_transcript,
                         "coaching_policy": {
                             "strictness": strictness,
+                            "persona_style": persona_style,
+                            "goal": goal,
+                            "top_weak_topic": top_weak,
                             "max_corrections": 1 if strictness == "low" else 2 if strictness == "medium" else 3,
                         },
                     },
@@ -94,11 +111,12 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
 
 def build_pronunciation_feedback(transcript: str) -> str:
     rubric = build_pronunciation_rubric(transcript)
+    top_tip = str(rubric.get("actionable_tips", ["Keep practicing."])[0])
     if rubric["overall_score"] < 45:
-        return "Focus on slower pace and clearer articulation. Start with short phrases."
+        return f"Focus on slower pace and clearer articulation. {top_tip}"
     if rubric["overall_score"] < 70:
-        return "Speech is understandable. Improve stress and sentence rhythm."
-    return "Good pronunciation baseline. Keep polishing natural rhythm and intonation."
+        return f"Speech is understandable. Improve stress and sentence rhythm. {top_tip}"
+    return f"Good pronunciation baseline. Keep polishing natural rhythm and intonation. {top_tip}"
 
 
 def build_pronunciation_rubric(transcript: str) -> dict[str, float | str | list[str]]:
