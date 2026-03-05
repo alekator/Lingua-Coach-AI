@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import json
+import logging
 import os
+import time
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from collections import deque
 from typing import Any, Callable
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from openai import OpenAI
 from pydantic import BaseModel
 
@@ -42,6 +48,11 @@ class OpenAIDebugResponse(BaseModel):
     detail: str
 
 
+logger = logging.getLogger("linguacoach.api")
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+
 def default_openai_probe() -> tuple[str, str]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -70,6 +81,7 @@ def create_app(
     tts_synthesizer: TtsSynthesizerFn | None = None,
     asr_transcriber: AsrTranscriberFn | None = None,
     voice_teacher: VoiceTeacherFn | None = None,
+    rate_limit_per_minute: int = 120,
 ) -> FastAPI:
     app = FastAPI(title="LinguaCoach API", version="0.1.0", lifespan=app_lifespan)
     probe = openai_probe or default_openai_probe
@@ -78,6 +90,85 @@ def create_app(
     app.state.tts_synthesizer = tts_synthesizer or default_tts_synthesizer
     app.state.asr_transcriber = asr_transcriber or default_asr_transcriber
     app.state.voice_teacher = voice_teacher or default_voice_teacher
+    app.state.rate_limit_per_minute = rate_limit_per_minute
+    app.state.rate_limit_store: dict[str, deque[float]] = {}
+
+    @app.middleware("http")
+    async def request_context_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
+        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        request.state.request_id = request_id
+        started = time.perf_counter()
+        response = await call_next(request)
+        elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
+        response.headers["X-Request-ID"] = request_id
+        logger.info(
+            json.dumps(
+                {
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": response.status_code,
+                    "elapsed_ms": elapsed_ms,
+                }
+            )
+        )
+        return response
+
+    @app.middleware("http")
+    async def rate_limit_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
+        path = request.url.path
+        if path in {"/health", "/_scaffold", "/docs", "/openapi.json", "/redoc"}:
+            return await call_next(request)
+
+        client_ip = request.client.host if request.client else "unknown"
+        key = f"{client_ip}:{path}"
+        now = time.time()
+        window_sec = 60
+        bucket = app.state.rate_limit_store.setdefault(key, deque())
+        while bucket and bucket[0] <= now - window_sec:
+            bucket.popleft()
+
+        limit = app.state.rate_limit_per_minute
+        if len(bucket) >= limit:
+            request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+            return JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={
+                    "error": "rate_limit_exceeded",
+                    "detail": f"Limit is {limit} requests per minute for this endpoint",
+                    "request_id": request_id,
+                },
+                headers={"X-Request-ID": request_id, "Retry-After": "60"},
+            )
+        bucket.append(now)
+        return await call_next(request)
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+        request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": "http_error",
+                "detail": exc.detail,
+                "request_id": request_id,
+            },
+            headers={"X-Request-ID": request_id},
+        )
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+        logger.exception("Unhandled error", extra={"request_id": request_id, "error": str(exc)})
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "error": "internal_error",
+                "detail": "Internal server error",
+                "request_id": request_id,
+            },
+            headers={"X-Request-ID": request_id},
+        )
 
     @app.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
