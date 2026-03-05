@@ -158,6 +158,24 @@ export function ProfilePage() {
     }
   }
 
+  async function onDeleteWorkspace(workspaceId: number) {
+    setWorkspaceBusy(true);
+    try {
+      await api.workspaceDelete(workspaceId);
+      await queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      await syncBootstrapContext();
+      await Promise.all([profile.refetch(), skillMap.refetch(), streak.refetch(), journal.refetch()]);
+      setWorkspaceError("");
+      pushToast("success", "Learning space deleted");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setWorkspaceError(msg);
+      pushToast("error", msg);
+    } finally {
+      setWorkspaceBusy(false);
+    }
+  }
+
   async function onRetakeStart() {
     setRetakeBusy(true);
     try {
@@ -272,6 +290,27 @@ export function ProfilePage() {
                 {workspaceBusy ? "Creating..." : "Create and switch space"}
               </button>
             </form>
+            <article className="panel stack">
+              <h4>Manage spaces</h4>
+              {workspaces.data.items.map((item) => (
+                <div key={`manage-${item.id}`} className="row">
+                  <span>
+                    {languageLabelByCode(item.native_lang)} {"->"} {languageLabelByCode(item.target_lang)}
+                    {item.is_active ? " (active)" : ""}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteWorkspace(item.id)}
+                    disabled={workspaceBusy || workspaces.data.items.length <= 1}
+                  >
+                    Delete space
+                  </button>
+                </div>
+              ))}
+              {workspaces.data.items.length <= 1 && (
+                <p>At least one space must remain. Create another space before deleting this one.</p>
+              )}
+            </article>
           </>
         )}
         {workspaceError && <ErrorState text={workspaceError} />}

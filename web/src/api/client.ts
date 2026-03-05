@@ -46,6 +46,7 @@ import type {
   WorkspaceListResponse,
   WorkspaceSwitchResponse,
   LearningWorkspace,
+  WorkspaceDeleteResponse,
   WorkspaceOverviewResponse,
 } from "./types";
 
@@ -108,6 +109,10 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   workspaceActive: () => request<WorkspaceSwitchResponse>("/workspaces/active"),
+  workspaceDelete: (workspaceId: number) =>
+    request<WorkspaceDeleteResponse>(`/workspaces/${encodeURIComponent(workspaceId)}`, {
+      method: "DELETE",
+    }),
   workspacesOverview: () => request<WorkspaceOverviewResponse>("/workspaces/overview"),
   openaiKeyStatus: () => request<OpenAIKeyStatus>("/settings/openai-key"),
   openaiKeySet: (payload: { api_key: string }) =>

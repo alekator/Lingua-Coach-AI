@@ -7,10 +7,25 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import ChatSession, LearnerProfile, LearningWorkspace, VocabItem
+from app.models import (
+    ChatSession,
+    Homework,
+    HomeworkSubmission,
+    LearnerProfile,
+    LearningWorkspace,
+    Message,
+    Mistake,
+    PlacementAnswer,
+    PlacementSession,
+    SkillSnapshot,
+    SrsState,
+    User,
+    VocabItem,
+)
 from app.schemas.workspaces import (
     WorkspaceBase,
     WorkspaceCreateRequest,
+    WorkspaceDeleteResponse,
     WorkspaceListResponse,
     WorkspaceOverviewItem,
     WorkspaceOverviewResponse,
@@ -156,3 +171,71 @@ def workspace_overview(db: Session = Depends(get_db)) -> WorkspaceOverviewRespon
         )
     db.commit()
     return WorkspaceOverviewResponse(owner_user_id=owner.id, items=items)
+
+
+@router.delete("/{workspace_id}", response_model=WorkspaceDeleteResponse)
+def workspace_delete(workspace_id: int, db: Session = Depends(get_db)) -> WorkspaceDeleteResponse:
+    owner = get_or_create_local_owner(db)
+    workspace = db.scalar(
+        select(LearningWorkspace).where(
+            LearningWorkspace.id == workspace_id,
+            LearningWorkspace.owner_user_id == owner.id,
+        )
+    )
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    fallback = db.scalar(
+        select(LearningWorkspace)
+        .where(
+            LearningWorkspace.owner_user_id == owner.id,
+            LearningWorkspace.id != workspace.id,
+        )
+        .order_by(LearningWorkspace.updated_at.desc(), LearningWorkspace.id.desc())
+    )
+    if fallback is None:
+        raise HTTPException(status_code=400, detail="Cannot delete the last workspace")
+    learner_user_id = workspace.learner_user_id
+
+    placement_session_ids = db.scalars(
+        select(PlacementSession.id).where(PlacementSession.user_id == learner_user_id)
+    ).all()
+    if placement_session_ids:
+        db.query(PlacementAnswer).filter(PlacementAnswer.session_id.in_(placement_session_ids)).delete(
+            synchronize_session=False
+        )
+    db.query(PlacementSession).filter(PlacementSession.user_id == learner_user_id).delete(
+        synchronize_session=False
+    )
+
+    chat_session_ids = db.scalars(select(ChatSession.id).where(ChatSession.user_id == learner_user_id)).all()
+    if chat_session_ids:
+        db.query(Message).filter(Message.session_id.in_(chat_session_ids)).delete(synchronize_session=False)
+    db.query(ChatSession).filter(ChatSession.user_id == learner_user_id).delete(synchronize_session=False)
+
+    homework_ids = db.scalars(select(Homework.id).where(Homework.user_id == learner_user_id)).all()
+    if homework_ids:
+        db.query(HomeworkSubmission).filter(HomeworkSubmission.homework_id.in_(homework_ids)).delete(
+            synchronize_session=False
+        )
+    db.query(Homework).filter(Homework.user_id == learner_user_id).delete(synchronize_session=False)
+
+    vocab_ids = db.scalars(select(VocabItem.id).where(VocabItem.user_id == learner_user_id)).all()
+    if vocab_ids:
+        db.query(SrsState).filter(SrsState.vocab_item_id.in_(vocab_ids)).delete(synchronize_session=False)
+    db.query(VocabItem).filter(VocabItem.user_id == learner_user_id).delete(synchronize_session=False)
+
+    db.query(LearnerProfile).filter(LearnerProfile.user_id == learner_user_id).delete(synchronize_session=False)
+    db.query(SkillSnapshot).filter(SkillSnapshot.user_id == learner_user_id).delete(synchronize_session=False)
+    db.query(Mistake).filter(Mistake.user_id == learner_user_id).delete(synchronize_session=False)
+
+    db.delete(workspace)
+    db.query(User).filter(User.id == learner_user_id).delete(synchronize_session=False)
+
+    set_active_workspace(db, fallback)
+
+    db.commit()
+    return WorkspaceDeleteResponse(
+        deleted_workspace_id=workspace_id,
+        active_workspace_id=fallback.id,
+    )

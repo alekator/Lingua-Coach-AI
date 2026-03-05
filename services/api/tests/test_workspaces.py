@@ -208,3 +208,56 @@ def test_workspace_user_cannot_use_foreign_language_pair_in_profile_or_placement
     )
     assert wrong_placement.status_code == 400
     assert wrong_placement.json()["detail"] == "Workspace language pair mismatch for this user_id"
+
+
+def test_workspace_delete_removes_space_and_switches_active(client: TestClient) -> None:
+    ws_a = client.post(
+        "/workspaces",
+        json={"native_lang": "ru", "target_lang": "en", "goal": "travel", "make_active": True},
+    )
+    assert ws_a.status_code == 200
+    a_id = ws_a.json()["id"]
+    a_user_id = client.get("/workspaces/active").json()["active_user_id"]
+
+    ws_b = client.post(
+        "/workspaces",
+        json={"native_lang": "de", "target_lang": "en", "goal": "job", "make_active": False},
+    )
+    assert ws_b.status_code == 200
+    b_id = ws_b.json()["id"]
+
+    add_vocab = client.post(
+        "/vocab/add",
+        json={"user_id": a_user_id, "word": "airport", "translation": "aeroport"},
+    )
+    assert add_vocab.status_code == 200
+
+    deleted = client.delete(f"/workspaces/{a_id}")
+    assert deleted.status_code == 200
+    body = deleted.json()
+    assert body["deleted_workspace_id"] == a_id
+    assert body["active_workspace_id"] == b_id
+
+    list_after = client.get("/workspaces")
+    assert list_after.status_code == 200
+    ids = [item["id"] for item in list_after.json()["items"]]
+    assert a_id not in ids
+    assert b_id in ids
+    assert list_after.json()["active_workspace_id"] == b_id
+
+    vocab_old_user = client.get("/vocab", params={"user_id": a_user_id})
+    assert vocab_old_user.status_code == 200
+    assert vocab_old_user.json()["items"] == []
+
+
+def test_workspace_delete_rejects_last_remaining_space(client: TestClient) -> None:
+    ws_a = client.post(
+        "/workspaces",
+        json={"native_lang": "ru", "target_lang": "en", "goal": "travel", "make_active": True},
+    )
+    assert ws_a.status_code == 200
+    a_id = ws_a.json()["id"]
+
+    deleted = client.delete(f"/workspaces/{a_id}")
+    assert deleted.status_code == 400
+    assert deleted.json()["detail"] == "Cannot delete the last workspace"

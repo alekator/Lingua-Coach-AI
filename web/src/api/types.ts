@@ -47,6 +47,11 @@ export type WorkspaceOverviewResponse = {
   }>;
 };
 
+export type WorkspaceDeleteResponse = {
+  deleted_workspace_id: number;
+  active_workspace_id?: number | null;
+};
+
 export type PlacementStartResponse = {
   session_id: number;
   question_index: number;

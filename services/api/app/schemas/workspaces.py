@@ -53,3 +53,8 @@ class WorkspaceOverviewItem(BaseModel):
 class WorkspaceOverviewResponse(BaseModel):
     owner_user_id: int
     items: list[WorkspaceOverviewItem]
+
+
+class WorkspaceDeleteResponse(BaseModel):
+    deleted_workspace_id: int
+    active_workspace_id: int | None

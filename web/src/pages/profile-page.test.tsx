@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   workspacesList: vi.fn(),
   workspaceCreate: vi.fn(),
   workspaceSwitch: vi.fn(),
+  workspaceDelete: vi.fn(),
   placementStart: vi.fn(),
   placementAnswer: vi.fn(),
   placementFinish: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("../api/client", async () => {
       workspacesList: mocks.workspacesList,
       workspaceCreate: mocks.workspaceCreate,
       workspaceSwitch: mocks.workspaceSwitch,
+      workspaceDelete: mocks.workspaceDelete,
       placementStart: mocks.placementStart,
       placementAnswer: mocks.placementAnswer,
       placementFinish: mocks.placementFinish,
@@ -126,7 +128,10 @@ describe("ProfilePage", () => {
     mocks.workspacesList.mockResolvedValue({
       owner_user_id: 1,
       active_workspace_id: 1,
-      items: [{ id: 1, native_lang: "ru", target_lang: "en", goal: "work", is_active: true }],
+      items: [
+        { id: 1, native_lang: "ru", target_lang: "en", goal: "work", is_active: true },
+        { id: 2, native_lang: "de", target_lang: "en", goal: "job", is_active: false },
+      ],
     });
     mocks.workspaceCreate.mockResolvedValue({
       id: 2,
@@ -138,6 +143,7 @@ describe("ProfilePage", () => {
       updated_at: "2026-03-06T00:00:00Z",
     });
     mocks.workspaceSwitch.mockResolvedValue({ active_workspace_id: 1, active_user_id: 1 });
+    mocks.workspaceDelete.mockResolvedValue({ deleted_workspace_id: 2, active_workspace_id: 1 });
     mocks.placementStart.mockResolvedValue({
       session_id: 11,
       question_index: 0,
@@ -287,5 +293,21 @@ describe("ProfilePage", () => {
     fireEvent.click(screen.getByLabelText("New space swap languages"));
     expect(screen.getByLabelText("New space native language")).toHaveValue("en");
     expect(screen.getByLabelText("New space target language")).toHaveValue("de");
+  });
+
+  it("deletes a non-active space", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage spaces")).toBeInTheDocument();
+    });
+
+    const deleteButtons = screen.getAllByRole("button", { name: "Delete space" });
+    fireEvent.click(deleteButtons[1]);
+
+    await waitFor(() => {
+      expect(mocks.workspaceDelete).toHaveBeenCalledWith(2);
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Learning space deleted");
+    });
   });
 });
