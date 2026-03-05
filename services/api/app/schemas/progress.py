@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ProgressSummaryResponse(BaseModel):
@@ -45,3 +45,17 @@ class ProgressJournalResponse(BaseModel):
     weak_areas: list[str]
     next_actions: list[str]
     entries: list[ProgressJournalEntry]
+
+
+class WeeklyGoalSetRequest(BaseModel):
+    user_id: int = Field(ge=1)
+    target_minutes: int = Field(ge=30, le=2000)
+
+
+class WeeklyGoalResponse(BaseModel):
+    user_id: int
+    target_minutes: int
+    completed_minutes: int
+    remaining_minutes: int
+    completion_percent: int
+    is_completed: bool

@@ -266,3 +266,12 @@ export type ProgressJournal = {
     completed: boolean;
   }>;
 };
+
+export type WeeklyGoal = {
+  user_id: number;
+  target_minutes: number;
+  completed_minutes: number;
+  remaining_minutes: number;
+  completion_percent: number;
+  is_completed: boolean;
+};

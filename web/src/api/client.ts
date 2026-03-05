@@ -18,6 +18,7 @@ import type {
   PlanTodayResponse,
   ProgressSkillMap,
   ProgressJournal,
+  WeeklyGoal,
   ProgressStreak,
   ProgressSummary,
   ScenarioSelectResponse,
@@ -237,4 +238,11 @@ export const api = {
     request<ProgressStreak>(`/progress/streak?user_id=${encodeURIComponent(userId)}`),
   progressJournal: (userId: number) =>
     request<ProgressJournal>(`/progress/journal?user_id=${encodeURIComponent(userId)}`),
+  progressWeeklyGoal: (userId: number) =>
+    request<WeeklyGoal>(`/progress/weekly-goal?user_id=${encodeURIComponent(userId)}`),
+  progressWeeklyGoalSet: (payload: { user_id: number; target_minutes: number }) =>
+    request<WeeklyGoal>("/progress/weekly-goal", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };

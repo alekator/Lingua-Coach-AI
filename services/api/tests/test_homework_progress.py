@@ -80,3 +80,19 @@ def test_progress_endpoints(client: TestClient) -> None:
     assert "next_actions" in journal_body
     assert len(journal_body["entries"]) >= 1
     assert "session_id" in journal_body["entries"][0]
+
+    weekly_goal_default = client.get("/progress/weekly-goal", params={"user_id": 901})
+    assert weekly_goal_default.status_code == 200
+    default_body = weekly_goal_default.json()
+    assert default_body["target_minutes"] == 90
+    assert default_body["completed_minutes"] >= 8
+    assert "completion_percent" in default_body
+
+    weekly_goal_set = client.post(
+        "/progress/weekly-goal",
+        json={"user_id": 901, "target_minutes": 120},
+    )
+    assert weekly_goal_set.status_code == 200
+    set_body = weekly_goal_set.json()
+    assert set_body["target_minutes"] == 120
+    assert set_body["remaining_minutes"] >= 0
