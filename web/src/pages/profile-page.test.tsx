@@ -5,6 +5,9 @@ import { ProfilePage } from "./profile-page";
 const mocks = vi.hoisted(() => ({
   profileGet: vi.fn(),
   profileSetup: vi.fn(),
+  placementStart: vi.fn(),
+  placementAnswer: vi.fn(),
+  placementFinish: vi.fn(),
   progressSkillMap: vi.fn(),
   progressStreak: vi.fn(),
   pushToast: vi.fn(),
@@ -14,6 +17,9 @@ vi.mock("../api/client", () => ({
   api: {
     profileGet: mocks.profileGet,
     profileSetup: mocks.profileSetup,
+    placementStart: mocks.placementStart,
+    placementAnswer: mocks.placementAnswer,
+    placementFinish: mocks.placementFinish,
     progressSkillMap: mocks.progressSkillMap,
     progressStreak: mocks.progressStreak,
   },
@@ -63,6 +69,25 @@ describe("ProfilePage", () => {
       active_dates: ["2026-03-05", "2026-03-06"],
     });
     mocks.profileSetup.mockResolvedValue({});
+    mocks.placementStart.mockResolvedValue({
+      session_id: 11,
+      question_index: 0,
+      question: "Describe your last weekend.",
+      total_questions: 1,
+    });
+    mocks.placementAnswer.mockResolvedValue({
+      session_id: 11,
+      accepted_question_index: 0,
+      done: true,
+      next_question_index: null,
+      next_question: null,
+    });
+    mocks.placementFinish.mockResolvedValue({
+      session_id: 11,
+      level: "B2",
+      avg_score: 0.78,
+      skill_map: {},
+    });
   });
 
   it("loads profile settings and saves edits", async () => {
@@ -86,6 +111,36 @@ describe("ProfilePage", () => {
         }),
       );
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Profile updated");
+    });
+  });
+
+  it("retakes placement test and updates level", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("B1")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Retake placement test" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Describe your last weekend.")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("Your answer"), {
+      target: { value: "I visited friends and watched a movie." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit answer" }));
+
+    await waitFor(() => {
+      expect(mocks.placementFinish).toHaveBeenCalledWith({ session_id: 11 });
+      expect(mocks.profileSetup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: 1,
+          level: "B2",
+        }),
+      );
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Placement updated: B2");
     });
   });
 });

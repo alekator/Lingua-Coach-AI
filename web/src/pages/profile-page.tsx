@@ -13,7 +13,15 @@ export function ProfilePage() {
   const [level, setLevel] = useState("");
   const [goal, setGoal] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [placementError, setPlacementError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [retakeOpen, setRetakeOpen] = useState(false);
+  const [retakeSessionId, setRetakeSessionId] = useState<number | null>(null);
+  const [retakeQuestion, setRetakeQuestion] = useState("");
+  const [retakeQuestionIndex, setRetakeQuestionIndex] = useState(0);
+  const [retakeTotalQuestions, setRetakeTotalQuestions] = useState(0);
+  const [retakeAnswer, setRetakeAnswer] = useState("");
+  const [retakeBusy, setRetakeBusy] = useState(false);
   const pushToast = useToastStore((s) => s.push);
   const profile = useQuery({
     queryKey: ["profile", userId],
@@ -60,6 +68,74 @@ export function ProfilePage() {
     }
   }
 
+  async function onRetakeStart() {
+    setRetakeBusy(true);
+    try {
+      const started = await api.placementStart({
+        user_id: userId,
+        native_lang: nativeLang,
+        target_lang: targetLang,
+      });
+      setRetakeOpen(true);
+      setRetakeSessionId(started.session_id);
+      setRetakeQuestion(started.question);
+      setRetakeQuestionIndex(started.question_index);
+      setRetakeTotalQuestions(started.total_questions);
+      setRetakeAnswer("");
+      setPlacementError("");
+      pushToast("info", "Placement retake started");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setPlacementError(msg);
+      pushToast("error", msg);
+    } finally {
+      setRetakeBusy(false);
+    }
+  }
+
+  async function onRetakeAnswer(event: FormEvent) {
+    event.preventDefault();
+    if (!retakeSessionId) return;
+    setRetakeBusy(true);
+    try {
+      const accepted = await api.placementAnswer({
+        session_id: retakeSessionId,
+        answer: retakeAnswer,
+      });
+      setRetakeAnswer("");
+      if (accepted.done) {
+        const finished = await api.placementFinish({ session_id: retakeSessionId });
+        await api.profileSetup({
+          user_id: userId,
+          native_lang: nativeLang,
+          target_lang: targetLang,
+          level: finished.level,
+          goal,
+          preferences: profile.data?.preferences ?? {},
+        });
+        setLevel(finished.level);
+        setRetakeOpen(false);
+        setRetakeSessionId(null);
+        setRetakeQuestion("");
+        setRetakeQuestionIndex(0);
+        setRetakeTotalQuestions(0);
+        setPlacementError("");
+        pushToast("success", `Placement updated: ${finished.level}`);
+        await skillMap.refetch();
+        return;
+      }
+      setRetakeQuestion(accepted.next_question ?? "");
+      setRetakeQuestionIndex(accepted.next_question_index ?? retakeQuestionIndex + 1);
+      setPlacementError("");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setPlacementError(msg);
+      pushToast("error", msg);
+    } finally {
+      setRetakeBusy(false);
+    }
+  }
+
   return (
     <section className="panel stack">
       <h2>Profile & Progress</h2>
@@ -86,9 +162,33 @@ export function ProfilePage() {
           <button type="submit" disabled={saving}>
             {saving ? "Saving..." : "Save settings"}
           </button>
+          <button
+            type="button"
+            disabled={retakeBusy || !nativeLang.trim() || !targetLang.trim()}
+            onClick={onRetakeStart}
+          >
+            {retakeBusy && !retakeOpen ? "Starting..." : "Retake placement test"}
+          </button>
         </form>
       )}
       {saveError && <ErrorState text={saveError} />}
+      {placementError && <ErrorState text={placementError} />}
+      {retakeOpen && (
+        <form className="panel stack" onSubmit={onRetakeAnswer}>
+          <h3>Placement Retake</h3>
+          <p>
+            Question {retakeQuestionIndex + 1} / {retakeTotalQuestions}
+          </p>
+          <p>{retakeQuestion}</p>
+          <label>
+            Your answer
+            <input value={retakeAnswer} onChange={(e) => setRetakeAnswer(e.target.value)} />
+          </label>
+          <button type="submit" disabled={retakeBusy || !retakeAnswer.trim()}>
+            {retakeBusy ? "Checking..." : "Submit answer"}
+          </button>
+        </form>
+      )}
       {(streak.isPending || skillMap.isPending) && <LoadingState text="Loading profile analytics..." />}
       {(streak.isError || skillMap.isError) && <ErrorState text="Failed to load progress analytics." />}
       {streak.isSuccess && skillMap.isSuccess && streak.data.streak_days === 0 && (
