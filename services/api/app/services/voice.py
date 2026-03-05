@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from collections.abc import Callable
 from typing import Any
 
@@ -31,14 +32,25 @@ def default_asr_transcriber(
 
 
 def default_voice_teacher(transcript: str, profile: LearnerProfile | None, target_lang: str) -> str:
+    profile_block = build_learner_profile_block(profile)
+    preferences = profile_block.get("preferences", {}) or {}
+    strictness = str(preferences.get("strictness", "medium")).lower()
+    if strictness not in {"low", "medium", "high"}:
+        strictness = "medium"
+
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        return f"Let's continue in {target_lang}. You said: {transcript}"
+        opening = {
+            "low": "Good attempt.",
+            "medium": "Good practice.",
+            "high": "Direct note.",
+        }[strictness]
+        return f"{opening} Let's continue in {target_lang}. You said: {transcript}"
 
-    profile_block = build_learner_profile_block(profile)
     prompt = (
         "You are a language tutor. Reply briefly in target language practice mode "
-        "and include one short correction if needed."
+        "and include one short correction if needed. "
+        "Adapt tone to strictness: low=supportive, medium=balanced, high=direct."
     )
     client = OpenAI(api_key=api_key)
     response = client.responses.create(
@@ -47,12 +59,17 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
             {"role": "system", "content": prompt},
             {
                 "role": "developer",
-                "content": str(
+                "content": json.dumps(
                     {
                         "learner_profile": profile_block,
                         "target_lang": target_lang,
                         "transcript": transcript,
-                    }
+                        "coaching_policy": {
+                            "strictness": strictness,
+                            "max_corrections": 1 if strictness == "low" else 2 if strictness == "medium" else 3,
+                        },
+                    },
+                    ensure_ascii=False,
                 ),
             },
         ],

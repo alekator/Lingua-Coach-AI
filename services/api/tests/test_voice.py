@@ -5,6 +5,9 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
+from app.models import LearnerProfile
+from app.services.voice import default_voice_teacher
+
 
 def test_voice_transcribe_proxy(
     client_factory: Callable[..., TestClient],
@@ -74,3 +77,17 @@ def test_voice_message_pipeline(
         assert body["pronunciation_rubric"]["level_band"] in {"needs_work", "developing", "solid"}
         assert len(body["pronunciation_rubric"]["actionable_tips"]) >= 1
         assert [step for step, _ in chain] == ["asr", "teacher", "tts"]
+
+
+def test_default_voice_teacher_fallback_respects_strictness(monkeypatch: Any) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    profile = LearnerProfile(
+        user_id=1,
+        native_lang="ru",
+        target_lang="en",
+        level="A2",
+        goal="travel",
+        preferences={"strictness": "high"},
+    )
+    text = default_voice_teacher("I goed home", profile, "en")
+    assert text.startswith("Direct note.")

@@ -99,6 +99,47 @@ def build_learner_profile_block(profile: LearnerProfile | None) -> dict[str, Any
     }
 
 
+def _normalize_strictness(preferences: dict[str, Any]) -> str:
+    raw = str(preferences.get("strictness", "medium")).lower()
+    if raw in {"low", "medium", "high"}:
+        return raw
+    return "medium"
+
+
+def _normalize_daily_minutes(preferences: dict[str, Any]) -> int:
+    raw = preferences.get("daily_minutes", 15)
+    if isinstance(raw, int):
+        return max(5, min(180, raw))
+    return 15
+
+
+def _build_coaching_policy(profile: LearnerProfile | None) -> dict[str, Any]:
+    prefs = (profile.preferences if profile else {}) or {}
+    strictness = _normalize_strictness(prefs)
+    daily_minutes = _normalize_daily_minutes(prefs)
+    level = (profile.level if profile else "A1").upper()
+
+    max_corrections = {"low": 1, "medium": 2, "high": 3}[strictness]
+    tone = {"low": "supportive_coach", "medium": "friendly_direct", "high": "direct_coach"}[strictness]
+    session_intensity = "light" if daily_minutes <= 12 else "balanced" if daily_minutes <= 30 else "intense"
+    reply_style = "very_short" if level in {"A1", "A2"} else "short"
+
+    return {
+        "tone": tone,
+        "strictness": strictness,
+        "daily_minutes": daily_minutes,
+        "session_intensity": session_intensity,
+        "reply_style": reply_style,
+        "max_corrections": max_corrections,
+        "max_new_words": 2,
+        "max_homework_items": 2,
+        "must_reference_goal": True,
+        "must_consider_weak_topics": True,
+        "must_keep_reply_short_for_low_levels": True,
+        "must_return_rubric": True,
+    }
+
+
 def summarize_weak_topics(mistakes: list[Mistake]) -> list[str]:
     if not mistakes:
         return []
@@ -123,6 +164,8 @@ def build_teacher_payload(
         {"word": item.word, "translation": item.translation} for item in vocab[-20:]
     ]
 
+    coaching_policy = _build_coaching_policy(profile)
+
     return {
         "learner_profile": learner_profile,
         "mode": mode,
@@ -137,15 +180,7 @@ def build_teacher_payload(
             }
             for m in mistakes[-8:]
         ],
-        "coaching_policy": {
-            "tone": "friendly_direct",
-            "max_new_words": 2,
-            "max_homework_items": 2,
-            "must_reference_goal": True,
-            "must_consider_weak_topics": True,
-            "must_keep_reply_short_for_low_levels": True,
-            "must_return_rubric": True,
-        },
+        "coaching_policy": coaching_policy,
         "schema": {
             "assistant_text": "string",
             "corrections": [
@@ -183,30 +218,42 @@ def build_teacher_payload(
 def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
     user_text = payload["user_input"]
     learner_profile = payload["learner_profile"]
+    preferences = learner_profile.get("preferences", {}) or {}
+    strictness = _normalize_strictness(preferences)
     api_key = __import__("os").getenv("OPENAI_API_KEY")
     if not api_key:
+        intro = {
+            "low": "Nice effort.",
+            "medium": "Good practice.",
+            "high": "Direct feedback.",
+        }[strictness]
+        homework_tip = (
+            "Rewrite 3 sentences applying the correction exactly."
+            if strictness == "high"
+            else "Write 3 short sentences using today's topic."
+        )
         fallback = ChatMessageResponse(
             assistant_text=(
-                f"Practice ({learner_profile['level']}): {user_text}. "
-                "I corrected one small item and added one useful word."
+                f"{intro} Practice ({learner_profile['level']}): {user_text}. "
+                "Use one improved version in your next message."
             ),
             corrections=[],
             new_words=[],
-            homework_suggestions=["Write 3 short sentences using today's topic."],
+            homework_suggestions=[homework_tip],
         )
         fallback.rubric = build_fallback_rubric(user_text, fallback)
         return fallback
 
     system_prompt = (
         "You are LinguaCoach AI, a concise language coach. "
-        "Always return strict JSON only with keys: assistant_text, corrections, new_words, homework_suggestions. "
+        "Always return strict JSON only with keys: assistant_text, corrections, new_words, homework_suggestions, rubric. "
         "No markdown, no prose outside JSON. "
         "Coach behavior rules: "
-        "1) personalize by learner level, goal, weak_topics, and recent mistakes; "
+        "1) personalize by learner level, goal, weak_topics, recent mistakes, and strictness; "
         "2) keep assistant_text short and actionable; "
-        "3) include at most 2 corrections and at most 2 new_words; "
+        "3) follow max_corrections/max_new_words from coaching_policy; "
         "4) corrections must be concrete bad->good transformations and explain briefly; "
-        "5) prefer one next action aligned with learner goal."
+        "5) prefer one next action aligned with learner goal and session intensity."
     )
     developer_prompt = json.dumps(payload, ensure_ascii=False)
 

@@ -87,6 +87,9 @@ def test_chat_flow_with_memory_updates(
         assert payloads[1]["history"][0]["role"] == "user"
         assert payloads[1]["history"][1]["role"] == "assistant"
         assert "grammar" in payloads[1]["learner_profile"]["weak_topics"]
+        assert payloads[0]["coaching_policy"]["strictness"] == "medium"
+        assert payloads[0]["coaching_policy"]["max_corrections"] == 2
+        assert payloads[0]["coaching_policy"]["session_intensity"] == "balanced"
         assert payloads[1]["recent_mistakes"][0]["category"] == "grammar"
         assert any(word["word"] == "achieve" for word in payloads[1]["learner_profile"]["active_vocab"])
         assert "rubric" in payloads[0]["schema"]
@@ -117,9 +120,42 @@ def test_default_teacher_responder_adds_rubric_without_openai_key(monkeypatch: A
     response = default_teacher_responder(
         {
             "user_input": "I did a mistake yesterday",
-            "learner_profile": {"level": "A2"},
+            "learner_profile": {"level": "A2", "preferences": {"strictness": "high"}},
         }
     )
     assert response.rubric is not None
     assert 0 <= response.rubric.overall_score <= 100
     assert response.rubric.next_drill is not None
+    assert response.assistant_text.startswith("Direct feedback.")
+
+
+def test_teacher_payload_uses_high_strictness_and_daily_minutes(
+    client_factory: Callable[[Callable[[dict[str, Any]], ChatMessageResponse]], TestClient],
+) -> None:
+    payloads: list[dict[str, Any]] = []
+
+    def fake_teacher(payload: dict[str, Any]) -> ChatMessageResponse:
+        payloads.append(payload)
+        return ChatMessageResponse(assistant_text="ok")
+
+    with client_factory(fake_teacher) as client:
+        setup = client.post(
+            "/profile/setup",
+            json={
+                "user_id": 31,
+                "native_lang": "ru",
+                "target_lang": "en",
+                "level": "B1",
+                "goal": "work",
+                "preferences": {"strictness": "high", "daily_minutes": 45},
+            },
+        )
+        assert setup.status_code == 200
+        started = client.post("/chat/start", json={"user_id": 31, "mode": "chat"})
+        session_id = started.json()["session_id"]
+        sent = client.post("/chat/message", json={"session_id": session_id, "text": "I has done task"})
+        assert sent.status_code == 200
+        assert payloads[0]["coaching_policy"]["strictness"] == "high"
+        assert payloads[0]["coaching_policy"]["max_corrections"] == 3
+        assert payloads[0]["coaching_policy"]["session_intensity"] == "intense"
+        assert payloads[0]["coaching_policy"]["tone"] == "direct_coach"
