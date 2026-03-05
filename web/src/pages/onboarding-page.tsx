@@ -3,8 +3,25 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { ErrorState } from "../components/feedback";
 import { getErrorMessage } from "../lib/errors";
+import type { PlanTodayResponse } from "../api/types";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
+
+function inferLikelyErrors(skillMap: Record<string, number>): string[] {
+  const ranked = Object.entries(skillMap)
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 3)
+    .map(([skill]) => skill);
+  const templates: Record<string, string> = {
+    grammar: "Verb tense and sentence structure slips in longer answers.",
+    vocab: "Limited active vocabulary for specific real-life situations.",
+    speaking: "Short hesitant phrasing without enough detail.",
+    listening: "Missing key details in fast natural speech.",
+    writing: "Inconsistent clarity and connector usage in written replies.",
+    reading: "Difficulty with complex sentence meaning and intent.",
+  };
+  return ranked.map((skill) => templates[skill] ?? "Inconsistent language control under pressure.");
+}
 
 export function OnboardingPage() {
   const navigate = useNavigate();
@@ -26,6 +43,9 @@ export function OnboardingPage() {
   const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [recommendedLevel, setRecommendedLevel] = useState<string | null>(null);
+  const [starterErrors, setStarterErrors] = useState<string[]>([]);
+  const [starterPlan, setStarterPlan] = useState<PlanTodayResponse | null>(null);
+  const [showWowResult, setShowWowResult] = useState(false);
   const [error, setError] = useState("");
   const pushToast = useToastStore((s) => s.push);
 
@@ -111,11 +131,14 @@ export function OnboardingPage() {
           goal,
           preferences: { strictness, daily_minutes: dailyMinutes },
         });
+        const plan = await api.planToday(userId, dailyMinutes);
         setCoachPrefs({ strictness, dailyMinutes });
         setRecommendedLevel(finished.level);
+        setStarterErrors(inferLikelyErrors(finished.skill_map));
+        setStarterPlan(plan);
+        setShowWowResult(true);
         setBootstrapState({ userId, hasProfile: true });
         pushToast("success", `Placement complete: ${finished.level}`);
-        navigate("/app");
         return;
       }
       setQuestion(accepted.next_question ?? "");
@@ -133,6 +156,23 @@ export function OnboardingPage() {
   return (
     <section className="panel">
       <h2>First Launch Setup</h2>
+      {showWowResult && (
+        <article className="panel stack">
+          <h3>Your quick coach result</h3>
+          <p>Your detected level: {recommendedLevel}</p>
+          <h4>Top 3 focus errors</h4>
+          {starterErrors.map((item) => (
+            <p key={item}>- {item}</p>
+          ))}
+          <h4>Your personal plan for today</h4>
+          {starterPlan?.tasks.map((task) => (
+            <p key={task}>- {task}</p>
+          ))}
+          <button type="button" onClick={() => navigate("/app")}>
+            Start my first session
+          </button>
+        </article>
+      )}
       {!sessionId && (
         <form className="stack" onSubmit={(event) => event.preventDefault()}>
           <p>Let your coach calibrate your starting point. Set languages and complete a quick placement test.</p>

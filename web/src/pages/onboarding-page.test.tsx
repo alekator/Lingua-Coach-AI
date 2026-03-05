@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   placementStart: vi.fn(),
   placementAnswer: vi.fn(),
   placementFinish: vi.fn(),
+  planToday: vi.fn(),
   profileSetup: vi.fn(),
   openaiKeyStatus: vi.fn(),
   openaiKeySet: vi.fn(),
@@ -56,6 +57,7 @@ vi.mock("../api/client", async () => {
       placementStart: mocks.placementStart,
       placementAnswer: mocks.placementAnswer,
       placementFinish: mocks.placementFinish,
+      planToday: mocks.planToday,
       profileSetup: mocks.profileSetup,
     },
   };
@@ -101,6 +103,13 @@ describe("OnboardingPage", () => {
       skill_map: {},
     });
     mocks.profileSetup.mockResolvedValue({ ok: true });
+    mocks.planToday.mockResolvedValue({
+      user_id: 1,
+      time_budget_minutes: 15,
+      focus: ["travel", "grammar", "vocab"],
+      tasks: ["5 min: quick review (travel)", "5 min: targeted correction drill (grammar)", "5 min: scenario practice (vocab)"],
+      adaptation_notes: [],
+    });
 
     render(
       <MemoryRouter>
@@ -130,7 +139,13 @@ describe("OnboardingPage", () => {
         }),
       );
       expect(mocks.setBootstrapState).toHaveBeenCalledWith({ userId: 1, hasProfile: true });
-      expect(mocks.navigate).toHaveBeenCalledWith("/app");
+      expect(screen.getByText("Your quick coach result")).toBeInTheDocument();
+      expect(screen.getByText("Your detected level: B1")).toBeInTheDocument();
+      expect(screen.getByText("Top 3 focus errors")).toBeInTheDocument();
+      expect(screen.getByText("Your personal plan for today")).toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start my first session" }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/app");
   });
 });
