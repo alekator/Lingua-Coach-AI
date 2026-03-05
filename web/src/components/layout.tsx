@@ -2,6 +2,7 @@ import { Link, Outlet } from "react-router-dom";
 
 const links = [
   ["/app", "Dashboard"],
+  ["/app/session", "Daily Session"],
   ["/app/chat", "Coach Chat"],
   ["/app/voice", "Speaking"],
   ["/app/translate", "Translate"],

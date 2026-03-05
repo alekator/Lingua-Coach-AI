@@ -66,6 +66,19 @@ export type PlanTodayResponse = {
   tasks: string[];
 };
 
+export type CoachSessionTodayResponse = {
+  user_id: number;
+  time_budget_minutes: number;
+  focus: string[];
+  steps: Array<{
+    id: string;
+    title: string;
+    description: string;
+    route: string;
+    duration_minutes: number;
+  }>;
+};
+
 export type ScenarioItem = {
   id: string;
   title: string;

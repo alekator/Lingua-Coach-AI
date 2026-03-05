@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { useAppStore } from "../store/app-store";
@@ -48,6 +49,9 @@ export function DashboardPage() {
           {plan.data.tasks.map((task) => (
             <p key={task}>- {task}</p>
           ))}
+          <Link to="/app/session">
+            <button type="button">Start today session</button>
+          </Link>
         </article>
       )}
     </section>

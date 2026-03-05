@@ -64,6 +64,21 @@ class PlanTodayResponse(BaseModel):
     tasks: list[str]
 
 
+class CoachSessionStep(BaseModel):
+    id: str
+    title: str
+    description: str
+    route: str
+    duration_minutes: int
+
+
+class CoachSessionTodayResponse(BaseModel):
+    user_id: int
+    time_budget_minutes: int
+    focus: list[str]
+    steps: list[CoachSessionStep]
+
+
 class ScenarioItem(BaseModel):
     id: str
     title: str

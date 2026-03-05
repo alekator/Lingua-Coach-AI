@@ -7,6 +7,7 @@ import type {
   OpenAIKeyStatus,
   ProfileResponse,
   ChatMessageResponse,
+  CoachSessionTodayResponse,
   ChatStartResponse,
   ExercisesGenerateResponse,
   ExercisesGradeResponse,
@@ -111,6 +112,10 @@ export const api = {
   planToday: (userId: number, timeBudgetMinutes = 15) =>
     request<PlanTodayResponse>(
       `/plan/today?user_id=${encodeURIComponent(userId)}&time_budget_minutes=${encodeURIComponent(timeBudgetMinutes)}`,
+    ),
+  coachSessionToday: (userId: number, timeBudgetMinutes = 15) =>
+    request<CoachSessionTodayResponse>(
+      `/coach/session/today?user_id=${encodeURIComponent(userId)}&time_budget_minutes=${encodeURIComponent(timeBudgetMinutes)}`,
     ),
   scenarios: () => request<ScenariosResponse>("/scenarios"),
   selectScenario: (payload: { user_id: number; scenario_id: string }) =>

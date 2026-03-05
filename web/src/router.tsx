@@ -11,6 +11,7 @@ import { HomeworkPage } from "./pages/homework-page";
 import { OnboardingPage } from "./pages/onboarding-page";
 import { ProfilePage } from "./pages/profile-page";
 import { ScenariosPage } from "./pages/scenarios-page";
+import { SessionPage } from "./pages/session-page";
 import { TranslatePage } from "./pages/translate-page";
 import { VocabPage } from "./pages/vocab-page";
 import { VoicePage } from "./pages/voice-page";
@@ -56,6 +57,7 @@ function RoutesMap() {
       <Route path="/" element={<OnboardingPage />} />
       <Route path="/app" element={<AppLayout />}>
         <Route index element={<DashboardPage />} />
+        <Route path="session" element={<SessionPage />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="voice" element={<VoicePage />} />
         <Route path="translate" element={<TranslatePage />} />

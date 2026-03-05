@@ -121,6 +121,15 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert "due cards:" in plan_body["tasks"][0]
         assert "targeted correction drill (grammar)" in plan_body["tasks"][1]
 
+        session = client.get("/coach/session/today", params={"user_id": 1, "time_budget_minutes": 20})
+        assert session.status_code == 200
+        session_body = session.json()
+        assert session_body["time_budget_minutes"] == 20
+        assert len(session_body["steps"]) == 5
+        assert session_body["steps"][0]["id"] == "warmup"
+        assert session_body["steps"][-1]["id"] == "recap"
+        assert session_body["steps"][1]["route"] == "/app/chat"
+
         scenarios = client.get("/scenarios")
         assert scenarios.status_code == 200
         items = scenarios.json()["items"]

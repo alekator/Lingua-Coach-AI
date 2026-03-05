@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from app.schemas.learning import ExerciseItem, ScenarioItem
+from app.schemas.learning import CoachSessionStep, ExerciseItem, ScenarioItem
 
 
 def default_scenarios() -> list[ScenarioItem]:
@@ -116,3 +116,49 @@ def build_adaptive_plan(
 
     scenario_task = f"{scenario_minutes} min: scenario practice ({focus[2]})"
     return focus, [review_task, coach_task, scenario_task]
+
+
+def build_today_session_steps(focus: list[str], time_budget_minutes: int) -> list[CoachSessionStep]:
+    warmup_minutes = max(2, round(time_budget_minutes * 0.15))
+    chat_minutes = max(4, round(time_budget_minutes * 0.3))
+    drill_minutes = max(3, round(time_budget_minutes * 0.25))
+    vocab_minutes = max(3, round(time_budget_minutes * 0.15))
+    recap_minutes = max(2, time_budget_minutes - warmup_minutes - chat_minutes - drill_minutes - vocab_minutes)
+
+    return [
+        CoachSessionStep(
+            id="warmup",
+            title="Warmup",
+            description=f"Quick activation on {focus[0]} with a short grammar or translate prompt.",
+            route="/app/grammar",
+            duration_minutes=warmup_minutes,
+        ),
+        CoachSessionStep(
+            id="chat",
+            title="Coach Chat",
+            description=f"Targeted correction loop on {focus[1]}.",
+            route="/app/chat",
+            duration_minutes=chat_minutes,
+        ),
+        CoachSessionStep(
+            id="drill",
+            title="Targeted Drill",
+            description=f"Generate and grade compact exercises for {focus[1]}.",
+            route="/app/exercises",
+            duration_minutes=drill_minutes,
+        ),
+        CoachSessionStep(
+            id="vocab",
+            title="Word Review",
+            description="Review due cards and add one new useful word from today.",
+            route="/app/vocab",
+            duration_minutes=vocab_minutes,
+        ),
+        CoachSessionStep(
+            id="recap",
+            title="Recap",
+            description="Check profile metrics, then set the next small goal.",
+            route="/app/profile",
+            duration_minutes=recap_minutes,
+        ),
+    ]

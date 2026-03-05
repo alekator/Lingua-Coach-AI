@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import ChatSession, LearnerProfile, Message, Mistake, SrsState, User, VocabItem
 from app.schemas.learning import (
+    CoachSessionTodayResponse,
     ExercisesGenerateRequest,
     ExercisesGenerateResponse,
     ExercisesGradeRequest,
@@ -20,7 +21,13 @@ from app.schemas.learning import (
     ScenariosResponse,
     TranslateVoiceResponse,
 )
-from app.services.learning import build_adaptive_plan, default_scenarios, generate_exercises, grade_exercises
+from app.services.learning import (
+    build_adaptive_plan,
+    build_today_session_steps,
+    default_scenarios,
+    generate_exercises,
+    grade_exercises,
+)
 from app.services.srs import utcnow
 from app.services.translate import TranslatorFn, TtsSynthesizerFn
 from app.services.voice import AsrTranscriberFn
@@ -135,6 +142,21 @@ def plan_today(
         time_budget_minutes=time_budget_minutes,
         focus=focus,
         tasks=tasks,
+    )
+
+
+@router.get("/coach/session/today", response_model=CoachSessionTodayResponse)
+def coach_session_today(
+    user_id: int,
+    time_budget_minutes: int = 15,
+    db: Session = Depends(get_db),
+) -> CoachSessionTodayResponse:
+    plan = plan_today(user_id=user_id, time_budget_minutes=time_budget_minutes, db=db)
+    return CoachSessionTodayResponse(
+        user_id=plan.user_id,
+        time_budget_minutes=plan.time_budget_minutes,
+        focus=plan.focus,
+        steps=build_today_session_steps(plan.focus, plan.time_budget_minutes),
     )
 
 
