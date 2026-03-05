@@ -123,7 +123,7 @@ export function OnboardingPage() {
       setAnswer("");
       if (accepted.done) {
         const finished = await api.placementFinish({ session_id: sessionId });
-        await api.profileSetup({
+        const profile = await api.profileSetup({
           user_id: userId,
           native_lang: nativeLang,
           target_lang: targetLang,
@@ -131,13 +131,14 @@ export function OnboardingPage() {
           goal,
           preferences: { strictness, daily_minutes: dailyMinutes },
         });
-        const plan = await api.planToday(userId, dailyMinutes);
+        const resolvedUserId = profile.user_id;
+        const plan = await api.planToday(resolvedUserId, dailyMinutes);
         setCoachPrefs({ strictness, dailyMinutes });
         setRecommendedLevel(finished.level);
         setStarterErrors(inferLikelyErrors(finished.skill_map));
         setStarterPlan(plan);
         setShowWowResult(true);
-        setBootstrapState({ userId, hasProfile: true });
+        setBootstrapState({ userId: resolvedUserId, hasProfile: true });
         pushToast("success", `Placement complete: ${finished.level}`);
         return;
       }

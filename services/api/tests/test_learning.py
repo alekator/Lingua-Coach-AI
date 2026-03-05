@@ -96,23 +96,25 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
             },
         )
         assert setup.status_code == 200
+        workspace_user_id = setup.json()["user_id"]
+        assert workspace_user_id != 1
 
         # Make one due SRS card and one tracked grammar mistake to drive adaptation.
         vocab = client.post(
             "/vocab/add",
-            json={"user_id": 1, "word": "achieve", "translation": "to achieve"},
+            json={"user_id": workspace_user_id, "word": "achieve", "translation": "to achieve"},
         )
         assert vocab.status_code == 200
 
-        started = client.post("/chat/start", json={"user_id": 1, "mode": "chat"})
+        started = client.post("/chat/start", json={"user_id": workspace_user_id, "mode": "chat"})
         session_id = started.json()["session_id"]
         msg = client.post("/chat/message", json={"session_id": session_id, "text": "I did a mistake"})
         assert msg.status_code == 200
 
-        plan = client.get("/plan/today", params={"user_id": 1, "time_budget_minutes": 20})
+        plan = client.get("/plan/today", params={"user_id": workspace_user_id, "time_budget_minutes": 20})
         assert plan.status_code == 200
         plan_body = plan.json()
-        assert plan_body["user_id"] == 1
+        assert plan_body["user_id"] == workspace_user_id
         assert plan_body["time_budget_minutes"] == 20
         assert len(plan_body["tasks"]) == 3
         assert len(plan_body["adaptation_notes"]) >= 1
@@ -123,7 +125,7 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert "targeted correction drill (grammar)" in plan_body["tasks"][1]
         assert any("Low recent consistency detected" in note for note in plan_body["adaptation_notes"])
 
-        session = client.get("/coach/session/today", params={"user_id": 1, "time_budget_minutes": 20})
+        session = client.get("/coach/session/today", params={"user_id": workspace_user_id, "time_budget_minutes": 20})
         assert session.status_code == 200
         session_body = session.json()
         assert session_body["time_budget_minutes"] == 20
@@ -132,43 +134,43 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert session_body["steps"][-1]["id"] == "recap"
         assert session_body["steps"][1]["route"] == "/app/chat"
 
-        next_actions = client.get("/coach/next-actions", params={"user_id": 1})
+        next_actions = client.get("/coach/next-actions", params={"user_id": workspace_user_id})
         assert next_actions.status_code == 200
         next_body = next_actions.json()
-        assert next_body["user_id"] == 1
+        assert next_body["user_id"] == workspace_user_id
         assert len(next_body["items"]) >= 1
         assert "title" in next_body["items"][0]
         assert "route" in next_body["items"][0]
 
-        daily_challenge = client.get("/coach/daily-challenge", params={"user_id": 1})
+        daily_challenge = client.get("/coach/daily-challenge", params={"user_id": workspace_user_id})
         assert daily_challenge.status_code == 200
         challenge_body = daily_challenge.json()
-        assert challenge_body["user_id"] == 1
+        assert challenge_body["user_id"] == workspace_user_id
         assert challenge_body["estimated_minutes"] == 5
         assert "title" in challenge_body
         assert challenge_body["route"] in {"/app/vocab", "/app/chat"}
 
-        trajectory = client.get("/coach/trajectory", params={"user_id": 1, "horizon_days": 90})
+        trajectory = client.get("/coach/trajectory", params={"user_id": workspace_user_id, "horizon_days": 90})
         assert trajectory.status_code == 200
         trajectory_body = trajectory.json()
         assert trajectory_body["horizon_days"] == 90
         assert trajectory_body["current_phase"] in {"foundation", "consolidation", "expansion"}
         assert len(trajectory_body["milestones"]) >= 4
 
-        roadmap = client.get("/coach/roadmap", params={"user_id": 1})
+        roadmap = client.get("/coach/roadmap", params={"user_id": workspace_user_id})
         assert roadmap.status_code == 200
         roadmap_body = roadmap.json()
         assert roadmap_body["goal"] == "interview"
         assert len(roadmap_body["items"]) >= 3
         assert roadmap_body["items"][0]["priority"] == 1
 
-        outcome_packs = client.get("/coach/outcome-packs", params={"user_id": 1})
+        outcome_packs = client.get("/coach/outcome-packs", params={"user_id": workspace_user_id})
         assert outcome_packs.status_code == 200
         packs_body = outcome_packs.json()
         assert len(packs_body["items"]) >= 3
         assert packs_body["items"][0]["readiness"] in {"ready", "almost_ready", "not_ready"}
 
-        reactivation_recent = client.get("/coach/reactivation", params={"user_id": 1})
+        reactivation_recent = client.get("/coach/reactivation", params={"user_id": workspace_user_id})
         assert reactivation_recent.status_code == 200
         recent_body = reactivation_recent.json()
         assert recent_body["eligible"] is False
@@ -187,11 +189,17 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         items = scenarios.json()["items"]
         assert len(items) >= 20
 
-        chosen = client.post("/scenarios/select", json={"user_id": 1, "scenario_id": items[0]["id"]})
+        chosen = client.post(
+            "/scenarios/select",
+            json={"user_id": workspace_user_id, "scenario_id": items[0]["id"]},
+        )
         assert chosen.status_code == 200
         assert chosen.json()["mode"].startswith("scenario:")
 
-        script = client.get("/scenarios/script", params={"scenario_id": "job-interview", "user_id": 1})
+        script = client.get(
+            "/scenarios/script",
+            params={"scenario_id": "job-interview", "user_id": workspace_user_id},
+        )
         assert script.status_code == 200
         script_body = script.json()
         assert script_body["scenario_id"] == "job-interview"
@@ -202,7 +210,7 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         turn = client.post(
             "/scenarios/turn",
             json={
-                "user_id": 1,
+                "user_id": workspace_user_id,
                 "scenario_id": "job-interview",
                 "step_id": first_step["id"],
                 "user_text": "I have experience in this role and skills",

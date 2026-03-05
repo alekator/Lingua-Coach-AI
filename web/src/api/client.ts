@@ -43,6 +43,9 @@ import type {
   VocabReviewSubmitResponse,
   VoiceMessageResponse,
   VoiceProgressResponse,
+  WorkspaceListResponse,
+  WorkspaceSwitchResponse,
+  LearningWorkspace,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -87,6 +90,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   bootstrap: () => request<AppBootstrapResponse>("/app/bootstrap"),
+  workspacesList: () => request<WorkspaceListResponse>("/workspaces"),
+  workspaceCreate: (payload: {
+    native_lang: string;
+    target_lang: string;
+    goal?: string | null;
+    make_active?: boolean;
+  }) =>
+    request<LearningWorkspace>("/workspaces", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  workspaceSwitch: (payload: { workspace_id: number }) =>
+    request<WorkspaceSwitchResponse>("/workspaces/switch", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  workspaceActive: () => request<WorkspaceSwitchResponse>("/workspaces/active"),
   openaiKeyStatus: () => request<OpenAIKeyStatus>("/settings/openai-key"),
   openaiKeySet: (payload: { api_key: string }) =>
     request<OpenAIKeyStatus>("/settings/openai-key", {

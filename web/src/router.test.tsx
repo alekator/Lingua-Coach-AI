@@ -28,6 +28,8 @@ describe("AppRouter bootstrap gate", () => {
           has_profile: false,
           needs_onboarding: true,
           next_step: "onboarding",
+          owner_user_id: 1,
+          active_workspace_id: null,
         }),
       }),
     );
@@ -52,6 +54,8 @@ describe("AppRouter bootstrap gate", () => {
               has_profile: true,
               needs_onboarding: false,
               next_step: "dashboard",
+              owner_user_id: 1,
+              active_workspace_id: 10,
             }),
           };
         }

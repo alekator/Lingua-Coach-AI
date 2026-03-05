@@ -3,6 +3,29 @@ export type AppBootstrapResponse = {
   has_profile: boolean;
   needs_onboarding: boolean;
   next_step: "onboarding" | "dashboard";
+  owner_user_id: number;
+  active_workspace_id?: number | null;
+};
+
+export type LearningWorkspace = {
+  id: number;
+  native_lang: string;
+  target_lang: string;
+  goal?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WorkspaceListResponse = {
+  owner_user_id: number;
+  active_workspace_id?: number | null;
+  items: LearningWorkspace[];
+};
+
+export type WorkspaceSwitchResponse = {
+  active_workspace_id: number;
+  active_user_id: number;
 };
 
 export type PlacementStartResponse = {

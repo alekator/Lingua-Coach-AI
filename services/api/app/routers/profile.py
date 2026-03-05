@@ -24,6 +24,13 @@ from app.services.placement import (
     score_to_cefr,
     utcnow,
 )
+from app.services.workspaces import (
+    LOCAL_OWNER_USER_ID,
+    create_workspace,
+    get_workspace_for_user,
+    get_workspace_by_lang_pair,
+    set_active_workspace,
+)
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -39,14 +46,39 @@ def _get_or_create_user(db: Session, user_id: int) -> User:
     return user
 
 
+def _resolve_user_for_profile_setup(payload: ProfileSetupRequest, db: Session) -> int:
+    if payload.user_id != LOCAL_OWNER_USER_ID:
+        workspace = get_workspace_for_user(db, payload.user_id)
+        if workspace is not None:
+            workspace.goal = payload.goal
+            set_active_workspace(db, workspace)
+        return payload.user_id
+
+    workspace = get_workspace_by_lang_pair(db, payload.native_lang, payload.target_lang)
+    if workspace is None:
+        workspace = create_workspace(
+            db,
+            native_lang=payload.native_lang,
+            target_lang=payload.target_lang,
+            goal=payload.goal,
+            make_active=True,
+        )
+    else:
+        workspace.goal = payload.goal
+        set_active_workspace(db, workspace)
+
+    return workspace.learner_user_id
+
+
 @router.post("/setup", response_model=ProfileSetupResponse)
 def profile_setup(payload: ProfileSetupRequest, db: Session = Depends(get_db)) -> ProfileSetupResponse:
-    _get_or_create_user(db, payload.user_id)
+    resolved_user_id = _resolve_user_for_profile_setup(payload, db)
+    _get_or_create_user(db, resolved_user_id)
 
-    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == payload.user_id))
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == resolved_user_id))
     if profile is None:
         profile = LearnerProfile(
-            user_id=payload.user_id,
+            user_id=resolved_user_id,
             native_lang=payload.native_lang,
             target_lang=payload.target_lang,
             level=payload.level,
@@ -92,11 +124,26 @@ def profile_get(user_id: int, db: Session = Depends(get_db)) -> ProfileGetRespon
 def placement_start(
     payload: PlacementStartRequest, db: Session = Depends(get_db)
 ) -> PlacementStartResponse:
-    _get_or_create_user(db, payload.user_id)
+    resolved_user_id = payload.user_id
+    if payload.user_id == LOCAL_OWNER_USER_ID:
+        workspace = create_workspace(
+            db,
+            native_lang=payload.native_lang,
+            target_lang=payload.target_lang,
+            goal=None,
+            make_active=True,
+        )
+        resolved_user_id = workspace.learner_user_id
+    else:
+        workspace = get_workspace_for_user(db, payload.user_id)
+        if workspace is not None:
+            set_active_workspace(db, workspace)
+
+    _get_or_create_user(db, resolved_user_id)
     questions = build_placement_questions(payload.target_lang)
 
     session = PlacementSession(
-        user_id=payload.user_id,
+        user_id=resolved_user_id,
         native_lang=payload.native_lang,
         target_lang=payload.target_lang,
         status="in_progress",

@@ -29,6 +29,34 @@ class User(Base):
     homeworks: Mapped[list["Homework"]] = relationship(back_populates="user")
 
 
+class LearningWorkspace(Base):
+    __tablename__ = "learning_workspaces"
+    __table_args__ = (UniqueConstraint("owner_user_id", "native_lang", "target_lang", name="uq_workspace_pair"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    owner_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    learner_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    native_lang: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_lang: Mapped[str] = mapped_column(String(32), nullable=False)
+    goal: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(default=False, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class LearnerProfile(Base):
     __tablename__ = "learner_profiles"
     __table_args__ = (UniqueConstraint("user_id", name="uq_learner_profiles_user_id"),)

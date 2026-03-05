@@ -102,9 +102,16 @@ describe("OnboardingPage", () => {
       avg_score: 0.61,
       skill_map: {},
     });
-    mocks.profileSetup.mockResolvedValue({ ok: true });
+    mocks.profileSetup.mockResolvedValue({
+      user_id: 101,
+      native_lang: "ru",
+      target_lang: "en",
+      level: "B1",
+      goal: "travel",
+      preferences: {},
+    });
     mocks.planToday.mockResolvedValue({
-      user_id: 1,
+      user_id: 101,
       time_budget_minutes: 15,
       focus: ["travel", "grammar", "vocab"],
       tasks: ["5 min: quick review (travel)", "5 min: targeted correction drill (grammar)", "5 min: scenario practice (vocab)"],
@@ -138,7 +145,8 @@ describe("OnboardingPage", () => {
           target_lang: "en",
         }),
       );
-      expect(mocks.setBootstrapState).toHaveBeenCalledWith({ userId: 1, hasProfile: true });
+      expect(mocks.planToday).toHaveBeenCalledWith(101, 15);
+      expect(mocks.setBootstrapState).toHaveBeenCalledWith({ userId: 101, hasProfile: true });
       expect(screen.getByText("Your quick coach result")).toBeInTheDocument();
       expect(screen.getByText("Your detected level: B1")).toBeInTheDocument();
       expect(screen.getByText("Top 3 focus errors")).toBeInTheDocument();
