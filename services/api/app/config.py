@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     openai_api_key: str = ""
     database_url: str = "sqlite:///./linguacoach.db"
+    tts_url: str = "http://tts:8002"
 
 
 settings = Settings()

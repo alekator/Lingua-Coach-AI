@@ -15,9 +15,11 @@ from app.schemas.chat import ChatMessageResponse
 
 
 @pytest.fixture()
-def client_factory() -> Callable[[Callable[[dict[str, Any]], ChatMessageResponse] | None], TestClient]:
+def client_factory() -> Callable[..., TestClient]:
     def _build(
         teacher_responder: Callable[[dict[str, Any]], ChatMessageResponse] | None = None,
+        translator: Callable[[str, str, str], str] | None = None,
+        tts_synthesizer: Callable[[str, str, str], str] | None = None,
     ) -> TestClient:
         engine = create_engine(
             "sqlite://",
@@ -36,7 +38,11 @@ def client_factory() -> Callable[[Callable[[dict[str, Any]], ChatMessageResponse
             finally:
                 db.close()
 
-        app = create_app(teacher_responder=teacher_responder)
+        app = create_app(
+            teacher_responder=teacher_responder,
+            translator=translator,
+            tts_synthesizer=tts_synthesizer,
+        )
         app.dependency_overrides[get_db] = override_get_db
         return TestClient(app)
 
