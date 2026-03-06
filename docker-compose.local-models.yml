@@ -1,5 +1,8 @@
 services:
   api:
+    build:
+      args:
+        INSTALL_LOCAL_DEPS: "true"
     environment:
       API_LLM_PROVIDER: local
       ASR_PROVIDER: local
@@ -14,6 +17,9 @@ services:
     mem_limit: 8g
 
   asr:
+    build:
+      args:
+        INSTALL_LOCAL_DEPS: "true"
     environment:
       ASR_PROVIDER: local
       LOCAL_ASR_MODEL_PATH: /models/whisper-small
@@ -24,6 +30,9 @@ services:
     mem_limit: 6g
 
   tts:
+    build:
+      args:
+        INSTALL_LOCAL_DEPS: "true"
     environment:
       TTS_PROVIDER: local
       LOCAL_TTS_MODEL_PATH: /models/qwen3-tts

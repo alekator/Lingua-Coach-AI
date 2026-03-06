@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import time
 
 import httpx
@@ -21,6 +20,7 @@ from app.schemas.settings import (
 )
 from app.services.local_llm import get_local_llm_diagnostics
 from app.services.language_capabilities import get_pair_capabilities
+from app.services.openai_key_runtime import get_runtime_openai_key, is_configured_openai_key, set_runtime_openai_key
 from app.services.provider_config import get_asr_provider, get_llm_provider, get_tts_provider, set_runtime_providers
 from app.services.secret_store import get_secret, set_secret
 from app.services.usage_budget import get_usage_budget_snapshot, upsert_usage_budget_settings
@@ -78,30 +78,31 @@ def _fetch_remote_diag(url: str, provider: str, fallback_message: str, run_probe
         )
 
 
+def _ensure_runtime_openai_key(db: Session) -> tuple[str | None, str]:
+    runtime_key = get_runtime_openai_key()
+    if runtime_key:
+        return runtime_key, "env"
+    stored = get_secret(db, "openai_api_key")
+    if stored is not None and is_configured_openai_key(stored.value):
+        set_runtime_openai_key(stored.value)
+        return stored.value, "secure_store"
+    return None, "none"
+
+
 @router.get("/openai-key", response_model=OpenAIKeyStatusResponse)
 def openai_key_status(db: Session = Depends(get_db)) -> OpenAIKeyStatusResponse:
-    key = os.getenv("OPENAI_API_KEY")
+    key, source = _ensure_runtime_openai_key(db)
     if key:
         stored = get_secret(db, "openai_api_key")
         db.commit()
         return OpenAIKeyStatusResponse(
             configured=True,
-            source="env",
+            source=source,
             masked=_mask_key(key),
             persistent=stored is not None,
             secure_storage=(stored.storage == "dpapi") if stored is not None else False,
         )
-    stored = get_secret(db, "openai_api_key")
-    if stored is not None:
-        os.environ["OPENAI_API_KEY"] = stored.value
-        db.commit()
-        return OpenAIKeyStatusResponse(
-            configured=True,
-            source="secure_store",
-            masked=_mask_key(stored.value),
-            persistent=True,
-            secure_storage=stored.storage == "dpapi",
-        )
+    set_runtime_openai_key(None)
     db.commit()
     return OpenAIKeyStatusResponse(configured=False, source="none", masked=None, persistent=False, secure_storage=False)
 
@@ -109,7 +110,7 @@ def openai_key_status(db: Session = Depends(get_db)) -> OpenAIKeyStatusResponse:
 @router.post("/openai-key", response_model=OpenAIKeyStatusResponse)
 def openai_key_set(payload: OpenAIKeySetRequest, db: Session = Depends(get_db)) -> OpenAIKeyStatusResponse:
     value = payload.api_key.strip()
-    os.environ["OPENAI_API_KEY"] = value
+    set_runtime_openai_key(value)
     storage = set_secret(db, "openai_api_key", value)
     db.commit()
     return OpenAIKeyStatusResponse(
@@ -123,6 +124,7 @@ def openai_key_set(payload: OpenAIKeySetRequest, db: Session = Depends(get_db)) 
 
 @router.get("/ai-runtime", response_model=AIRuntimeStatusResponse)
 def ai_runtime_status(probe: bool = False, db: Session = Depends(get_db)) -> AIRuntimeStatusResponse:
+    _ensure_runtime_openai_key(db)
     _restore_runtime_providers(db)
     db.commit()
     llm_provider = get_llm_provider()

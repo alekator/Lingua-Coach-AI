@@ -5,6 +5,8 @@ import { getErrorMessage } from "../lib/errors";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 import { FilePicker } from "../components/file-picker";
+import { AudioRecorder } from "../components/audio-recorder";
+import { AudioPlayer } from "../components/audio-player";
 
 export function TranslatePage() {
   const nativeLang = useAppStore((s) => s.activeWorkspaceNativeLang);
@@ -15,6 +17,8 @@ export function TranslatePage() {
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<string>("");
   const [voiceResult, setVoiceResult] = useState<string>("");
+  const [textAudioUrl, setTextAudioUrl] = useState<string | null>(null);
+  const [voiceAudioUrl, setVoiceAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const pushToast = useToastStore((s) => s.push);
 
@@ -37,6 +41,7 @@ export function TranslatePage() {
         voice: true,
       });
       setResult(`${response.translated_text}${response.audio_url ? ` | ${response.audio_url}` : ""}`);
+      setTextAudioUrl(response.audio_url ?? null);
       setError("");
       pushToast("success", "Text translated");
     } catch (err) {
@@ -57,6 +62,7 @@ export function TranslatePage() {
         language_hint: sourceLang,
       });
       setVoiceResult(`${response.transcript} -> ${response.translated_text} | ${response.audio_url}`);
+      setVoiceAudioUrl(response.audio_url ?? null);
       setError("");
       pushToast("success", "Voice translated");
     } catch (err) {
@@ -89,18 +95,32 @@ export function TranslatePage() {
         <button type="submit">Translate text</button>
       </form>
       {error && <ErrorState text={error} />}
-      {result && <p>{result}</p>}
+      {result && (
+        <>
+          <p>{result}</p>
+          <AudioPlayer audioUrl={textAudioUrl} label="Text translation audio" />
+        </>
+      )}
 
       <form className="stack" onSubmit={onTranslateVoice}>
         <label>
           Voice input
           <FilePicker id="translate-voice-file" ariaLabel="Voice input" accept="audio/*" onFileChange={setFile} />
         </label>
+        <label>
+          Or record with microphone
+          <AudioRecorder onRecordedFile={setFile} />
+        </label>
         <button type="submit" disabled={!file}>
           Translate voice
         </button>
       </form>
-      {voiceResult && <p>{voiceResult}</p>}
+      {voiceResult && (
+        <>
+          <p>{voiceResult}</p>
+          <AudioPlayer audioUrl={voiceAudioUrl} label="Voice translation audio" />
+        </>
+      )}
     </section>
   );
 }

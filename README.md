@@ -33,6 +33,10 @@ LOCAL_ASR_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\whisper-small
 LOCAL_TTS_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen3-tts
 ```
 
+ASR local supports two model folder formats:
+- `faster-whisper` converted folder (contains `model.bin`)
+- Hugging Face Whisper folder (for example `openai/whisper-small`, contains `pytorch_model.bin`)
+
 OpenAI fallback remains available for each component when provider is set to `openai`.
 
 ## Quick Start
@@ -60,6 +64,9 @@ Local-model mode (LLM + ASR + TTS from mounted model volume):
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build
 ```
+
+Note: `docker-compose.local-models.yml` enables extra local-runtime dependencies inside
+containers (`llama-cpp-python`, `faster-whisper`, `numpy/transformers/torch`).
 
 Prod-like mode:
 
@@ -89,6 +96,392 @@ Compose config validation:
 docker compose -f docker-compose.yml -f docker-compose.dev.yml config > $null
 docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
 ```
+
+## One-Command Local Start (Web + Desktop + Local Models)
+
+If you already downloaded models (LLM/STT/TTS), you can start everything with one command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1
+```
+
+This script does:
+- starts backend stack in local-model mode (`docker-compose.yml + docker-compose.local-models.yml`)
+- starts web dev server (`web/npm run dev`)
+- starts desktop shell (`desktop/npm run start:web`)
+- builds local-runtime dependencies for `api/asr/tts` automatically
+
+If backend containers are already running and you only need web + desktop:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1 -SkipDocker
+```
+
+Required `.env` fields for local mode:
+
+```powershell
+API_LLM_PROVIDER=local
+ASR_PROVIDER=local
+TTS_PROVIDER=local
+LOCAL_MODELS_ROOT=F:\AI_MODELS_GENERIC\LINGUA_MODELS
+LOCAL_LLM_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m.gguf
+LOCAL_ASR_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\whisper-small
+LOCAL_TTS_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen3-tts
+```
+
+Stop local-mode backend containers:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local-models.yml down
+```
+
+## Full Runbook: From Zero to Running (Web + Desktop, Models Already Downloaded)
+
+This is the full sequential path for a new user on Windows PowerShell.
+Assumption: model files are already downloaded on disk.
+
+### 0. Prerequisites
+
+- Docker Desktop is installed and running.
+- Node.js 20+ is installed.
+- Python 3.11+ is installed.
+- Git repo is cloned.
+- You run commands from repository root (folder with `README.md`, `docker-compose.yml`, `scripts`).
+
+Quick root check:
+
+```powershell
+Get-ChildItem README.md, docker-compose.yml, scripts\start-local-all.ps1
+```
+
+### 1. Prepare `.env`
+
+Create local env file:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Open `.env` and set local runtime values:
+
+```powershell
+API_LLM_PROVIDER=local
+ASR_PROVIDER=local
+TTS_PROVIDER=local
+LOCAL_MODELS_ROOT=F:\AI_MODELS_GENERIC\LINGUA_MODELS
+LOCAL_LLM_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m.gguf
+LOCAL_ASR_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\whisper-small
+LOCAL_TTS_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen3-tts
+```
+
+Important:
+- keep paths absolute;
+- do not wrap paths in quotes;
+- use the real path on your machine.
+
+### 2. Start everything with one command
+
+From repo root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1
+```
+
+What this command starts:
+- Docker services (`api`, `asr`, `tts`, `postgres`) in local-model profile;
+- web dev server (`http://localhost:5173`);
+- desktop shell (Electron window).
+
+If Docker is already running and you only need web+desktop:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1 -SkipDocker
+```
+
+### 3. Verify backend availability
+
+Run:
+
+```powershell
+Invoke-WebRequest http://localhost:8000/health -UseBasicParsing
+Invoke-WebRequest http://localhost:8001/health -UseBasicParsing
+Invoke-WebRequest http://localhost:8002/health -UseBasicParsing
+Invoke-WebRequest http://localhost:8000/settings/ai-runtime?probe=false -UseBasicParsing
+Invoke-WebRequest http://localhost:8001/asr/diagnostics -UseBasicParsing
+Invoke-WebRequest http://localhost:8002/tts/diagnostics -UseBasicParsing
+```
+
+Expected:
+- all requests return `200`;
+- `/settings/ai-runtime` reports providers you set (`local` or `openai`);
+- diagnostics include explicit status/message for each module.
+
+### 4. Open app (both modes)
+
+- Web: open `http://localhost:5173`
+- Desktop: Electron window should open automatically from the start script.
+
+If desktop did not open:
+
+```powershell
+cd desktop
+npm install
+npm run start:web
+cd ..
+```
+
+### 5. First Launch Setup
+
+In onboarding screen:
+- choose native/target language pair;
+- set goal and preferences;
+- run placement test;
+- if using OpenAI mode, optionally save key;
+- if using local mode, key is not required.
+
+After placement test finish, app should route to main dashboard/session flow.
+
+## Smoke Checklist (Full, End-to-End)
+
+Use this checklist after startup to confirm real working state.
+
+### A. Runtime and diagnostics
+
+1. Open `Profile`.
+2. Find `AI Runtime Providers`.
+3. Set providers (`OpenAI` or `Local`) for `LLM / ASR / TTS`.
+4. Click `Save provider settings`.
+5. Click `Refresh status`.
+6. Confirm diagnostics block shows module-by-module status:
+   - provider,
+   - model path,
+   - dependency availability,
+   - device,
+   - load/probe timings,
+   - readable error if not ready.
+
+Expected:
+- no `Failed to load AI runtime status`;
+- statuses reflect current env/provider selection.
+
+### B. Onboarding and workspace baseline
+
+1. Start from first-launch flow.
+2. Complete placement test.
+3. Verify dashboard loads.
+4. Open `Profile` -> `Learning Spaces` and confirm active space exists.
+
+Expected:
+- active space created;
+- CEFR/goal data saved;
+- no blocking errors.
+
+### C. Core learning paths
+
+1. `Daily Session`:
+   - open next step;
+   - mark started/completed.
+2. `Coach Chat`:
+   - send one user message;
+   - receive response/rubric/fallback depending on provider status.
+3. `Speaking`:
+   - upload short audio file;
+   - get transcription/feedback.
+4. `Translate`:
+   - run text translation;
+   - run voice translation via file upload.
+5. `Word Bank`:
+   - add word;
+   - run one review action.
+6. `Drills`:
+   - generate drill set;
+   - submit one answer.
+7. `Roleplays`:
+   - open available scenario;
+   - send one turn.
+8. `Grammar`:
+   - submit sentence;
+   - get corrections.
+9. `Homework`:
+   - create one homework item;
+   - submit a response.
+
+Expected:
+- all screens render;
+- actions return responses (full mode or fallback mode with clear messaging);
+- no crashes/navigation loops.
+
+### D. Multi-space persistence
+
+1. In `Profile`, create second language pair workspace.
+2. Switch to it and do at least one activity.
+3. Switch back to first workspace.
+4. Confirm previous progress is still there.
+5. Switch again to second workspace and confirm its isolated progress.
+
+Expected:
+- per-space isolation works;
+- switching is fast and stable;
+- progress persists across switches.
+
+### E. Theme, responsive, and desktop shell
+
+1. Toggle Light/Dark theme button.
+2. Confirm active menu item is clearly visible in both themes.
+3. Confirm styled file picker appears consistent.
+4. Resize desktop window to narrow width and verify sidebar/mobile behavior.
+
+Expected:
+- theme changes instantly;
+- readability and contrast remain good;
+- layout remains usable on narrow widths.
+
+### F. Backup / restore / reset safety
+
+1. In `Profile`, run `Export backup (JSON)`.
+2. Verify file downloaded.
+3. Import same backup.
+4. (Optional) run Start Over flow and confirm double-confirm behavior.
+
+Expected:
+- backup/import succeeds without corruption;
+- reset requires confirmation and returns to first-launch state.
+
+### G. API-level smoke scripts
+
+Run from repo root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-smoke.ps1 -BaseUrl http://localhost:8000 -UserId 1
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-key-paths.ps1 -BaseUrl http://localhost:8000 -UserId 1
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-workspace-journey.ps1 -BaseUrl http://localhost:8000 -UserId 1
+```
+
+Optional local runtime latency run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-local-runtime.ps1 -BaseUrl http://localhost:8000 -UserId 1
+```
+
+Expected:
+- scripts finish without failing assertions;
+- local runtime script prints timings.
+
+## Common Launch Mistakes and Fixes
+
+- Script not found (`start-local-all.ps1`):
+  - you are in wrong folder; return to repo root.
+- `Failed to load AI runtime status`:
+  - rebuild local stack:
+  ```powershell
+  docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build
+  ```
+- Local diagnostics show missing deps (`llama-cpp-python`, `faster-whisper`, `numpy`):
+  - pull latest repo and rebuild local containers with `--build`.
+- Desktop opens but blank:
+  - ensure web dev server is running on `5173`, then restart `npm run start:web` in `desktop`.
+
+## Stop / Cleanup
+
+Stop backend:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local-models.yml down
+```
+
+Stop web/desktop:
+- close terminal windows started by the local script, or press `Ctrl + C` in each running terminal.
+
+## User Quick Guide (future-proof)
+
+Use this section as the shortest setup for new users.
+
+1. Prepare models outside the repo (example root):
+   - `F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m.gguf`
+   - `F:\AI_MODELS_GENERIC\LINGUA_MODELS\whisper-small`
+   - `F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen3-tts`
+2. Create `.env` from template:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+3. In `.env`, set local runtime and model paths:
+
+```powershell
+API_LLM_PROVIDER=local
+ASR_PROVIDER=local
+TTS_PROVIDER=local
+LOCAL_MODELS_ROOT=F:\AI_MODELS_GENERIC\LINGUA_MODELS
+LOCAL_LLM_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m.gguf
+LOCAL_ASR_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\whisper-small
+LOCAL_TTS_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen3-tts
+```
+
+4. Start everything (backend + web + desktop):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1
+```
+
+5. Optional: if docker services are already up, start only web + desktop:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1 -SkipDocker
+```
+
+6. Stop local backend stack:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local-models.yml down
+```
+
+## Local Mode Troubleshooting
+
+If Profile shows `Failed to load AI runtime status` or `/settings/ai-runtime` returns `404`:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build api asr tts
+```
+
+If diagnostics show missing local dependencies, rebuild local stack with `--build`:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build
+```
+
+If voice page shows `offline://tts-unavailable` (or message "Audio playback is temporarily unavailable"):
+- local TTS generation failed inside `tts` service;
+- check exact error:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local-models.yml logs tts --tail 200
+```
+
+For Qwen3-TTS specifically, latest `transformers` code may be required.
+Pull latest project changes and rebuild local stack:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build tts api
+```
+
+First local build can be long (LLM/TTS dependencies are heavy).
+Please wait for build completion before opening Profile diagnostics.
+
+Quick diagnostics checks:
+
+```powershell
+Invoke-WebRequest http://localhost:8000/settings/ai-runtime?probe=false -UseBasicParsing
+Invoke-WebRequest http://localhost:8001/asr/diagnostics -UseBasicParsing
+Invoke-WebRequest http://localhost:8002/tts/diagnostics -UseBasicParsing
+```
+
+Expected behavior in local mode:
+- `llm_provider/asr_provider/tts_provider` are `local`
+- diagnostics `status` is `ok` (or detailed error with exact missing dependency/model path)
+
+If API local LLM build fails with `Could not find compiler ... gcc`, pull latest changes and rebuild.
+The project now installs required toolchain automatically for local API image.
 
 ## API Highlights
 

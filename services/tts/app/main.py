@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import wave
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -60,6 +61,65 @@ def _resolve_tts_provider() -> str:
     return "openai"
 
 
+def _load_model_type(model_path: str) -> str | None:
+    config_path = Path(model_path) / "config.json"
+    if not config_path.exists():
+        return None
+    try:
+        raw = json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    model_type = raw.get("model_type")
+    return model_type if isinstance(model_type, str) else None
+
+
+def _is_qwen3_tts_model(model_path: str) -> bool:
+    return _load_model_type(model_path) == "qwen3_tts"
+
+
+def _to_qwen_language_name(language: str) -> str:
+    lang_map = {
+        "zh": "Chinese",
+        "en": "English",
+        "ja": "Japanese",
+        "ko": "Korean",
+        "de": "German",
+        "fr": "French",
+        "ru": "Russian",
+        "pt": "Portuguese",
+        "es": "Spanish",
+        "it": "Italian",
+    }
+    code = language.strip().lower().split("-", 1)[0]
+    return lang_map.get(code, "English")
+
+
+def _to_qwen_speaker(voice: str, language: str) -> str:
+    supported = {
+        "vivian",
+        "serena",
+        "uncle_fu",
+        "dylan",
+        "eric",
+        "ryan",
+        "aiden",
+        "ono_anna",
+        "sohee",
+    }
+    normalized = voice.strip().lower()
+    if normalized in supported:
+        return voice
+    base = language.strip().lower().split("-", 1)[0]
+    # Qwen3-TTS public speaker set has strongest EN voices for generic multilingual usage.
+    if base in {"en", "de", "fr", "ru", "es", "pt", "it"}:
+        return "Ryan"
+    if base == "ja":
+        return "Ono_Anna"
+    if base == "ko":
+        return "Sohee"
+    return "Ryan"
+
+
 def _tts_diagnostics(run_probe: bool = False) -> TtsDiagnosticsResponse:
     provider = _resolve_tts_provider()
     model_path = os.getenv("LOCAL_TTS_MODEL_PATH", "").strip()
@@ -92,36 +152,75 @@ def _tts_diagnostics(run_probe: bool = False) -> TtsDiagnosticsResponse:
             probe_ms=None,
         )
 
-    try:
-        import time
-        import numpy as np  # type: ignore[import-not-found]
-        from transformers import pipeline  # type: ignore[import-not-found]
-    except Exception as exc:  # pragma: no cover - optional dependency
-        return TtsDiagnosticsResponse(
-            provider=provider,
-            status="error",
-            message=f"Local TTS dependency issue: {exc}",
-            model_path=model_path,
-            model_exists=model_exists,
-            dependency_available=False,
-            device=device,
-            load_ms=None,
-            probe_ms=None,
-        )
+    is_qwen3 = _is_qwen3_tts_model(model_path)
+    if is_qwen3:
+        try:
+            import qwen_tts  # type: ignore[import-not-found]
+            import torch  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - optional dependency
+            return TtsDiagnosticsResponse(
+                provider=provider,
+                status="error",
+                message=f"Local TTS dependency issue (qwen-tts): {exc}",
+                model_path=model_path,
+                model_exists=model_exists,
+                dependency_available=False,
+                device=device,
+                load_ms=None,
+                probe_ms=None,
+            )
+    else:
+        try:
+            import numpy as np  # type: ignore[import-not-found]
+            from transformers import pipeline  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - optional dependency
+            return TtsDiagnosticsResponse(
+                provider=provider,
+                status="error",
+                message=f"Local TTS dependency issue: {exc}",
+                model_path=model_path,
+                model_exists=model_exists,
+                dependency_available=False,
+                device=device,
+                load_ms=None,
+                probe_ms=None,
+            )
 
     load_ms = None
     probe_ms = None
     if run_probe:
         try:
             import time
+            if is_qwen3:
+                from qwen_tts import Qwen3TTSModel  # type: ignore[import-not-found]
 
-            started = time.perf_counter()
-            text_to_audio = pipeline("text-to-audio", model=model_path, trust_remote_code=True)
-            load_ms = round((time.perf_counter() - started) * 1000, 2)
-            started = time.perf_counter()
-            audio = text_to_audio("hello", forward_params={"language": "en", "speaker": "alloy"})
-            _ = np.asarray(audio.get("audio"), dtype=np.float32)
-            probe_ms = round((time.perf_counter() - started) * 1000, 2)
+                started = time.perf_counter()
+                model = Qwen3TTSModel.from_pretrained(
+                    model_path,
+                    device_map="cpu",
+                    dtype="auto",
+                )
+                load_ms = round((time.perf_counter() - started) * 1000, 2)
+                started = time.perf_counter()
+                wavs, _sr = model.generate_custom_voice(
+                    text="Hello",
+                    language="English",
+                    speaker="Ryan",
+                    instruct="",
+                )
+                _ = wavs[0]
+                probe_ms = round((time.perf_counter() - started) * 1000, 2)
+            else:
+                import numpy as np  # type: ignore[import-not-found]
+                from transformers import pipeline  # type: ignore[import-not-found]
+
+                started = time.perf_counter()
+                text_to_audio = pipeline("text-to-audio", model=model_path, trust_remote_code=True)
+                load_ms = round((time.perf_counter() - started) * 1000, 2)
+                started = time.perf_counter()
+                audio = text_to_audio("hello", forward_params={"language": "en", "speaker": "alloy"})
+                _ = np.asarray(audio.get("audio"), dtype=np.float32)
+                probe_ms = round((time.perf_counter() - started) * 1000, 2)
         except Exception as exc:
             return TtsDiagnosticsResponse(
                 provider=provider,
@@ -148,21 +247,26 @@ def _tts_diagnostics(run_probe: bool = False) -> TtsDiagnosticsResponse:
     )
 
 
-def _synthesize_openai_speech(text: str, voice: str) -> bytes:
-    api_key = os.getenv("OPENAI_API_KEY")
+def _synthesize_openai_speech(text: str, voice: str, api_key_override: str | None = None) -> bytes:
+    api_key = (api_key_override or "").strip() or os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured for TTS")
-    client = OpenAI(api_key=api_key)
-    response = client.audio.speech.create(
-        model=os.getenv("OPENAI_TTS_MODEL", "tts-1"),
-        voice=voice,
-        input=text,
-        format="mp3",
-    )
-    content = response.read()
-    if not content:
-        raise HTTPException(status_code=502, detail="TTS provider returned empty audio")
-    return content
+    try:
+        client = OpenAI(api_key=api_key)
+        response = client.audio.speech.create(
+            model=os.getenv("OPENAI_TTS_MODEL", "tts-1"),
+            voice=voice,
+            input=text,
+            format="mp3",
+        )
+        content = response.read()
+        if not content:
+            raise HTTPException(status_code=502, detail="TTS provider returned empty audio")
+        return content
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"OpenAI TTS request failed: {exc}") from exc
 
 
 def _synthesize_local_speech(text: str, language: str, voice: str) -> bytes:
@@ -170,29 +274,56 @@ def _synthesize_local_speech(text: str, language: str, voice: str) -> bytes:
     if not model_path:
         raise HTTPException(status_code=503, detail="LOCAL_TTS_MODEL_PATH is not configured for local TTS")
 
-    try:
-        import numpy as np  # type: ignore[import-not-found]
-        from transformers import pipeline  # type: ignore[import-not-found]
-    except Exception as exc:  # pragma: no cover - optional dependency
-        raise HTTPException(
-            status_code=503,
-            detail="Local TTS requires transformers and numpy. Install local TTS dependencies first.",
-        ) from exc
+    is_qwen3 = _is_qwen3_tts_model(model_path)
+    if is_qwen3:
+        try:
+            import numpy as np  # type: ignore[import-not-found]
+            from qwen_tts import Qwen3TTSModel  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - optional dependency
+            raise HTTPException(
+                status_code=503,
+                detail="Local Qwen3-TTS requires qwen-tts and numpy. Install local TTS dependencies first.",
+            ) from exc
 
-    try:
-        text_to_audio = pipeline("text-to-audio", model=model_path, trust_remote_code=True)
-        result = text_to_audio(
-            text,
-            forward_params={
-                "language": language,
-                "speaker": voice,
-            },
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Local TTS generation failed: {exc}") from exc
+        try:
+            model = Qwen3TTSModel.from_pretrained(
+                model_path,
+                device_map="cpu",
+                dtype="auto",
+            )
+            wavs, sample_rate = model.generate_custom_voice(
+                text=text,
+                language=_to_qwen_language_name(language),
+                speaker=_to_qwen_speaker(voice, language),
+                instruct="",
+            )
+            audio_arr = wavs[0] if wavs else None
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Local TTS generation failed: {exc}") from exc
+    else:
+        try:
+            import numpy as np  # type: ignore[import-not-found]
+            from transformers import pipeline  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - optional dependency
+            raise HTTPException(
+                status_code=503,
+                detail="Local TTS requires transformers and numpy. Install local TTS dependencies first.",
+            ) from exc
 
-    audio_arr = result.get("audio")
-    sample_rate = int(result.get("sampling_rate", 24000))
+        try:
+            text_to_audio = pipeline("text-to-audio", model=model_path, trust_remote_code=True)
+            result = text_to_audio(
+                text,
+                forward_params={
+                    "language": language,
+                    "speaker": voice,
+                },
+            )
+            audio_arr = result.get("audio")
+            sample_rate = int(result.get("sampling_rate", 24000))
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Local TTS generation failed: {exc}") from exc
+
     if audio_arr is None:
         raise HTTPException(status_code=502, detail="Local TTS returned empty audio")
 
@@ -235,18 +366,19 @@ def create_app() -> FastAPI:
         return _tts_diagnostics(run_probe=probe)
 
     @app.post("/tts/speak", response_model=TtsSpeakResponse)
-    def tts_speak(payload: TtsSpeakRequest) -> TtsSpeakResponse:
+    def tts_speak(payload: TtsSpeakRequest, request: Request) -> TtsSpeakResponse:
         provider = _resolve_tts_provider()
         digest = hashlib.sha1(f"{payload.voice}:{payload.language}:{payload.text}".encode("utf-8")).hexdigest()[:20]
         extension = "wav" if provider == "local" else "mp3"
         mime_type = "audio/wav" if provider == "local" else "audio/mpeg"
         file_name = f"{payload.voice}-{digest}.{extension}"
         out_path = _audio_dir() / file_name
+        key_override = request.headers.get("X-OpenAI-API-Key")
         if not out_path.exists():
             if provider == "local":
                 out_path.write_bytes(_synthesize_local_speech(payload.text, payload.language, payload.voice))
             else:
-                out_path.write_bytes(_synthesize_openai_speech(payload.text, payload.voice))
+                out_path.write_bytes(_synthesize_openai_speech(payload.text, payload.voice, api_key_override=key_override))
         return TtsSpeakResponse(audio_url=f"/audio/{file_name}", mime_type=mime_type)
 
     @app.get("/audio/{file_name}")

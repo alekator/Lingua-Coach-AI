@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -16,7 +15,7 @@ from fastapi.responses import JSONResponse
 from openai import OpenAI
 from pydantic import BaseModel
 
-from app.db import init_db
+from app.db import SessionLocal, init_db
 from app.routers.app_state import router as app_state_router
 from app.routers.chat import router as chat_router
 from app.routers.homework import router as homework_router
@@ -31,6 +30,8 @@ from app.routers.workspaces import router as workspaces_router
 from app.services.teacher import TeacherResponder, default_teacher_responder
 from app.services.local_llm import get_local_llm_diagnostics
 from app.services.provider_config import get_llm_provider
+from app.services.openai_key_runtime import get_runtime_openai_key, is_configured_openai_key, set_runtime_openai_key
+from app.services.secret_store import get_secret
 from app.services.translate import (
     TranslatorFn,
     TtsSynthesizerFn,
@@ -67,7 +68,7 @@ def default_openai_probe() -> tuple[str, str]:
             return ("ok", "Local LLM provider is enabled")
         return ("error", str(diag["message"]))
 
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = get_runtime_openai_key()
     if not api_key:
         return ("not_configured", "OPENAI_API_KEY is not set")
 
@@ -82,8 +83,19 @@ def default_openai_probe() -> tuple[str, str]:
 
 
 @asynccontextmanager
-async def app_lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_db()
+    runtime_key = get_runtime_openai_key()
+    if runtime_key:
+        app.state.openai_api_key = runtime_key
+    else:
+        with SessionLocal() as db:
+            stored = get_secret(db, "openai_api_key")
+            if stored is not None and is_configured_openai_key(stored.value):
+                set_runtime_openai_key(stored.value)
+                app.state.openai_api_key = stored.value
+            else:
+                app.state.openai_api_key = None
     yield
 
 

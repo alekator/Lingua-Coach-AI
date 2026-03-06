@@ -20,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   openaiKeyStatus: vi.fn(),
   openaiKeySet: vi.fn(),
   debugOpenai: vi.fn(),
+  aiRuntimeStatus: vi.fn(),
+  aiRuntimeSet: vi.fn(),
   languageCapabilities: vi.fn(),
   activeWorkspaceNativeLang: null as string | null,
   activeWorkspaceTargetLang: null as string | null,
@@ -70,6 +72,8 @@ vi.mock("../api/client", async () => {
       openaiKeyStatus: mocks.openaiKeyStatus,
       openaiKeySet: mocks.openaiKeySet,
       debugOpenai: mocks.debugOpenai,
+      aiRuntimeStatus: mocks.aiRuntimeStatus,
+      aiRuntimeSet: mocks.aiRuntimeSet,
       languageCapabilities: mocks.languageCapabilities,
       placementStart: mocks.placementStart,
       placementAnswer: mocks.placementAnswer,
@@ -99,6 +103,22 @@ describe("OnboardingPage", () => {
     mocks.debugOpenai.mockResolvedValue({
       status: "ok",
       detail: "OpenAI reachable",
+    });
+    mocks.aiRuntimeStatus.mockResolvedValue({
+      llm_provider: "openai",
+      asr_provider: "openai",
+      tts_provider: "openai",
+      llm: { provider: "openai", status: "disabled", message: "LLM provider is OpenAI" },
+      asr: { provider: "openai", status: "disabled", message: "ASR provider is OpenAI" },
+      tts: { provider: "openai", status: "disabled", message: "TTS provider is OpenAI" },
+    });
+    mocks.aiRuntimeSet.mockResolvedValue({
+      llm_provider: "openai",
+      asr_provider: "openai",
+      tts_provider: "openai",
+      llm: { provider: "openai", status: "disabled", message: "LLM provider is OpenAI" },
+      asr: { provider: "openai", status: "disabled", message: "ASR provider is OpenAI" },
+      tts: { provider: "openai", status: "disabled", message: "TTS provider is OpenAI" },
     });
     mocks.languageCapabilities.mockResolvedValue({
       native_lang: "ru",
@@ -246,6 +266,39 @@ describe("OnboardingPage", () => {
       expect(
         screen.getByText("This language pair is new for you. Complete the short placement to unlock this space."),
       ).toBeInTheDocument();
+    });
+  });
+
+  it("allows switching onboarding runtime mode to local", async () => {
+    mocks.aiRuntimeSet.mockResolvedValue({
+      llm_provider: "local",
+      asr_provider: "local",
+      tts_provider: "local",
+      llm: { provider: "local", status: "ok", message: "ready" },
+      asr: { provider: "local", status: "ok", message: "ready" },
+      tts: { provider: "local", status: "ok", message: "ready" },
+    });
+
+    render(
+      <MemoryRouter future={routerFuture}>
+        <OnboardingPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mocks.aiRuntimeStatus).toHaveBeenCalledWith(false);
+    });
+
+    fireEvent.change(screen.getByLabelText("AI runtime mode"), { target: { value: "local" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save runtime mode" }));
+
+    await waitFor(() => {
+      expect(mocks.aiRuntimeSet).toHaveBeenCalledWith({
+        llm_provider: "local",
+        asr_provider: "local",
+        tts_provider: "local",
+      });
+      expect(screen.getByText("OpenAI API key (optional in local mode)")).toBeInTheDocument();
     });
   });
 });

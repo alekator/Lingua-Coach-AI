@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from typing import Callable
 
 import httpx
@@ -9,6 +8,7 @@ from openai import OpenAI
 from app.config import settings
 from app.services.ai_runtime import SmallLRUCache, log_usage, usage_from_response
 from app.services.local_llm import complete_text, is_local_llm_enabled
+from app.services.openai_key_runtime import get_runtime_openai_key
 
 
 TranslatorFn = Callable[[str, str, str], str]
@@ -45,7 +45,7 @@ def default_translator(text: str, source_lang: str, target_lang: str) -> str:
             temperature=settings.openai_temperature_translate,
         ).strip()
     else:
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = get_runtime_openai_key()
         if not api_key:
             translated = f"[{source_lang}->{target_lang}] {clean_text}"
             _translate_cache.set(cache_key, translated)
@@ -73,10 +73,15 @@ def default_tts_synthesizer(text: str, target_lang: str, voice_name: str) -> str
     if isinstance(cached, str):
         return cached
 
+    headers: dict[str, str] = {}
+    api_key = get_runtime_openai_key()
+    if api_key:
+        headers["X-OpenAI-API-Key"] = api_key
     with httpx.Client(timeout=20.0) as client:
         response = client.post(
             f"{settings.tts_url}/tts/speak",
             json={"text": clean_text, "language": target_lang, "voice": voice_name},
+            headers=headers,
         )
         response.raise_for_status()
         body = response.json()

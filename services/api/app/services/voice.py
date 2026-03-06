@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import json
 from collections.abc import Callable
 from typing import Any
@@ -12,6 +11,7 @@ from app.config import settings
 from app.models import LearnerProfile
 from app.services.ai_runtime import SmallLRUCache, log_usage, usage_from_response
 from app.services.local_llm import complete_text, is_local_llm_enabled
+from app.services.openai_key_runtime import get_runtime_openai_key
 from app.services.teacher import build_learner_profile_block
 from app.services.text_metrics import lexical_diversity, text_units
 
@@ -28,8 +28,12 @@ def default_asr_transcriber(
 ) -> dict[str, str]:
     files = {"file": (filename, audio_bytes, content_type)}
     data = {"language_hint": language_hint}
+    headers: dict[str, str] = {}
+    api_key = get_runtime_openai_key()
+    if api_key:
+        headers["X-OpenAI-API-Key"] = api_key
     with httpx.Client(timeout=25.0) as client:
-        response = client.post(f"{settings.asr_url}/asr/transcribe", files=files, data=data)
+        response = client.post(f"{settings.asr_url}/asr/transcribe", files=files, data=data, headers=headers)
         response.raise_for_status()
         payload = response.json()
     return {"transcript": payload["transcript"], "language": payload.get("language", "unknown")}
@@ -83,7 +87,7 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
             temperature=settings.openai_temperature_voice,
         ).strip()
     else:
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = get_runtime_openai_key()
         if not api_key:
             opening = {
                 "low": "Nice voice attempt.",

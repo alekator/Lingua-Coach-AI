@@ -6,6 +6,8 @@ import type { VoiceMessageResponse } from "../api/types";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 import { FilePicker } from "../components/file-picker";
+import { AudioRecorder } from "../components/audio-recorder";
+import { AudioPlayer } from "../components/audio-player";
 
 function extractCoachTarget(text: string): string {
   const marker = "You should say:";
@@ -69,6 +71,10 @@ export function VoicePage() {
             onFileChange={setFile}
           />
         </label>
+        <label>
+          Or record with microphone
+          <AudioRecorder onRecordedFile={setFile} />
+        </label>
         <button type="submit" disabled={!file}>
           Analyze voice
         </button>
@@ -94,7 +100,7 @@ export function VoicePage() {
               ))}
             </>
           )}
-          <p>Coach audio reply: {result.audio_url}</p>
+          <AudioPlayer audioUrl={result.audio_url} label="Coach audio reply" />
           {coachTarget && (
             <button
               type="button"

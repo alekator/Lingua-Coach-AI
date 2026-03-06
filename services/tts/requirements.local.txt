@@ -1,0 +1,5 @@
+numpy==2.3.3
+torch==2.8.0
+soundfile==0.13.1
+qwen-tts
+transformers==4.57.3

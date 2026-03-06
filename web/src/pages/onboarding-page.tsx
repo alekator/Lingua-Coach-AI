@@ -91,6 +91,10 @@ export function OnboardingPage() {
   const [apiKey, setApiKey] = useState("");
   const [keyStatus, setKeyStatus] = useState<"checking" | "configured" | "missing" | "invalid">("checking");
   const [keyHint, setKeyHint] = useState("");
+  const [runtimeProvider, setRuntimeProvider] = useState<"openai" | "local">("openai");
+  const [runtimeLoading, setRuntimeLoading] = useState(true);
+  const [runtimeSaving, setRuntimeSaving] = useState(false);
+  const [runtimeHint, setRuntimeHint] = useState("");
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [question, setQuestion] = useState("");
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -129,6 +133,38 @@ export function OnboardingPage() {
       }
     }
     loadKeyStatus();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function loadRuntimeStatus() {
+      setRuntimeLoading(true);
+      try {
+        const status = await api.aiRuntimeStatus(false);
+        if (!active) return;
+        const unified =
+          status.llm_provider === status.asr_provider && status.llm_provider === status.tts_provider
+            ? status.llm_provider
+            : "openai";
+        setRuntimeProvider(unified);
+        if (status.llm_provider === status.asr_provider && status.llm_provider === status.tts_provider) {
+          setRuntimeHint(`Current runtime: ${status.llm_provider.toUpperCase()} (LLM/ASR/TTS)`);
+        } else {
+          setRuntimeHint(
+            `Current runtime is mixed (LLM=${status.llm_provider}, ASR=${status.asr_provider}, TTS=${status.tts_provider}). Onboarding will use a unified mode.`,
+          );
+        }
+      } catch {
+        if (!active) return;
+        setRuntimeHint("Failed to load runtime status. Using OpenAI mode by default.");
+      } finally {
+        if (active) setRuntimeLoading(false);
+      }
+    }
+    loadRuntimeStatus();
     return () => {
       active = false;
     };
@@ -205,7 +241,7 @@ export function OnboardingPage() {
       if (normalizedNative === normalizedTarget) {
         throw new Error("Native and target language must be different.");
       }
-      if (keyStatus !== "configured") {
+      if (runtimeProvider === "openai" && keyStatus !== "configured") {
         pushToast("info", "You can continue without key, but AI quality will be limited.");
       }
       const started = await api.placementStart({
@@ -225,6 +261,27 @@ export function OnboardingPage() {
       pushToast("error", msg);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function onSaveRuntimeProvider() {
+    setRuntimeSaving(true);
+    try {
+      await api.aiRuntimeSet({
+        llm_provider: runtimeProvider,
+        asr_provider: runtimeProvider,
+        tts_provider: runtimeProvider,
+      });
+      setRuntimeHint(`Runtime mode saved: ${runtimeProvider.toUpperCase()} (LLM/ASR/TTS)`);
+      pushToast("success", `Runtime mode saved: ${runtimeProvider.toUpperCase()}`);
+      setError("");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setRuntimeHint("Failed to save runtime mode.");
+      setError(msg);
+      pushToast("error", msg);
+    } finally {
+      setRuntimeSaving(false);
     }
   }
 
@@ -335,6 +392,25 @@ export function OnboardingPage() {
           />
           {capabilityHint && <p>{capabilityHint}</p>}
           <label>
+            AI runtime mode
+            <select
+              value={runtimeProvider}
+              onChange={(e) => setRuntimeProvider(e.target.value as "openai" | "local")}
+              disabled={runtimeLoading || runtimeSaving || submitting}
+            >
+              <option value="openai">OpenAI (cloud API)</option>
+              <option value="local">Local models (on this machine)</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={onSaveRuntimeProvider}
+            disabled={runtimeLoading || runtimeSaving || submitting}
+          >
+            {runtimeSaving ? "Saving runtime..." : "Save runtime mode"}
+          </button>
+          <p>{runtimeLoading ? "Loading runtime mode..." : runtimeHint}</p>
+          <label>
             Goal
             <input value={goal} onChange={(e) => setGoal(e.target.value)} />
           </label>
@@ -357,7 +433,7 @@ export function OnboardingPage() {
             </select>
           </label>
           <label>
-            OpenAI API key
+            OpenAI API key {runtimeProvider === "local" ? "(optional in local mode)" : ""}
             <input
               type="password"
               placeholder="sk-..."
@@ -365,7 +441,7 @@ export function OnboardingPage() {
               onChange={(e) => setApiKey(e.target.value)}
             />
           </label>
-          {(keyStatus === "missing" || keyStatus === "invalid") && (
+          {(runtimeProvider === "openai" || keyStatus === "invalid") && (keyStatus === "missing" || keyStatus === "invalid") && (
             <article className="panel stack" aria-live="polite">
               <strong>
                 {keyStatus === "invalid" ? "OpenAI key is invalid or unavailable." : "OpenAI key is not configured."}

@@ -53,6 +53,38 @@ def test_tts_speak_returns_audio_url(monkeypatch, tmp_path) -> None:
     assert download.content == b"fake-mp3"
 
 
+def test_tts_speak_prefers_header_key_over_env(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "env-key")
+    monkeypatch.setenv("TTS_AUDIO_DIR", str(tmp_path))
+    captured: dict[str, str] = {}
+
+    class FakeSpeechResponse:
+        def read(self) -> bytes:
+            return b"fake-mp3"
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str) -> None:
+            captured["api_key"] = api_key
+            self.audio = self
+            self.speech = self
+
+        def create(self, **kwargs):
+            return FakeSpeechResponse()
+
+    monkeypatch.setattr("app.main.OpenAI", FakeOpenAI)
+
+    client = TestClient(create_app())
+    response = client.post(
+        "/tts/speak",
+        json={"text": "Hello", "language": "en", "voice": "alloy"},
+        headers={"X-OpenAI-API-Key": "header-key"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["audio_url"].startswith("/audio/alloy-")
+    assert captured["api_key"] == "header-key"
+
+
 def test_tts_speak_local_provider_returns_wav(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("TTS_PROVIDER", "local")
     monkeypatch.setenv("TTS_AUDIO_DIR", str(tmp_path))
