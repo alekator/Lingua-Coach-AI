@@ -108,7 +108,7 @@ async def voice_message(
         teacher_text = voice_teacher(transcript, profile, resolved_target_lang)
     except Exception:
         teacher_text = (
-            f"Fallback coach mode in {resolved_target_lang}: {transcript}. "
+            f'Quick fallback coach in {resolved_target_lang}: I heard "{transcript}". '
             "Try one shorter and cleaner version next."
         )
 

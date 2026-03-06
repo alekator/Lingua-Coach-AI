@@ -136,7 +136,7 @@ def test_chat_teacher_failure_uses_resilient_fallback(
         sent = client.post("/chat/message", json={"session_id": session_id, "text": "Can we continue?"})
         assert sent.status_code == 200
         body = sent.json()
-        assert "fallback guidance" in body["assistant_text"]
+        assert "local coaching" in body["assistant_text"]
         assert body["rubric"] is not None
 
 
@@ -151,7 +151,7 @@ def test_default_teacher_responder_adds_rubric_without_openai_key(monkeypatch: A
     assert response.rubric is not None
     assert 0 <= response.rubric.overall_score <= 100
     assert response.rubric.next_drill is not None
-    assert response.assistant_text.startswith("Direct feedback.")
+    assert response.assistant_text.startswith("Clear progress check.")
 
 
 def test_teacher_payload_uses_high_strictness_and_daily_minutes(

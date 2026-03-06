@@ -164,18 +164,19 @@ def build_resilient_teacher_fallback(payload: dict[str, Any], reason: str | None
     preferences = learner_profile.get("preferences", {}) or {}
     strictness = _normalize_strictness(preferences)
     opener, action_template = {
-        "low": ("Nice try.", "Micro-step: rewrite it once with simpler words."),
-        "medium": ("Solid attempt.", "Micro-step: rewrite it once with one clean correction."),
-        "high": ("Direct feedback.", "Micro-step: rewrite it now with precise grammar and one detail."),
+        "low": ("Nice effort.", "Next tiny step: rewrite one short line with simpler words."),
+        "medium": ("You're making progress.", "Next step: rewrite one short line and apply one precise fix."),
+        "high": ("Clear progress check.", "Now do this: rewrite one short line with correct grammar and one detail."),
     }[strictness]
-    recovery_note = "I switched to local fallback guidance for this turn."
+    recovery_note = "I switched to reliable local coaching for this turn."
     if reason:
-        recovery_note = f"{recovery_note} Reason: {reason[:80]}."
+        recovery_note = f"{recovery_note} Context: {reason[:80]}."
 
     response = ChatMessageResponse(
         assistant_text=(
-            f"{opener} Goal focus: {goal}. "
-            f"Practice ({level}) on {top_weak}: {user_text}. "
+            f"{opener} We stay on your goal ({goal}). "
+            f"For this turn ({level}), focus on {top_weak}. "
+            f'You wrote: "{user_text}". '
             f"{action_template} {recovery_note}"
         ),
         corrections=[],
@@ -223,7 +224,7 @@ def sanitize_teacher_response(
             "One correction was skipped for reliability; rewrite your sentence in a simpler form."
         )
     if not response.assistant_text.strip():
-        response.assistant_text = "Good effort. Try one clearer sentence and we will refine it together."
+        response.assistant_text = "Good effort. Give me one clearer sentence and we will polish it together."
     if response.rubric is None:
         response.rubric = build_fallback_rubric(str(payload.get("user_input", "")), response)
     return response

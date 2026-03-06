@@ -146,7 +146,7 @@ def test_default_voice_teacher_fallback_respects_strictness(monkeypatch: Any) ->
         preferences={"strictness": "high"},
     )
     text = default_voice_teacher("I goed home", profile, "en")
-    assert text.startswith("Direct note.")
+    assert text.startswith("Straight feedback:")
     assert "went" in text
 
 
@@ -175,7 +175,7 @@ def test_voice_message_teacher_failure_uses_router_fallback(
         assert response.status_code == 200
         body = response.json()
         assert body["audio_url"] == "http://tts.local/audio/fallback.mp3"
-        assert "Fallback coach mode in en" in body["teacher_text"]
+        assert "Quick fallback coach in en" in body["teacher_text"]
 
 
 def test_voice_message_budget_cap_blocks_paid_path(

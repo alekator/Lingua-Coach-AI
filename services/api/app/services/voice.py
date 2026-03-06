@@ -56,17 +56,18 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         opening = {
-            "low": "Good attempt.",
-            "medium": "Good practice.",
-            "high": "Direct note.",
+            "low": "Nice voice attempt.",
+            "medium": "Good practice run.",
+            "high": "Straight feedback:",
         }[strictness]
         quick_fix = ""
         lower_text = clean_transcript.lower()
         if "goed" in lower_text:
             quick_fix = " Quick fix: say 'went' instead of 'goed'."
         fallback = (
-            f"{opening} Let's continue in {target_lang}. Goal: {goal}. "
-            f"Focus now: {top_weak}. You said: {clean_transcript}.{quick_fix}"
+            f"{opening} We keep it in {target_lang}. Goal: {goal}. "
+            f"Focus now: {top_weak}. You said: {clean_transcript}.{quick_fix} "
+            "Next micro-step: record one shorter retry."
         )
         _voice_teacher_cache.set(cache_key, fallback)
         return fallback
@@ -114,10 +115,10 @@ def build_pronunciation_feedback(transcript: str) -> str:
     rubric = build_pronunciation_rubric(transcript)
     top_tip = str(rubric.get("actionable_tips", ["Keep practicing."])[0])
     if rubric["overall_score"] < 45:
-        return f"Focus on slower pace and clearer articulation. {top_tip}"
+        return f"Let's slow it down and make each word clearer. {top_tip}"
     if rubric["overall_score"] < 70:
-        return f"Speech is understandable. Improve stress and sentence rhythm. {top_tip}"
-    return f"Good pronunciation baseline. Keep polishing natural rhythm and intonation. {top_tip}"
+        return f"Your message is understandable. Next, improve stress and sentence rhythm. {top_tip}"
+    return f"Strong pronunciation baseline. Keep polishing natural rhythm and intonation. {top_tip}"
 
 
 def build_pronunciation_rubric(transcript: str) -> dict[str, float | str | list[str]]:
