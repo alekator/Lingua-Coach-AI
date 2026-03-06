@@ -170,18 +170,25 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert len(packs_body["items"]) >= 3
         assert packs_body["items"][0]["readiness"] in {"ready", "almost_ready", "not_ready"}
 
-        reactivation_recent = client.get("/coach/reactivation", params={"user_id": workspace_user_id})
+        reactivation_recent = client.get(
+            "/coach/reactivation",
+            params={"user_id": workspace_user_id, "available_minutes": 12},
+        )
         assert reactivation_recent.status_code == 200
         recent_body = reactivation_recent.json()
         assert recent_body["eligible"] is False
         assert recent_body["gap_days"] == 0
+        assert recent_body["available_minutes"] == 12
         assert recent_body["tasks"] == []
 
-        reactivation_new_user = client.get("/coach/reactivation", params={"user_id": 999})
+        reactivation_new_user = client.get("/coach/reactivation", params={"user_id": 999, "available_minutes": 7})
         assert reactivation_new_user.status_code == 200
         new_user_body = reactivation_new_user.json()
         assert new_user_body["eligible"] is True
         assert new_user_body["gap_days"] >= 2
+        assert new_user_body["available_minutes"] == 7
+        assert new_user_body["recommended_minutes"] == 7
+        assert new_user_body["plan_mode"] == "micro"
         assert len(new_user_body["tasks"]) == 3
         assert new_user_body["cta_route"] in {"/app/chat", "/app/vocab"}
 
@@ -279,10 +286,12 @@ def test_coach_reactivation_uses_vocab_cta_when_due_cards_exist(client: TestClie
     )
     assert vocab.status_code == 200
 
-    reactivation = client.get("/coach/reactivation", params={"user_id": workspace_user_id})
+    reactivation = client.get("/coach/reactivation", params={"user_id": workspace_user_id, "available_minutes": 9})
     assert reactivation.status_code == 200
     body = reactivation.json()
     assert body["eligible"] is True
+    assert body["available_minutes"] == 9
+    assert body["recommended_minutes"] == 9
     assert body["cta_route"] == "/app/vocab"
 
 

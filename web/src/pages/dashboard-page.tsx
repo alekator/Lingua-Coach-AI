@@ -41,8 +41,8 @@ export function DashboardPage() {
     queryFn: () => api.coachReviewQueue(userId),
   });
   const reactivation = useQuery({
-    queryKey: ["coach-reactivation", userId],
-    queryFn: () => api.coachReactivation(userId),
+    queryKey: ["coach-reactivation", userId, dailyMinutes],
+    queryFn: () => api.coachReactivation(userId, dailyMinutes),
   });
   const dailyChallenge = useQuery({
     queryKey: ["coach-daily-challenge", userId],
@@ -108,9 +108,10 @@ export function DashboardPage() {
     }
   }
 
-  function startFiveMinuteMode(route = "/app/session") {
-    setDailyMinutes(5);
-    pushToast("info", "5-minute mode enabled for today");
+  function startQuickMode(route = "/app/session", minutes = 5) {
+    const safeMinutes = Math.max(5, Math.min(60, minutes));
+    setDailyMinutes(safeMinutes);
+    pushToast("info", `${safeMinutes}-minute mode enabled for today`);
     navigate(route);
   }
 
@@ -228,7 +229,7 @@ export function DashboardPage() {
               <button type="button" onClick={runNextBestAction}>
                 Do next best action
               </button>
-              <button type="button" onClick={() => startFiveMinuteMode()}>
+              <button type="button" onClick={() => startQuickMode("/app/session", 5)}>
                 Start 5-minute mode
               </button>
               {reactivationMsg && <p>Reactivation: {reactivationMsg}</p>}
@@ -276,9 +277,14 @@ export function DashboardPage() {
           ))}
           <button
             type="button"
-            onClick={() => startFiveMinuteMode(reactivation.data.cta_route || "/app/session")}
+            onClick={() =>
+              startQuickMode(
+                reactivation.data.cta_route || "/app/session",
+                reactivation.data.recommended_minutes || 5,
+              )
+            }
           >
-            Start easy return (5 min)
+            Start easy return ({reactivation.data.recommended_minutes} min)
           </button>
         </article>
       )}

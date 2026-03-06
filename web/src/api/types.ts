@@ -210,6 +210,9 @@ export type CoachReactivationResponse = {
   user_id: number;
   eligible: boolean;
   gap_days: number;
+  available_minutes: number;
+  recommended_minutes: number;
+  plan_mode: string;
   weak_topic?: string | null;
   title: string;
   tasks: string[];

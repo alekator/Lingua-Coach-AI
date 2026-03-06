@@ -205,6 +205,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - grammar-focused repetitions
     - pronunciation retries
 
+- `GET /coach/reactivation`
+  - supports `available_minutes` to build personalized easy-return plans for the real time budget.
+  - response includes:
+    - `available_minutes`
+    - `recommended_minutes`
+    - `plan_mode` (`micro|standard|extended`)
+
 - `GET /scenarios`
   - supports optional `user_id` for mastery-gated visibility:
     - `items[].required_level`

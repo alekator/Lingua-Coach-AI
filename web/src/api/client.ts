@@ -211,8 +211,10 @@ export const api = {
     request<CoachErrorBankResponse>(
       `/coach/error-bank?user_id=${encodeURIComponent(userId)}&limit=${encodeURIComponent(limit)}`,
     ),
-  coachReactivation: (userId: number) =>
-    request<CoachReactivationResponse>(`/coach/reactivation?user_id=${encodeURIComponent(userId)}`),
+  coachReactivation: (userId: number, availableMinutes = 15) =>
+    request<CoachReactivationResponse>(
+      `/coach/reactivation?user_id=${encodeURIComponent(userId)}&available_minutes=${encodeURIComponent(availableMinutes)}`,
+    ),
   coachDailyChallenge: (userId: number) =>
     request<CoachDailyChallengeResponse>(`/coach/daily-challenge?user_id=${encodeURIComponent(userId)}`),
   coachTrajectory: (userId: number, horizonDays = 30) =>

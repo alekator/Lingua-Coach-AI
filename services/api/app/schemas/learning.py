@@ -160,6 +160,9 @@ class CoachReactivationResponse(BaseModel):
     user_id: int
     eligible: bool
     gap_days: int
+    available_minutes: int = 15
+    recommended_minutes: int = 5
+    plan_mode: str = "micro"
     weak_topic: str | None = None
     title: str
     tasks: list[str] = Field(default_factory=list)

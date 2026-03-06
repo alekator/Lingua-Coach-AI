@@ -146,6 +146,36 @@ def _reactivation_gap_days(sessions: list[ChatSession]) -> int:
     return max(0, (today - last_active).days)
 
 
+def _resolve_reactivation_minutes(
+    available_minutes: int | None,
+    profile: LearnerProfile | None,
+) -> int:
+    if isinstance(available_minutes, int):
+        return max(5, min(60, available_minutes))
+    prefs = (profile.preferences if profile else {}) or {}
+    daily = prefs.get("daily_minutes")
+    if isinstance(daily, int):
+        return max(5, min(60, daily))
+    return 15
+
+
+def _reactivation_mode(minutes: int) -> str:
+    if minutes <= 8:
+        return "micro"
+    if minutes <= 15:
+        return "standard"
+    return "extended"
+
+
+def _reactivation_blocks(minutes: int) -> tuple[int, int, int]:
+    warmup = max(2, int(round(minutes * 0.3)))
+    focus = max(2, int(round(minutes * 0.4)))
+    close = max(1, minutes - warmup - focus)
+    if warmup + focus + close > minutes:
+        close = max(1, minutes - warmup - focus)
+    return warmup, focus, close
+
+
 def _snapshot_avg(snapshot: SkillSnapshot | None) -> float:
     if snapshot is None:
         return 0.0
@@ -938,11 +968,18 @@ def coach_outcome_packs(user_id: int, db: Session = Depends(get_db)) -> OutcomeP
 
 
 @router.get("/coach/reactivation", response_model=CoachReactivationResponse)
-def coach_reactivation(user_id: int, db: Session = Depends(get_db)) -> CoachReactivationResponse:
+def coach_reactivation(
+    user_id: int,
+    available_minutes: int | None = None,
+    db: Session = Depends(get_db),
+) -> CoachReactivationResponse:
     sessions = db.scalars(select(ChatSession).where(ChatSession.user_id == user_id)).all()
     gap_days = _reactivation_gap_days(sessions)
     profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
     goal = (profile.goal if profile and profile.goal else "general communication").strip()
+    resolved_minutes = _resolve_reactivation_minutes(available_minutes, profile)
+    mode = _reactivation_mode(resolved_minutes)
+    warmup_minutes, focus_minutes, close_minutes = _reactivation_blocks(resolved_minutes)
 
     weak_top = db.scalars(
         select(Mistake.category)
@@ -965,15 +1002,15 @@ def coach_reactivation(user_id: int, db: Session = Depends(get_db)) -> CoachReac
     target_topic_encoded = quote(target_topic, safe="")
     cta_route = "/app/chat"
     tasks = [
-        f"2 min: quick warmup in {target_topic} for your {goal} goal with one simple sentence.",
-        "2 min: one short coach chat turn and apply one correction.",
-        "1 min: close with one success line to lock momentum.",
+        f"{warmup_minutes} min: quick warmup in {target_topic} for your {goal} goal with one simple sentence.",
+        f"{focus_minutes} min: one short coach chat turn and apply one correction.",
+        f"{close_minutes} min: close with one success line to lock momentum.",
     ]
     if due_vocab_count > 0:
-        tasks[0] = f"2 min: review {min(due_vocab_count, 5)} due vocab cards for easy restart."
+        tasks[0] = f"{warmup_minutes} min: review {min(due_vocab_count, 5)} due vocab cards for easy restart."
         cta_route = "/app/vocab"
     elif weak_topic:
-        tasks[1] = f"2 min: one compact {weak_topic} drill and apply one correction."
+        tasks[1] = f"{focus_minutes} min: one compact {weak_topic} drill and apply one correction."
         cta_route = f"/app/exercises?topic={target_topic_encoded}&source=reactivation"
     else:
         cta_route = "/app/chat"
@@ -983,6 +1020,9 @@ def coach_reactivation(user_id: int, db: Session = Depends(get_db)) -> CoachReac
             user_id=user_id,
             eligible=False,
             gap_days=gap_days,
+            available_minutes=resolved_minutes,
+            recommended_minutes=min(10, resolved_minutes),
+            plan_mode=mode,
             weak_topic=weak_topic,
             title="No reactivation needed",
             tasks=[],
@@ -994,11 +1034,14 @@ def coach_reactivation(user_id: int, db: Session = Depends(get_db)) -> CoachReac
         user_id=user_id,
         eligible=True,
         gap_days=gap_days,
+        available_minutes=resolved_minutes,
+        recommended_minutes=min(15, resolved_minutes),
+        plan_mode=mode,
         weak_topic=weak_topic,
         title=f"Easy return plan after {gap_days} day break",
         tasks=tasks,
         cta_route=cta_route,
-        note="Keep it light today. The goal is to restart momentum, not intensity.",
+        note=f"Keep it light today. Available time: {resolved_minutes} minutes. Goal is to restart momentum, not intensity.",
     )
 
 

@@ -166,6 +166,9 @@ describe("DashboardPage", () => {
       user_id: 1,
       eligible: true,
       gap_days: 3,
+      available_minutes: 15,
+      recommended_minutes: 5,
+      plan_mode: "micro",
       weak_topic: "grammar",
       title: "Easy return plan after 3 day break",
       tasks: [
