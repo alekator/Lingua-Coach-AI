@@ -64,6 +64,16 @@ describe("AppRouter bootstrap gate", () => {
             }),
           };
         }
+        if (url.endsWith("/settings/openai-key")) {
+          return {
+            ok: true,
+            json: async () => ({
+              configured: false,
+              source: "none",
+              masked: null,
+            }),
+          };
+        }
         if (url.includes("/progress/summary")) {
           return {
             ok: true,
@@ -92,10 +102,11 @@ describe("AppRouter bootstrap gate", () => {
       }),
     );
 
-    renderRouter("/");
+    renderRouter("/app/chat");
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Coach Chat Practice" })).toBeInTheDocument();
+      expect(screen.getByText("OpenAI key is not configured.")).toBeInTheDocument();
     });
   });
 });

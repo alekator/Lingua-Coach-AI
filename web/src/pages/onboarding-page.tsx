@@ -40,7 +40,7 @@ export function OnboardingPage() {
   const [dailyMinutes, setDailyMinutes] = useState(15);
   const [strictness, setStrictness] = useState<"low" | "medium" | "high">("medium");
   const [apiKey, setApiKey] = useState("");
-  const [keyStatus, setKeyStatus] = useState<"checking" | "configured" | "missing">("checking");
+  const [keyStatus, setKeyStatus] = useState<"checking" | "configured" | "missing" | "invalid">("checking");
   const [keyHint, setKeyHint] = useState("");
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [question, setQuestion] = useState("");
@@ -135,6 +135,8 @@ export function OnboardingPage() {
       pushToast("success", "OpenAI key saved and verified");
     } catch (err) {
       const msg = getErrorMessage(err);
+      setKeyStatus("invalid");
+      setKeyHint("Key save/verification failed. App can continue in lightweight mode.");
       setError(msg);
       pushToast("error", msg);
     } finally {
@@ -290,6 +292,16 @@ export function OnboardingPage() {
               onChange={(e) => setApiKey(e.target.value)}
             />
           </label>
+          {(keyStatus === "missing" || keyStatus === "invalid") && (
+            <article className="panel stack" aria-live="polite">
+              <strong>
+                {keyStatus === "invalid" ? "OpenAI key is invalid or unavailable." : "OpenAI key is not configured."}
+              </strong>
+              <p>
+                You can continue onboarding now. App will use lightweight fallback responses until key access works.
+              </p>
+            </article>
+          )}
           <p>{keyStatus === "checking" ? "Checking key status..." : keyHint}</p>
           <button disabled={submitting || !apiKey.trim()} type="button" onClick={onSaveApiKey}>
             {submitting ? "Saving key..." : t(locale, "onboarding_save_key")}
