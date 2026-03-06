@@ -125,7 +125,7 @@ export function AppLayout() {
             <article className="panel stack" aria-live="polite">
               <strong>OpenAI key is not configured.</strong>
               <p>App continues in lightweight mode. Add your key in profile to unlock full AI coaching quality.</p>
-              <Link to="/app/profile">Open profile settings</Link>
+              <Link to="/app/profile#openai-key">Open profile settings</Link>
             </article>
           )}
           {showInvalidKey && (
@@ -134,7 +134,7 @@ export function AppLayout() {
               <p>
                 Your key may be invalid, expired, or quota-limited. App remains usable in lightweight mode until fixed.
               </p>
-              <Link to="/app/profile">Review API key settings</Link>
+              <Link to="/app/profile#openai-key">Review API key settings</Link>
             </article>
           )}
           {showStatusUnknown && (

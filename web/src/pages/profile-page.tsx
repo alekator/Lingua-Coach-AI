@@ -45,6 +45,9 @@ export function ProfilePage() {
   const [resetError, setResetError] = useState("");
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupError, setBackupError] = useState("");
+  const [apiKeyDraft, setApiKeyDraft] = useState("");
+  const [apiKeyBusy, setApiKeyBusy] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState("");
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
   const [restoreToken, setRestoreToken] = useState("");
   const [restoreBusy, setRestoreBusy] = useState(false);
@@ -98,6 +101,11 @@ export function ProfilePage() {
   const usageBudget = useQuery({
     queryKey: ["usage-budget", userId],
     queryFn: () => api.usageBudgetStatus(userId),
+  });
+  const openaiKeyStatus = useQuery({
+    queryKey: ["openai-key-status-profile"],
+    queryFn: api.openaiKeyStatus,
+    retry: false,
   });
 
   useEffect(() => {
@@ -459,6 +467,28 @@ export function ProfilePage() {
       pushToast("error", msg);
     } finally {
       setRestoreBusy(false);
+    }
+  }
+
+  async function onSaveApiKey() {
+    if (!apiKeyDraft.trim()) {
+      setApiKeyError("Enter API key before saving.");
+      return;
+    }
+    setApiKeyBusy(true);
+    try {
+      await api.openaiKeySet({ api_key: apiKeyDraft.trim() });
+      await api.debugOpenai();
+      await openaiKeyStatus.refetch();
+      setApiKeyDraft("");
+      setApiKeyError("");
+      pushToast("success", "OpenAI key saved and verified");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setApiKeyError(msg);
+      pushToast("error", msg);
+    } finally {
+      setApiKeyBusy(false);
     }
   }
 
@@ -865,6 +895,46 @@ export function ProfilePage() {
         )}
         {backupError && <ErrorState text={backupError} />}
         {restoreError && <ErrorState text={restoreError} />}
+      </article>
+      <article id="openai-key" className="panel stack">
+        <h3>OpenAI API Key</h3>
+        {openaiKeyStatus.isPending && <LoadingState text="Checking key status..." />}
+        {openaiKeyStatus.isError && <ErrorState text="Failed to read OpenAI key status." />}
+        {openaiKeyStatus.isSuccess && (
+          <>
+            <p>
+              Status: {openaiKeyStatus.data.configured ? "configured" : "not configured"}
+              {openaiKeyStatus.data.masked ? ` (${openaiKeyStatus.data.masked})` : ""}
+            </p>
+            <p>
+              Storage:{" "}
+              {openaiKeyStatus.data.persistent
+                ? openaiKeyStatus.data.secure_storage
+                  ? "persistent (secure local storage)"
+                  : "persistent (local storage)"
+                : "session only"}
+            </p>
+          </>
+        )}
+        <label>
+          OpenAI API key
+          <input
+            aria-label="OpenAI API key (Profile)"
+            type="password"
+            placeholder="sk-..."
+            value={apiKeyDraft}
+            onChange={(e) => setApiKeyDraft(e.target.value)}
+          />
+        </label>
+        <div className="row">
+          <button type="button" onClick={onSaveApiKey} disabled={apiKeyBusy || !apiKeyDraft.trim()}>
+            {apiKeyBusy ? "Saving key..." : "Save API key"}
+          </button>
+          <button type="button" onClick={() => openaiKeyStatus.refetch()} disabled={openaiKeyStatus.isPending}>
+            Refresh key status
+          </button>
+        </div>
+        {apiKeyError && <ErrorState text={apiKeyError} />}
       </article>
       <article className="panel stack">
         <h3>Start Over</h3>

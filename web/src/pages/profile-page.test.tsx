@@ -24,6 +24,9 @@ const mocks = vi.hoisted(() => ({
   progressTimeline: vi.fn(),
   usageBudgetStatus: vi.fn(),
   usageBudgetSet: vi.fn(),
+  openaiKeyStatus: vi.fn(),
+  openaiKeySet: vi.fn(),
+  debugOpenai: vi.fn(),
   pushToast: vi.fn(),
   navigate: vi.fn(),
   setBootstrapState: vi.fn(),
@@ -64,6 +67,9 @@ vi.mock("../api/client", async () => {
       progressTimeline: mocks.progressTimeline,
       usageBudgetStatus: mocks.usageBudgetStatus,
       usageBudgetSet: mocks.usageBudgetSet,
+      openaiKeyStatus: mocks.openaiKeyStatus,
+      openaiKeySet: mocks.openaiKeySet,
+      debugOpenai: mocks.debugOpenai,
     },
   };
 });
@@ -218,6 +224,24 @@ describe("ProfilePage", () => {
       weekly_warning: false,
       blocked: false,
     });
+    mocks.openaiKeyStatus.mockResolvedValue({
+      configured: false,
+      source: "none",
+      masked: null,
+      persistent: false,
+      secure_storage: true,
+    });
+    mocks.openaiKeySet.mockResolvedValue({
+      configured: true,
+      source: "secure_storage",
+      masked: "sk-...1234",
+      persistent: true,
+      secure_storage: true,
+    });
+    mocks.debugOpenai.mockResolvedValue({
+      status: "ok",
+      detail: "reachable",
+    });
     mocks.appReset.mockResolvedValue({
       status: "ok",
       deleted_users: 2,
@@ -330,6 +354,23 @@ describe("ProfilePage", () => {
 
     fireEvent.change(screen.getByLabelText("Theme mode"), { target: { value: "dark-elegant" } });
     expect(mocks.setTheme).toHaveBeenCalledWith("dark-elegant");
+  });
+
+  it("saves OpenAI key from profile section", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("OpenAI API key (Profile)")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("OpenAI API key (Profile)"), { target: { value: "sk-test-key" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save API key" }));
+
+    await waitFor(() => {
+      expect(mocks.openaiKeySet).toHaveBeenCalledWith({ api_key: "sk-test-key" });
+      expect(mocks.debugOpenai).toHaveBeenCalled();
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "OpenAI key saved and verified");
+    });
   });
 
   it("retakes placement test and updates level", async () => {
