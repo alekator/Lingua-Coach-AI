@@ -14,7 +14,11 @@ def test_scenario_catalog_quality_guardrails() -> None:
 
 
 def test_scenario_scripts_minimum_quality() -> None:
+    scenarios = default_scenarios()
     scripts = scenario_scripts()
+    scenario_ids = {item.id for item in scenarios}
+    script_ids = set(scripts.keys())
+    assert scenario_ids == script_ids
     for scenario_id, steps in scripts.items():
         assert len(steps) >= 3, f"{scenario_id} has too few steps"
         for step in steps:

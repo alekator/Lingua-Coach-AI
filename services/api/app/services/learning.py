@@ -130,145 +130,465 @@ def default_scenarios() -> list[ScenarioItem]:
 def scenario_scripts() -> dict[str, list[ScenarioScriptStep]]:
     return {
         "travel-hotel": [
-                ScenarioScriptStep(
-                    id="arrival",
-                    coach_prompt="You arrive at a hotel desk. Ask to check in with your reservation.",
-                    expected_keywords=["check", "reservation", "name"],
-                    tip="Use a polite opener and give one concrete detail.",
-                ),
-                ScenarioScriptStep(
-                    id="request",
-                    coach_prompt="Request one change: quiet room, higher floor, or late check-out.",
-                    expected_keywords=["room", "please", "late"],
-                    tip="State request + reason in one sentence.",
-                ),
-                ScenarioScriptStep(
-                    id="confirm",
-                    coach_prompt="Confirm the final details and thank the receptionist.",
-                    expected_keywords=["confirm", "thank", "nights"],
-                    tip="Repeat key details to avoid mistakes.",
-                ),
-            ],
+            ScenarioScriptStep(
+                id="arrival",
+                coach_prompt="You arrive at a hotel desk. Ask to check in with your reservation.",
+                expected_keywords=["check", "reservation", "name"],
+                tip="Use a polite opener and give one concrete detail.",
+            ),
+            ScenarioScriptStep(
+                id="request",
+                coach_prompt="Request one change: quiet room, higher floor, or late check-out.",
+                expected_keywords=["room", "please", "late"],
+                tip="State request + reason in one sentence.",
+            ),
+            ScenarioScriptStep(
+                id="confirm",
+                coach_prompt="Confirm the final details and thank the receptionist.",
+                expected_keywords=["confirm", "thank", "nights"],
+                tip="Repeat key details to avoid mistakes.",
+            ),
+        ],
         "job-interview": [
-                ScenarioScriptStep(
-                    id="intro",
-                    coach_prompt="Introduce yourself in 2-3 sentences for this role.",
-                    expected_keywords=["experience", "role", "skills"],
-                    tip="Keep structure: who you are -> relevant experience -> value.",
-                ),
-                ScenarioScriptStep(
-                    id="strength",
-                    coach_prompt="Describe one strength with a practical example.",
-                    expected_keywords=["example", "project", "result"],
-                    tip="Use a mini STAR pattern: situation, action, result.",
-                ),
-                ScenarioScriptStep(
-                    id="question",
-                    coach_prompt="Ask one thoughtful question to the interviewer.",
-                    expected_keywords=["team", "goals", "question"],
-                    tip="Ask about goals, team process, or impact expectations.",
-                ),
-            ],
+            ScenarioScriptStep(
+                id="intro",
+                coach_prompt="Introduce yourself in 2-3 sentences for this role.",
+                expected_keywords=["experience", "role", "skills"],
+                tip="Keep structure: who you are -> relevant experience -> value.",
+            ),
+            ScenarioScriptStep(
+                id="strength",
+                coach_prompt="Describe one strength with a practical example.",
+                expected_keywords=["example", "project", "result"],
+                tip="Use a mini STAR pattern: situation, action, result.",
+            ),
+            ScenarioScriptStep(
+                id="question",
+                coach_prompt="Ask one thoughtful question to the interviewer.",
+                expected_keywords=["team", "goals", "question"],
+                tip="Ask about goals, team process, or impact expectations.",
+            ),
+        ],
         "coffee-shop": [
-                ScenarioScriptStep(
-                    id="order",
-                    coach_prompt="Place your drink order with size and one preference.",
-                    expected_keywords=["coffee", "size", "please"],
-                    tip="Order pattern: drink + size + adjustment.",
-                ),
-                ScenarioScriptStep(
-                    id="clarify",
-                    coach_prompt="Clarify payment method and if take-away is possible.",
-                    expected_keywords=["pay", "card", "take"],
-                    tip="Ask one short question at a time.",
-                ),
-                ScenarioScriptStep(
-                    id="smalltalk",
-                    coach_prompt="Add one short friendly small-talk line before leaving.",
-                    expected_keywords=["day", "thank", "nice"],
-                    tip="Keep it natural and brief.",
-                ),
-            ],
+            ScenarioScriptStep(
+                id="order",
+                coach_prompt="Place your drink order with size and one preference.",
+                expected_keywords=["coffee", "size", "please"],
+                tip="Order pattern: drink + size + adjustment.",
+            ),
+            ScenarioScriptStep(
+                id="clarify",
+                coach_prompt="Clarify payment method and if take-away is possible.",
+                expected_keywords=["pay", "card", "take"],
+                tip="Ask one short question at a time.",
+            ),
+            ScenarioScriptStep(
+                id="smalltalk",
+                coach_prompt="Add one short friendly small-talk line before leaving.",
+                expected_keywords=["day", "thank", "nice"],
+                tip="Keep it natural and brief.",
+            ),
+        ],
         "airport-customs": [
-                ScenarioScriptStep(
-                    id="purpose",
-                    coach_prompt="State purpose of trip, destination, and duration.",
-                    expected_keywords=["travel", "days", "destination"],
-                    tip="Use simple factual statements.",
-                ),
-                ScenarioScriptStep(
-                    id="documents",
-                    coach_prompt="Explain where you will stay and show readiness with documents.",
-                    expected_keywords=["hotel", "booking", "documents"],
-                    tip="Answer directly without extra detail.",
-                ),
-                ScenarioScriptStep(
-                    id="close",
-                    coach_prompt="Close conversation politely and confirm next step.",
-                    expected_keywords=["thank", "next", "gate"],
-                    tip="Be polite and concise.",
-                ),
-            ],
+            ScenarioScriptStep(
+                id="purpose",
+                coach_prompt="State purpose of trip, destination, and duration.",
+                expected_keywords=["travel", "days", "destination"],
+                tip="Use simple factual statements.",
+            ),
+            ScenarioScriptStep(
+                id="documents",
+                coach_prompt="Explain where you will stay and show readiness with documents.",
+                expected_keywords=["hotel", "booking", "documents"],
+                tip="Answer directly without extra detail.",
+            ),
+            ScenarioScriptStep(
+                id="close",
+                coach_prompt="Close conversation politely and confirm next step.",
+                expected_keywords=["thank", "next", "gate"],
+                tip="Be polite and concise.",
+            ),
+        ],
         "relocation-rental": [
-                ScenarioScriptStep(
-                    id="search",
-                    coach_prompt="Ask about available apartments and monthly rent range.",
-                    expected_keywords=["apartment", "rent", "available"],
-                    tip="Ask one clear question, then narrow options.",
-                ),
-                ScenarioScriptStep(
-                    id="terms",
-                    coach_prompt="Clarify utilities, deposit, and contract length.",
-                    expected_keywords=["utilities", "deposit", "contract"],
-                    tip="Group financial terms in one sentence.",
-                ),
-                ScenarioScriptStep(
-                    id="close",
-                    coach_prompt="Confirm move-in date and request next steps by message.",
-                    expected_keywords=["move", "date", "message"],
-                    tip="End with a polite confirmation.",
-                ),
-            ],
+            ScenarioScriptStep(
+                id="search",
+                coach_prompt="Ask about available apartments and monthly rent range.",
+                expected_keywords=["apartment", "rent", "available"],
+                tip="Ask one clear question, then narrow options.",
+            ),
+            ScenarioScriptStep(
+                id="terms",
+                coach_prompt="Clarify utilities, deposit, and contract length.",
+                expected_keywords=["utilities", "deposit", "contract"],
+                tip="Group financial terms in one sentence.",
+            ),
+            ScenarioScriptStep(
+                id="close",
+                coach_prompt="Confirm move-in date and request next steps by message.",
+                expected_keywords=["move", "date", "message"],
+                tip="End with a polite confirmation.",
+            ),
+        ],
         "relocation-bank": [
-                ScenarioScriptStep(
-                    id="intent",
-                    coach_prompt="Explain that you want to open a bank account.",
-                    expected_keywords=["open", "account", "bank"],
-                    tip="State intent directly.",
-                ),
-                ScenarioScriptStep(
-                    id="verify",
-                    coach_prompt="Provide identity details and ask what documents are required.",
-                    expected_keywords=["documents", "passport", "required"],
-                    tip="Mention one ID and ask one requirement question.",
-                ),
-                ScenarioScriptStep(
-                    id="confirm",
-                    coach_prompt="Confirm fees and online banking setup.",
-                    expected_keywords=["fees", "online", "setup"],
-                    tip="Repeat critical account conditions.",
-                ),
-            ],
+            ScenarioScriptStep(
+                id="intent",
+                coach_prompt="Explain that you want to open a bank account.",
+                expected_keywords=["open", "account", "bank"],
+                tip="State intent directly.",
+            ),
+            ScenarioScriptStep(
+                id="verify",
+                coach_prompt="Provide identity details and ask what documents are required.",
+                expected_keywords=["documents", "passport", "required"],
+                tip="Mention one ID and ask one requirement question.",
+            ),
+            ScenarioScriptStep(
+                id="confirm",
+                coach_prompt="Confirm fees and online banking setup.",
+                expected_keywords=["fees", "online", "setup"],
+                tip="Repeat critical account conditions.",
+            ),
+        ],
         "relocation-clinic": [
-                ScenarioScriptStep(
-                    id="book",
-                    coach_prompt="Book an appointment and mention your main symptom.",
-                    expected_keywords=["appointment", "symptom", "today"],
-                    tip="One symptom, one time request.",
-                ),
-                ScenarioScriptStep(
-                    id="details",
-                    coach_prompt="Describe symptom duration and severity briefly.",
-                    expected_keywords=["days", "pain", "worse"],
-                    tip="Use time + intensity language.",
-                ),
-                ScenarioScriptStep(
-                    id="followup",
-                    coach_prompt="Ask about tests, prescription, and next visit.",
-                    expected_keywords=["tests", "prescription", "next"],
-                    tip="Ask for concrete follow-up.",
-                ),
-            ],
+            ScenarioScriptStep(
+                id="book",
+                coach_prompt="Book an appointment and mention your main symptom.",
+                expected_keywords=["appointment", "symptom", "today"],
+                tip="One symptom, one time request.",
+            ),
+            ScenarioScriptStep(
+                id="details",
+                coach_prompt="Describe symptom duration and severity briefly.",
+                expected_keywords=["days", "pain", "worse"],
+                tip="Use time + intensity language.",
+            ),
+            ScenarioScriptStep(
+                id="followup",
+                coach_prompt="Ask about tests, prescription, and next visit.",
+                expected_keywords=["tests", "prescription", "next"],
+                tip="Ask for concrete follow-up.",
+            ),
+        ],
+        "work-standup": [
+            ScenarioScriptStep(
+                id="done",
+                coach_prompt="Give one concise update on what you finished yesterday.",
+                expected_keywords=["finished", "task", "yesterday"],
+                tip="Use one clear sentence with outcome.",
+            ),
+            ScenarioScriptStep(
+                id="today",
+                coach_prompt="State your top priority for today and expected result.",
+                expected_keywords=["today", "priority", "result"],
+                tip="Name exactly one focus item.",
+            ),
+            ScenarioScriptStep(
+                id="blocker",
+                coach_prompt="Describe one blocker and ask for specific support.",
+                expected_keywords=["blocked", "need", "help"],
+                tip="Mention blocker + concrete ask.",
+            ),
+        ],
+        "work-meeting": [
+            ScenarioScriptStep(
+                id="proposal",
+                coach_prompt="Present a short idea for improving team workflow.",
+                expected_keywords=["proposal", "improve", "workflow"],
+                tip="State idea, benefit, and scope.",
+            ),
+            ScenarioScriptStep(
+                id="clarify",
+                coach_prompt="Answer a follow-up question about timeline or ownership.",
+                expected_keywords=["timeline", "owner", "next"],
+                tip="Be direct and specific.",
+            ),
+            ScenarioScriptStep(
+                id="align",
+                coach_prompt="Confirm action items and meeting next steps.",
+                expected_keywords=["action", "confirm", "next"],
+                tip="Close with who does what by when.",
+            ),
+        ],
+        "work-feedback": [
+            ScenarioScriptStep(
+                id="receive",
+                coach_prompt="Acknowledge manager feedback and summarize what you heard.",
+                expected_keywords=["feedback", "understand", "improve"],
+                tip="Paraphrase before reacting.",
+            ),
+            ScenarioScriptStep(
+                id="clarify",
+                coach_prompt="Ask one clarifying question about expectations.",
+                expected_keywords=["example", "expectation", "question"],
+                tip="Ask for measurable criteria.",
+            ),
+            ScenarioScriptStep(
+                id="plan",
+                coach_prompt="Commit to one concrete improvement action this week.",
+                expected_keywords=["plan", "week", "action"],
+                tip="Promise one specific behavior change.",
+            ),
+        ],
+        "work-email": [
+            ScenarioScriptStep(
+                id="subject",
+                coach_prompt="Write an opening line for a professional request email.",
+                expected_keywords=["request", "regarding", "hello"],
+                tip="Keep opening polite and explicit.",
+            ),
+            ScenarioScriptStep(
+                id="details",
+                coach_prompt="Add key details and one deadline.",
+                expected_keywords=["details", "deadline", "please"],
+                tip="Give context in one compact paragraph.",
+            ),
+            ScenarioScriptStep(
+                id="close",
+                coach_prompt="Close with confirmation request and thanks.",
+                expected_keywords=["confirm", "thank", "regards"],
+                tip="Use a professional closing formula.",
+            ),
+        ],
+        "travel-restaurant": [
+            ScenarioScriptStep(
+                id="table",
+                coach_prompt="Ask for a table and mention party size.",
+                expected_keywords=["table", "two", "please"],
+                tip="Be polite and concise.",
+            ),
+            ScenarioScriptStep(
+                id="order",
+                coach_prompt="Order a meal with one dietary preference.",
+                expected_keywords=["order", "without", "please"],
+                tip="State preference clearly.",
+            ),
+            ScenarioScriptStep(
+                id="bill",
+                coach_prompt="Request the bill and confirm payment method.",
+                expected_keywords=["bill", "card", "thank"],
+                tip="Close politely with gratitude.",
+            ),
+        ],
+        "travel-emergency": [
+            ScenarioScriptStep(
+                id="issue",
+                coach_prompt="Report an urgent issue (lost bag, injury, or theft).",
+                expected_keywords=["help", "lost", "urgent"],
+                tip="Lead with the urgent fact first.",
+            ),
+            ScenarioScriptStep(
+                id="location",
+                coach_prompt="Share your exact location and current condition.",
+                expected_keywords=["location", "now", "need"],
+                tip="Give concrete location details.",
+            ),
+            ScenarioScriptStep(
+                id="confirm",
+                coach_prompt="Confirm what will happen next and expected timing.",
+                expected_keywords=["next", "arrive", "minutes"],
+                tip="Repeat support steps to avoid confusion.",
+            ),
+        ],
+        "daily-shopping": [
+            ScenarioScriptStep(
+                id="find",
+                coach_prompt="Ask where to find a product in the store.",
+                expected_keywords=["where", "find", "aisle"],
+                tip="Name item + ask location.",
+            ),
+            ScenarioScriptStep(
+                id="compare",
+                coach_prompt="Compare two options by price or quality.",
+                expected_keywords=["price", "better", "difference"],
+                tip="Use one comparison phrase.",
+            ),
+            ScenarioScriptStep(
+                id="checkout",
+                coach_prompt="Confirm final choice and ask about checkout/payment.",
+                expected_keywords=["take", "checkout", "card"],
+                tip="End with a clear buying decision.",
+            ),
+        ],
+        "daily-phone-call": [
+            ScenarioScriptStep(
+                id="intro",
+                coach_prompt="Start a practical call and explain why you are calling.",
+                expected_keywords=["calling", "about", "need"],
+                tip="Open with purpose in one line.",
+            ),
+            ScenarioScriptStep(
+                id="details",
+                coach_prompt="Share the key details slowly and clearly.",
+                expected_keywords=["details", "number", "time"],
+                tip="Chunk details into short phrases.",
+            ),
+            ScenarioScriptStep(
+                id="repeat",
+                coach_prompt="Confirm details by repeating them back.",
+                expected_keywords=["repeat", "correct", "thank"],
+                tip="Always do verbal confirmation.",
+            ),
+        ],
+        "daily-directions": [
+            ScenarioScriptStep(
+                id="ask",
+                coach_prompt="Ask for directions to a specific place.",
+                expected_keywords=["how", "get", "station"],
+                tip="Mention destination first.",
+            ),
+            ScenarioScriptStep(
+                id="confirm",
+                coach_prompt="Confirm route with landmarks or transport.",
+                expected_keywords=["left", "right", "bus"],
+                tip="Repeat 2-3 key route points.",
+            ),
+            ScenarioScriptStep(
+                id="close",
+                coach_prompt="Thank the person and restate your next move.",
+                expected_keywords=["thank", "go", "now"],
+                tip="Close politely and clearly.",
+            ),
+        ],
+        "daily-neighbor": [
+            ScenarioScriptStep(
+                id="greeting",
+                coach_prompt="Start a friendly conversation with a neighbor.",
+                expected_keywords=["hello", "live", "building"],
+                tip="Use warm but short opener.",
+            ),
+            ScenarioScriptStep(
+                id="topic",
+                coach_prompt="Discuss one practical local topic (noise, parking, deliveries).",
+                expected_keywords=["today", "building", "problem"],
+                tip="Stay respectful and specific.",
+            ),
+            ScenarioScriptStep(
+                id="followup",
+                coach_prompt="Agree on one small follow-up action.",
+                expected_keywords=["agree", "tomorrow", "thanks"],
+                tip="End with a simple shared next step.",
+            ),
+        ],
+        "study-presentation": [
+            ScenarioScriptStep(
+                id="opening",
+                coach_prompt="Open a short presentation with topic and structure.",
+                expected_keywords=["today", "topic", "first"],
+                tip="Preview your structure early.",
+            ),
+            ScenarioScriptStep(
+                id="main",
+                coach_prompt="Explain one key point with an example.",
+                expected_keywords=["example", "because", "important"],
+                tip="One argument + one example.",
+            ),
+            ScenarioScriptStep(
+                id="closing",
+                coach_prompt="Conclude with takeaway and invite one question.",
+                expected_keywords=["summary", "question", "thank"],
+                tip="Finish with clear takeaway line.",
+            ),
+        ],
+        "study-debate": [
+            ScenarioScriptStep(
+                id="position",
+                coach_prompt="State your position on a topic in one sentence.",
+                expected_keywords=["think", "because", "important"],
+                tip="Avoid long intro; state claim quickly.",
+            ),
+            ScenarioScriptStep(
+                id="support",
+                coach_prompt="Give two supporting reasons with examples.",
+                expected_keywords=["first", "second", "example"],
+                tip="Use signposting words for clarity.",
+            ),
+            ScenarioScriptStep(
+                id="respond",
+                coach_prompt="Respond politely to an opposing viewpoint.",
+                expected_keywords=["understand", "however", "agree"],
+                tip="Acknowledge then counter respectfully.",
+            ),
+        ],
+        "study-storytelling": [
+            ScenarioScriptStep(
+                id="setup",
+                coach_prompt="Set scene: where/when and who was there.",
+                expected_keywords=["when", "where", "with"],
+                tip="Establish context before action.",
+            ),
+            ScenarioScriptStep(
+                id="event",
+                coach_prompt="Describe the key event and your reaction.",
+                expected_keywords=["suddenly", "happened", "felt"],
+                tip="Use sequence markers.",
+            ),
+            ScenarioScriptStep(
+                id="ending",
+                coach_prompt="Finish story with outcome and lesson.",
+                expected_keywords=["finally", "learned", "next"],
+                tip="Close with reflection.",
+            ),
+        ],
+        "service-return": [
+            ScenarioScriptStep(
+                id="issue",
+                coach_prompt="Explain product issue and purchase context.",
+                expected_keywords=["bought", "problem", "receipt"],
+                tip="State issue factually, not emotionally.",
+            ),
+            ScenarioScriptStep(
+                id="request",
+                coach_prompt="Request refund or exchange and give your reason.",
+                expected_keywords=["refund", "exchange", "prefer"],
+                tip="Ask clearly for one outcome.",
+            ),
+            ScenarioScriptStep(
+                id="negotiate",
+                coach_prompt="Negotiate if store offers alternative policy.",
+                expected_keywords=["policy", "can", "solution"],
+                tip="Stay polite while protecting your goal.",
+            ),
+        ],
+        "service-support": [
+            ScenarioScriptStep(
+                id="problem",
+                coach_prompt="Describe a technical issue to support in one clear summary.",
+                expected_keywords=["error", "cannot", "account"],
+                tip="Summarize issue in one line first.",
+            ),
+            ScenarioScriptStep(
+                id="steps",
+                coach_prompt="List what you already tried before contacting support.",
+                expected_keywords=["tried", "restart", "again"],
+                tip="Show troubleshooting history.",
+            ),
+            ScenarioScriptStep(
+                id="resolution",
+                coach_prompt="Confirm resolution steps and expected follow-up.",
+                expected_keywords=["ticket", "next", "email"],
+                tip="Repeat support instructions back.",
+            ),
+        ],
+        "networking-event": [
+            ScenarioScriptStep(
+                id="intro",
+                coach_prompt="Introduce yourself and your current focus area.",
+                expected_keywords=["work", "focus", "currently"],
+                tip="Keep intro under 20 seconds.",
+            ),
+            ScenarioScriptStep(
+                id="exchange",
+                coach_prompt="Ask about the other person's role and projects.",
+                expected_keywords=["role", "project", "interesting"],
+                tip="Ask one open question.",
+            ),
+            ScenarioScriptStep(
+                id="followup",
+                coach_prompt="Propose a follow-up message or short call.",
+                expected_keywords=["connect", "message", "next"],
+                tip="Suggest one realistic next step.",
+            ),
+        ],
     }
 
 
