@@ -1,9 +1,59 @@
 :root {
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
   line-height: 1.4;
-  color: #0f172a;
-  background: radial-gradient(circle at 10% 10%, #fef3c7, #e0f2fe 45%, #f8fafc 80%);
+  --bg-body: #cfe0ec;
+  --fg: #0f172a;
+  --fg-muted: #334155;
+  --panel-bg: rgba(255, 255, 255, 0.9);
+  --panel-border: #dbeafe;
+  --sidebar-bg: rgba(240, 248, 255, 0.62);
+  --sidebar-border: #a7bccf;
+  --chip-bg: rgba(255, 255, 255, 0.72);
+  --chip-border: #aac0d3;
+  --input-border: #94a3b8;
+  --button-bg: #0f172a;
+  --button-fg: #f8fafc;
+  --link-fg: #0f172a;
+  --code-bg: #f8fafc;
+  --status-loading-bg: #eff6ff;
+  --status-loading-border: #bfdbfe;
+  --status-empty-bg: #f8fafc;
+  --status-empty-border: #cbd5e1;
+  --status-error-bg: #fef2f2;
+  --status-error-border: #fecaca;
+  --status-error-fg: #991b1b;
+  --toast-bg: #ffffff;
+  --toast-border: #cbd5e1;
+  --shadow: 0 6px 22px rgba(15, 23, 42, 0.08);
+  color: var(--fg);
   color-scheme: light;
+}
+
+[data-theme="dark-elegant"] {
+  --bg-body: #0a0d14;
+  --fg: #e5edf6;
+  --fg-muted: #9fb0c2;
+  --panel-bg: rgba(20, 27, 39, 0.9);
+  --panel-border: #2a3b56;
+  --sidebar-bg: rgba(11, 16, 27, 0.94);
+  --sidebar-border: #22324c;
+  --chip-bg: rgba(25, 34, 48, 0.94);
+  --chip-border: #2f4565;
+  --input-border: #425a7c;
+  --button-bg: #f1f5f9;
+  --button-fg: #0f172a;
+  --link-fg: #dbeafe;
+  --code-bg: #111826;
+  --status-loading-bg: rgba(37, 99, 235, 0.18);
+  --status-loading-border: #355b96;
+  --status-empty-bg: rgba(15, 23, 42, 0.7);
+  --status-empty-border: #334155;
+  --status-error-bg: rgba(127, 29, 29, 0.22);
+  --status-error-border: #b45353;
+  --status-error-fg: #fecaca;
+  --toast-bg: #101826;
+  --toast-border: #334155;
+  --shadow: 0 12px 28px rgba(2, 6, 23, 0.5);
 }
 
 * {
@@ -13,11 +63,12 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #cfe0ec;
+  background: var(--bg-body);
+  color: var(--fg);
 }
 
 a {
-  color: #0f172a;
+  color: var(--link-fg);
   text-decoration: none;
 }
 
@@ -30,8 +81,8 @@ a {
 }
 
 .app-sidebar {
-  background: rgba(240, 248, 255, 0.62);
-  border-right: 1px solid #a7bccf;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
   padding: 18px 14px;
   display: flex;
   flex-direction: column;
@@ -49,7 +100,7 @@ a {
 .sidebar-brand p {
   margin: 6px 0 0;
   font-size: 0.92rem;
-  color: #334155;
+  color: var(--fg-muted);
 }
 
 .sidebar-nav {
@@ -69,21 +120,20 @@ a {
   font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #475569;
+  color: var(--fg-muted);
 }
 
 .sidebar-link {
-  border: 1px solid #aac0d3;
+  border: 1px solid var(--chip-border);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--chip-bg);
   padding: 10px 12px;
   font-size: 0.88rem;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
 }
 
 .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: #7da2c0;
+  border-color: var(--input-border);
 }
 
 .sidebar-link.active {
@@ -112,8 +162,8 @@ main {
 }
 
 .panel {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid #dbeafe;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
   border-radius: 14px;
   padding: clamp(12px, 1.6vw, 18px);
 }
@@ -133,16 +183,18 @@ label {
 input,
 select,
 button {
-  border: 1px solid #94a3b8;
+  border: 1px solid var(--input-border);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 16px;
+  background: var(--panel-bg);
+  color: var(--fg);
 }
 
 button {
   cursor: pointer;
-  background: #0f172a;
-  color: #f8fafc;
+  background: var(--button-bg);
+  color: var(--button-fg);
 }
 
 .grid {
@@ -153,7 +205,7 @@ button {
 
 .grid article {
   border-radius: 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--panel-border);
   padding: 12px;
 }
 
@@ -171,9 +223,9 @@ button {
 
 pre {
   white-space: pre-wrap;
-  background: #f8fafc;
+  background: var(--code-bg);
   border-radius: 10px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--panel-border);
   padding: 10px;
 }
 
@@ -191,30 +243,30 @@ video {
 }
 
 .status.loading {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: var(--status-loading-bg);
+  border-color: var(--status-loading-border);
 }
 
 .status.empty {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+  background: var(--status-empty-bg);
+  border-color: var(--status-empty-border);
 }
 
 .status.error {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #991b1b;
+  background: var(--status-error-bg);
+  border-color: var(--status-error-border);
+  color: var(--status-error-fg);
 }
 
 .badge {
   display: inline-block;
   width: fit-content;
-  border: 1px solid #93c5fd;
+  border: 1px solid var(--panel-border);
   border-radius: 999px;
   padding: 2px 10px;
-  background: #eff6ff;
+  background: var(--status-loading-bg);
   font-size: 12px;
-  color: #1e3a8a;
+  color: var(--fg);
 }
 
 .toast-viewport {
@@ -234,10 +286,10 @@ video {
   align-items: center;
   gap: 8px;
   border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
+  border: 1px solid var(--toast-border);
+  background: var(--toast-bg);
   padding: 10px 12px;
-  box-shadow: 0 6px 22px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow);
 }
 
 .toast button {
@@ -293,9 +345,9 @@ video {
     top: 12px;
     z-index: 35;
     border-radius: 9px;
-    border: 1px solid #94a3b8;
-    background: rgba(255, 255, 255, 0.95);
-    color: #0f172a;
+    border: 1px solid var(--input-border);
+    background: var(--panel-bg);
+    color: var(--fg);
     padding: 8px 10px;
     font-size: 13px;
   }

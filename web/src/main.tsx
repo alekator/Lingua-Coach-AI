@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import { ToastViewport } from "./components/toast-viewport";
 import { registerPwaServiceWorker } from "./lib/pwa";
 import { AppRouter } from "./router";
+import { useAppStore } from "./store/app-store";
 import "./styles.css";
 
 const queryClient = new QueryClient();
@@ -15,9 +16,18 @@ const routerFuture = {
 
 void registerPwaServiceWorker();
 
+function ThemeSync() {
+  const theme = useAppStore((s) => s.theme);
+  React.useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+  return null;
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
+      <ThemeSync />
       <BrowserRouter future={routerFuture}>
         <AppRouter />
         <ToastViewport />

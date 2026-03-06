@@ -16,6 +16,8 @@ export function ProfilePage() {
   const queryClient = useQueryClient();
   const userId = useAppStore((s) => s.userId) ?? 1;
   const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
+  const theme = useAppStore((s) => s.theme);
+  const setTheme = useAppStore((s) => s.setTheme);
   const setBootstrapState = useAppStore((s) => s.setBootstrapState);
   const [nativeLang, setNativeLang] = useState("");
   const [targetLang, setTargetLang] = useState("");
@@ -464,6 +466,21 @@ export function ProfilePage() {
     <section className="panel stack">
       <h2>Coach Profile</h2>
       <p>Manage your learning spaces, preferences, and progress signals in one place.</p>
+      <article className="panel stack">
+        <h3>Appearance</h3>
+        <p>Switch UI theme anytime. Light remains default, Dark elegant is optional.</p>
+        <label>
+          Theme
+          <select
+            aria-label="Theme mode"
+            value={theme}
+            onChange={(e) => setTheme(e.target.value as "light" | "dark-elegant")}
+          >
+            <option value="light">Light</option>
+            <option value="dark-elegant">Dark elegant</option>
+          </select>
+        </label>
+      </article>
       <article className="panel stack">
         <h3>Learning Spaces</h3>
         <p>Each language pair is an isolated coach space with its own progress and recommendations.</p>

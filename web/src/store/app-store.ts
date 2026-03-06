@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 type AppState = {
+  theme: "light" | "dark-elegant";
   userId: number | null;
   ownerUserId: number | null;
   activeWorkspaceId: number | null;
@@ -21,9 +22,18 @@ type AppState = {
   }) => void;
   setCoachPrefs: (payload: { dailyMinutes: number; strictness: "low" | "medium" | "high" }) => void;
   setDailyMinutes: (minutes: number) => void;
+  setTheme: (theme: "light" | "dark-elegant") => void;
 };
 
+function initialTheme(): "light" | "dark-elegant" {
+  if (typeof window === "undefined") return "light";
+  const saved = window.localStorage.getItem("linguacoach_theme");
+  if (saved === "dark-elegant") return "dark-elegant";
+  return "light";
+}
+
 export const useAppStore = create<AppState>((set) => ({
+  theme: initialTheme(),
   userId: null,
   ownerUserId: null,
   activeWorkspaceId: null,
@@ -49,4 +59,10 @@ export const useAppStore = create<AppState>((set) => ({
       strictness: payload.strictness,
     }),
   setDailyMinutes: (minutes) => set({ dailyMinutes: Math.max(5, Math.min(120, minutes)) }),
+  setTheme: (theme) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("linguacoach_theme", theme);
+    }
+    set({ theme });
+  },
 }));

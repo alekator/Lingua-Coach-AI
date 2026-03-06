@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   pushToast: vi.fn(),
   navigate: vi.fn(),
   setBootstrapState: vi.fn(),
+  setTheme: vi.fn(),
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -73,9 +74,17 @@ vi.mock("../store/app-store", () => ({
       userId: number;
       activeWorkspaceId: number;
       setBootstrapState: typeof mocks.setBootstrapState;
+      theme: "light" | "dark-elegant";
+      setTheme: typeof mocks.setTheme;
     }) => unknown,
   ) =>
-    selector({ userId: 1, activeWorkspaceId: 1, setBootstrapState: mocks.setBootstrapState }),
+    selector({
+      userId: 1,
+      activeWorkspaceId: 1,
+      setBootstrapState: mocks.setBootstrapState,
+      theme: "light",
+      setTheme: mocks.setTheme,
+    }),
 }));
 
 vi.mock("../store/toast-store", () => ({
@@ -310,6 +319,17 @@ describe("ProfilePage", () => {
       );
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Profile updated");
     });
+  });
+
+  it("switches appearance theme", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Theme mode")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("Theme mode"), { target: { value: "dark-elegant" } });
+    expect(mocks.setTheme).toHaveBeenCalledWith("dark-elegant");
   });
 
   it("retakes placement test and updates level", async () => {
