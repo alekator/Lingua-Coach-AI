@@ -70,6 +70,7 @@ from app.services.learning import (
     script_for_level,
     scenario_scripts,
 )
+from app.services.language_capabilities import is_speech_language_supported, validate_language_code
 from app.services.progress import compute_streak_days
 from app.services.srs import utcnow
 from app.services.translate import TranslatorFn, TtsSynthesizerFn
@@ -306,6 +307,21 @@ async def translate_voice(
     language_hint: str = Form(default="auto"),
     voice_name: str = Form(default="alloy"),
 ) -> TranslateVoiceResponse:
+    if source_lang != "auto":
+        try:
+            source_lang = validate_language_code(source_lang)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        target_lang = validate_language_code(target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if language_hint != "auto":
+        try:
+            language_hint = validate_language_code(language_hint)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     asr_transcriber: AsrTranscriberFn = request.app.state.asr_transcriber
     translator: TranslatorFn = request.app.state.translator
     tts_synthesizer: TtsSynthesizerFn = request.app.state.tts_synthesizer
@@ -319,7 +335,10 @@ async def translate_voice(
     )
     transcript = asr["transcript"]
     translated = translator(transcript, source_lang, target_lang)
-    audio_url = tts_synthesizer(translated, target_lang, voice_name)
+    if is_speech_language_supported(target_lang):
+        audio_url = tts_synthesizer(translated, target_lang, voice_name)
+    else:
+        audio_url = "offline://tts-language-limited"
 
     return TranslateVoiceResponse(
         transcript=transcript,

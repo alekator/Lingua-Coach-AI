@@ -76,13 +76,16 @@ def workspaces_list(db: Session = Depends(get_db)) -> WorkspaceListResponse:
 
 @router.post("", response_model=WorkspaceBase)
 def workspace_create(payload: WorkspaceCreateRequest, db: Session = Depends(get_db)) -> WorkspaceBase:
-    workspace = create_workspace(
-        db,
-        native_lang=payload.native_lang,
-        target_lang=payload.target_lang,
-        goal=payload.goal,
-        make_active=payload.make_active,
-    )
+    try:
+        workspace = create_workspace(
+            db,
+            native_lang=payload.native_lang,
+            target_lang=payload.target_lang,
+            goal=payload.goal,
+            make_active=payload.make_active,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     db.commit()
     db.refresh(workspace)
     return _workspace_to_schema(workspace)

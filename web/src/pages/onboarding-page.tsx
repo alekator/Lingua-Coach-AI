@@ -52,6 +52,7 @@ export function OnboardingPage() {
   const [starterErrors, setStarterErrors] = useState<string[]>([]);
   const [starterPlan, setStarterPlan] = useState<PlanTodayResponse | null>(null);
   const [showWowResult, setShowWowResult] = useState(false);
+  const [capabilityHint, setCapabilityHint] = useState("");
   const [error, setError] = useState("");
   const pushToast = useToastStore((s) => s.push);
   const locale = uiLocaleFromNativeLang(activeWorkspaceNativeLang);
@@ -89,6 +90,31 @@ export function OnboardingPage() {
       setGoal(activeWorkspaceGoal);
     }
   }, [activeWorkspaceGoal, activeWorkspaceNativeLang, activeWorkspaceTargetLang, sessionId, showWowResult]);
+
+  useEffect(() => {
+    let active = true;
+    const native = normalizeLanguageCode(nativeLang);
+    const target = normalizeLanguageCode(targetLang);
+    if (!native || !target || native === target) {
+      setCapabilityHint("");
+      return () => {
+        active = false;
+      };
+    }
+    api
+      .languageCapabilities(native, target)
+      .then((caps) => {
+        if (!active) return;
+        setCapabilityHint(caps.recommendation);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCapabilityHint("Could not load language capabilities right now.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [nativeLang, targetLang]);
 
   async function onSaveApiKey() {
     if (!apiKey.trim()) return;
@@ -225,6 +251,7 @@ export function OnboardingPage() {
             onTargetLangChange={setTargetLang}
             ariaPrefix="Onboarding"
           />
+          {capabilityHint && <p>{capabilityHint}</p>}
           <label>
             Goal
             <input value={goal} onChange={(e) => setGoal(e.target.value)} />

@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import LearningWorkspace, User
+from app.services.language_capabilities import validate_language_code, validate_language_pair
 
 LOCAL_OWNER_USER_ID = 1
 
@@ -42,7 +43,7 @@ def set_active_workspace(db: Session, workspace: LearningWorkspace) -> None:
 
 
 def normalize_lang(lang: str) -> str:
-    return lang.strip().lower()
+    return validate_language_code(lang)
 
 
 def get_workspace_by_lang_pair(
@@ -82,8 +83,7 @@ def create_workspace(
     owner_user_id: int = LOCAL_OWNER_USER_ID,
 ) -> LearningWorkspace:
     owner = get_or_create_user(db, owner_user_id)
-    native = normalize_lang(native_lang)
-    target = normalize_lang(target_lang)
+    native, target = validate_language_pair(native_lang, target_lang)
     existing = get_workspace_by_lang_pair(db, native, target, owner.id)
     if existing is not None:
         existing.goal = goal if goal is not None else existing.goal

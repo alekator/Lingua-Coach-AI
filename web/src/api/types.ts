@@ -113,6 +113,16 @@ export type UsageBudgetStatus = {
   blocked: boolean;
 };
 
+export type LanguageCapabilities = {
+  native_lang: string;
+  target_lang: string;
+  text_supported: boolean;
+  asr_supported: boolean;
+  tts_supported: boolean;
+  voice_supported: boolean;
+  recommendation: string;
+};
+
 export type OpenAIDebugResponse = {
   status: string;
   detail: string;

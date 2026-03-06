@@ -48,8 +48,13 @@ def _get_or_create_user(db: Session, user_id: int) -> User:
 
 
 def _resolve_user_for_profile_setup(payload: ProfileSetupRequest, db: Session) -> tuple[int, str, str]:
-    normalized_native = normalize_lang(payload.native_lang)
-    normalized_target = normalize_lang(payload.target_lang)
+    try:
+        normalized_native = normalize_lang(payload.native_lang)
+        normalized_target = normalize_lang(payload.target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if normalized_native == normalized_target:
+        raise HTTPException(status_code=400, detail="Native and target language must be different")
 
     if payload.user_id != LOCAL_OWNER_USER_ID:
         workspace = get_workspace_for_user(db, payload.user_id)
@@ -66,13 +71,16 @@ def _resolve_user_for_profile_setup(payload: ProfileSetupRequest, db: Session) -
 
     workspace = get_workspace_by_lang_pair(db, normalized_native, normalized_target)
     if workspace is None:
-        workspace = create_workspace(
-            db,
-            native_lang=normalized_native,
-            target_lang=normalized_target,
-            goal=payload.goal,
-            make_active=True,
-        )
+        try:
+            workspace = create_workspace(
+                db,
+                native_lang=normalized_native,
+                target_lang=normalized_target,
+                goal=payload.goal,
+                make_active=True,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     else:
         workspace.goal = payload.goal
         set_active_workspace(db, workspace)
@@ -134,19 +142,27 @@ def profile_get(user_id: int, db: Session = Depends(get_db)) -> ProfileGetRespon
 def placement_start(
     payload: PlacementStartRequest, db: Session = Depends(get_db)
 ) -> PlacementStartResponse:
-    normalized_native = normalize_lang(payload.native_lang)
-    normalized_target = normalize_lang(payload.target_lang)
+    try:
+        normalized_native = normalize_lang(payload.native_lang)
+        normalized_target = normalize_lang(payload.target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if normalized_native == normalized_target:
+        raise HTTPException(status_code=400, detail="Native and target language must be different")
     resolved_user_id = payload.user_id
     resolved_native = normalized_native
     resolved_target = normalized_target
     if payload.user_id == LOCAL_OWNER_USER_ID:
-        workspace = create_workspace(
-            db,
-            native_lang=normalized_native,
-            target_lang=normalized_target,
-            goal=None,
-            make_active=True,
-        )
+        try:
+            workspace = create_workspace(
+                db,
+                native_lang=normalized_native,
+                target_lang=normalized_target,
+                goal=None,
+                make_active=True,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         resolved_user_id = workspace.learner_user_id
         resolved_native = workspace.native_lang
         resolved_target = workspace.target_lang

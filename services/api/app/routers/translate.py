@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
+from fastapi import HTTPException
 
 from app.config import settings
 from app.schemas.translate import TranslateRequest, TranslateResponse
 from app.services.translate import TranslatorFn, TtsSynthesizerFn
 from app.db import get_db
 from app.services.usage_budget import estimate_text_tokens, get_usage_budget_snapshot, record_usage_event
+from app.services.language_capabilities import is_speech_language_supported, validate_language_code
 from sqlalchemy.orm import Session
 from fastapi import Depends
 
@@ -15,6 +17,16 @@ router = APIRouter(tags=["translate"])
 
 @router.post("/translate", response_model=TranslateResponse)
 def translate(payload: TranslateRequest, request: Request, db: Session = Depends(get_db)) -> TranslateResponse:
+    if payload.source_lang != "auto":
+        try:
+            payload.source_lang = validate_language_code(payload.source_lang)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        payload.target_lang = validate_language_code(payload.target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     translator: TranslatorFn = request.app.state.translator
     tts_synthesizer: TtsSynthesizerFn = request.app.state.tts_synthesizer
     if payload.user_id is not None:
@@ -35,11 +47,14 @@ def translate(payload: TranslateRequest, request: Request, db: Session = Depends
 
     audio_url: str | None = None
     if payload.voice:
-        try:
-            audio_url = tts_synthesizer(translated, payload.target_lang, payload.voice_name)
-        except Exception:
-            # Keep response successful and omit audio in degraded mode.
+        if not is_speech_language_supported(payload.target_lang):
             audio_url = None
+        else:
+            try:
+                audio_url = tts_synthesizer(translated, payload.target_lang, payload.voice_name)
+            except Exception:
+                # Keep response successful and omit audio in degraded mode.
+                audio_url = None
 
     if payload.user_id is not None:
         prompt_tokens = estimate_text_tokens(payload.text)

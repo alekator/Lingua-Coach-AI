@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   openaiKeyStatus: vi.fn(),
   openaiKeySet: vi.fn(),
   debugOpenai: vi.fn(),
+  languageCapabilities: vi.fn(),
   activeWorkspaceNativeLang: null as string | null,
   activeWorkspaceTargetLang: null as string | null,
   activeWorkspaceGoal: null as string | null,
@@ -69,6 +70,7 @@ vi.mock("../api/client", async () => {
       openaiKeyStatus: mocks.openaiKeyStatus,
       openaiKeySet: mocks.openaiKeySet,
       debugOpenai: mocks.debugOpenai,
+      languageCapabilities: mocks.languageCapabilities,
       placementStart: mocks.placementStart,
       placementAnswer: mocks.placementAnswer,
       placementFinish: mocks.placementFinish,
@@ -97,6 +99,15 @@ describe("OnboardingPage", () => {
     mocks.debugOpenai.mockResolvedValue({
       status: "ok",
       detail: "OpenAI reachable",
+    });
+    mocks.languageCapabilities.mockResolvedValue({
+      native_lang: "ru",
+      target_lang: "en",
+      text_supported: true,
+      asr_supported: true,
+      tts_supported: true,
+      voice_supported: true,
+      recommendation: "Full mode: chat, translate, and voice are available.",
     });
   });
 

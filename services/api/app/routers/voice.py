@@ -10,6 +10,7 @@ from app.db import get_db
 from app.config import settings
 from app.models import LearnerProfile, Mistake, SkillSnapshot
 from app.schemas.voice import VoiceMessageResponse, VoiceProgressPoint, VoiceProgressResponse, VoiceTranscribeResponse
+from app.services.language_capabilities import is_speech_language_supported, validate_language_code
 from app.services.translate import TtsSynthesizerFn
 from app.services.usage_budget import estimate_text_tokens, get_usage_budget_snapshot, record_usage_event
 from app.services.voice import (
@@ -28,6 +29,12 @@ async def voice_transcribe(
     file: UploadFile = File(...),
     language_hint: str = Form(default="auto"),
 ) -> VoiceTranscribeResponse:
+    if language_hint != "auto":
+        try:
+            validate_language_code(language_hint)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     asr_transcriber: AsrTranscriberFn = request.app.state.asr_transcriber
     audio_bytes = await file.read()
     try:
@@ -93,6 +100,11 @@ async def voice_message(
         or "en"
     )
     try:
+        resolved_target_lang = validate_language_code(resolved_target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    try:
         teacher_text = voice_teacher(transcript, profile, resolved_target_lang)
     except Exception:
         teacher_text = (
@@ -100,14 +112,21 @@ async def voice_message(
             "Try one shorter and cleaner version next."
         )
 
-    try:
-        audio_url = tts_synthesizer(teacher_text, resolved_target_lang, voice_name)
-    except Exception:
-        audio_url = "offline://tts-unavailable"
+    if not is_speech_language_supported(resolved_target_lang):
+        audio_url = "offline://tts-language-limited"
         teacher_text = (
             f"{teacher_text}\n\n"
-            "Audio playback is temporarily unavailable. Continue in text mode for this turn."
+            "Voice playback for this language is limited. Continue with text feedback for this turn."
         )
+    else:
+        try:
+            audio_url = tts_synthesizer(teacher_text, resolved_target_lang, voice_name)
+        except Exception:
+            audio_url = "offline://tts-unavailable"
+            teacher_text = (
+                f"{teacher_text}\n\n"
+                "Audio playback is temporarily unavailable. Continue in text mode for this turn."
+            )
 
     if user_id is not None:
         prompt_tokens = estimate_text_tokens(transcript)

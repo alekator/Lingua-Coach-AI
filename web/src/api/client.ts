@@ -7,6 +7,7 @@ import type {
   OpenAIDebugResponse,
   OpenAIKeyStatus,
   UsageBudgetStatus,
+  LanguageCapabilities,
   ProfileResponse,
   ChatMessageResponse,
   CoachErrorBankResponse,
@@ -151,6 +152,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  languageCapabilities: (nativeLang: string, targetLang: string) =>
+    request<LanguageCapabilities>(
+      `/settings/language-capabilities?native_lang=${encodeURIComponent(nativeLang)}&target_lang=${encodeURIComponent(
+        targetLang,
+      )}`,
+    ),
   debugOpenai: () => request<OpenAIDebugResponse>("/debug/openai"),
   profileSetup: (payload: {
     user_id: number;

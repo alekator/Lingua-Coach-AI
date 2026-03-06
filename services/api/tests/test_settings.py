@@ -60,3 +60,23 @@ def test_usage_budget_get_and_set(client: TestClient) -> None:
     status_after = client.get("/settings/usage-budget", params={"user_id": 41})
     assert status_after.status_code == 200
     assert status_after.json()["daily_token_cap"] == 9000
+
+
+def test_language_capabilities_endpoint(client: TestClient) -> None:
+    ok = client.get(
+        "/settings/language-capabilities",
+        params={"native_lang": "de", "target_lang": "en"},
+    )
+    assert ok.status_code == 200
+    body = ok.json()
+    assert body["native_lang"] == "de"
+    assert body["target_lang"] == "en"
+    assert body["text_supported"] is True
+    assert "recommendation" in body
+
+    bad = client.get(
+        "/settings/language-capabilities",
+        params={"native_lang": "en", "target_lang": "en"},
+    )
+    assert bad.status_code == 400
+    assert bad.json()["detail"] == "Native and target language must be different"

@@ -7,11 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.schemas.settings import (
+    LanguageCapabilitiesResponse,
     OpenAIKeySetRequest,
     OpenAIKeyStatusResponse,
     UsageBudgetSetRequest,
     UsageBudgetStatusResponse,
 )
+from app.services.language_capabilities import get_pair_capabilities
 from app.services.usage_budget import get_usage_budget_snapshot, upsert_usage_budget_settings
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -59,3 +61,12 @@ def usage_budget_set(payload: UsageBudgetSetRequest, db: Session = Depends(get_d
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return UsageBudgetStatusResponse(user_id=payload.user_id, **snapshot.__dict__)
+
+
+@router.get("/language-capabilities", response_model=LanguageCapabilitiesResponse)
+def language_capabilities(native_lang: str, target_lang: str) -> LanguageCapabilitiesResponse:
+    try:
+        caps = get_pair_capabilities(native_lang, target_lang)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return LanguageCapabilitiesResponse(**caps.__dict__)

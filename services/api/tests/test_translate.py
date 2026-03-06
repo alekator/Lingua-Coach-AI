@@ -164,3 +164,41 @@ def test_translate_tts_failure_returns_text_without_audio(
         body = response.json()
         assert body["translated_text"] == "Guten Abend"
         assert body["audio_url"] is None
+
+
+def test_translate_rejects_invalid_language_code(client: TestClient) -> None:
+    response = client.post(
+        "/translate",
+        json={
+            "text": "Hello",
+            "source_lang": "en!",
+            "target_lang": "de",
+            "voice": False,
+        },
+    )
+    assert response.status_code == 400
+    assert "Invalid language code" in response.json()["detail"]
+
+
+def test_translate_voice_mode_skips_audio_for_limited_speech_language(
+    client_factory: Callable[..., TestClient],
+) -> None:
+    def fake_translator(text: str, source_lang: str, target_lang: str) -> str:
+        return "Test output"
+
+    def fake_tts(text: str, target_lang: str, voice_name: str) -> str:
+        raise RuntimeError("should not be called for unsupported language")
+
+    with client_factory(translator=fake_translator, tts_synthesizer=fake_tts) as client:
+        response = client.post(
+            "/translate",
+            json={
+                "text": "Hello",
+                "source_lang": "en",
+                "target_lang": "sv",
+                "voice": True,
+                "voice_name": "alloy",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["audio_url"] is None

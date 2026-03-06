@@ -32,3 +32,13 @@ class UsageBudgetStatusResponse(BaseModel):
     daily_warning: bool
     weekly_warning: bool
     blocked: bool
+
+
+class LanguageCapabilitiesResponse(BaseModel):
+    native_lang: str
+    target_lang: str
+    text_supported: bool
+    asr_supported: bool
+    tts_supported: bool
+    voice_supported: bool
+    recommendation: str

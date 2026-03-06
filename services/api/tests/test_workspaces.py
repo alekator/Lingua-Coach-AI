@@ -281,3 +281,19 @@ def test_workspace_update_goal(client: TestClient) -> None:
     assert listed.status_code == 200
     item = next(item for item in listed.json()["items"] if item["id"] == workspace_id)
     assert item["goal"] == "job interview"
+
+
+def test_workspace_create_rejects_invalid_or_same_language_pair(client: TestClient) -> None:
+    same = client.post(
+        "/workspaces",
+        json={"native_lang": "en", "target_lang": "en", "goal": "travel", "make_active": True},
+    )
+    assert same.status_code == 400
+    assert same.json()["detail"] == "Native and target language must be different"
+
+    invalid = client.post(
+        "/workspaces",
+        json={"native_lang": "en!", "target_lang": "de", "goal": "travel", "make_active": True},
+    )
+    assert invalid.status_code == 400
+    assert "Invalid language code" in invalid.json()["detail"]
