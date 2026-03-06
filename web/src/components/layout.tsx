@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { api } from "../api/client";
 import { t, uiLocaleFromNativeLang } from "../lib/i18n";
+import { getErrorMessage } from "../lib/errors";
 import { useAppStore } from "../store/app-store";
+import { useToastStore } from "../store/toast-store";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
 const navSections = [
@@ -48,6 +50,8 @@ type KeyIssue = {
   title: string;
   message: string;
 };
+
+type RuntimeModule = "llm" | "asr" | "tts";
 
 function classifyOpenAIProbeError(error: unknown): KeyIssue {
   const status = typeof error === "object" && error !== null && "status" in error ? Number(error.status) : undefined;
@@ -101,11 +105,23 @@ function classifyOpenAIProbeError(error: unknown): KeyIssue {
 }
 
 export function AppLayout() {
+  const userId = useAppStore((s) => s.userId) ?? 1;
   const locale = uiLocaleFromNativeLang(useAppStore((s) => s.activeWorkspaceNativeLang));
   const theme = useAppStore((s) => s.theme);
   const setTheme = useAppStore((s) => s.setTheme);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [llmProviderDraft, setLlmProviderDraft] = useState<"openai" | "local">("openai");
+  const [asrProviderDraft, setAsrProviderDraft] = useState<"openai" | "local">("openai");
+  const [ttsProviderDraft, setTtsProviderDraft] = useState<"openai" | "local">("openai");
+  const [providerBusy, setProviderBusy] = useState<RuntimeModule | null>(null);
+  const [apiKeyDraft, setApiKeyDraft] = useState("");
+  const [apiKeyBusy, setApiKeyBusy] = useState(false);
+  const [dailyTokenCap, setDailyTokenCap] = useState("12000");
+  const [weeklyTokenCap, setWeeklyTokenCap] = useState("60000");
+  const [warningThreshold, setWarningThreshold] = useState("0.8");
+  const [budgetSaving, setBudgetSaving] = useState(false);
   const location = useLocation();
+  const pushToast = useToastStore((s) => s.push);
   const keyStatus = useQuery({
     queryKey: ["openai-key-status-banner"],
     queryFn: api.openaiKeyStatus,
@@ -126,6 +142,10 @@ export function AppLayout() {
     retry: false,
     staleTime: 60_000,
   });
+  const usageBudget = useQuery({
+    queryKey: ["usage-budget-sidebar", userId],
+    queryFn: () => api.usageBudgetStatus(userId),
+  });
   const llmIsLocal = aiRuntime.data?.llm_provider === "local";
   const showMissingKey = keyStatus.isSuccess && !keyStatus.data.configured && !llmIsLocal;
   const keyIssue =
@@ -137,6 +157,108 @@ export function AppLayout() {
     aiRuntime.isSuccess &&
     (aiRuntime.data.llm.status !== "ok" || aiRuntime.data.asr.status === "error" || aiRuntime.data.tts.status === "error");
   const activeNavLabel = resolveActiveNavLabel(location.pathname);
+  const showProfileRuntimeStrip = location.pathname.startsWith("/app/profile");
+  const keyProbeIssue =
+    keyStatus.data?.configured && keyProbe.isError && !llmIsLocal ? classifyOpenAIProbeError(keyProbe.error) : null;
+  const keyLampTone: "ok" | "warn" | "bad" =
+    keyStatus.isError || !keyStatus.data?.configured ? "bad" : keyProbeIssue ? "warn" : "ok";
+  const keyLampHint = keyStatus.isError
+    ? "Unable to check key status right now."
+    : !keyStatus.data?.configured
+      ? "OpenAI key is not configured."
+      : keyProbeIssue
+        ? `${keyProbeIssue.title} ${keyProbeIssue.message}`
+        : `Status: configured ${keyStatus.data.masked ? `(${keyStatus.data.masked})` : ""}`;
+
+  useEffect(() => {
+    if (!aiRuntime.data) return;
+    setLlmProviderDraft(aiRuntime.data.llm_provider);
+    setAsrProviderDraft(aiRuntime.data.asr_provider);
+    setTtsProviderDraft(aiRuntime.data.tts_provider);
+  }, [aiRuntime.data]);
+
+  useEffect(() => {
+    if (!usageBudget.data) return;
+    setDailyTokenCap(String(usageBudget.data.daily_token_cap));
+    setWeeklyTokenCap(String(usageBudget.data.weekly_token_cap));
+    setWarningThreshold(String(usageBudget.data.warning_threshold));
+  }, [usageBudget.data]);
+
+  async function onChangeProvider(module: RuntimeModule) {
+    if (providerBusy) return;
+    const nextProvider =
+      module === "llm"
+        ? llmProviderDraft === "openai"
+          ? "local"
+          : "openai"
+        : module === "asr"
+          ? asrProviderDraft === "openai"
+            ? "local"
+            : "openai"
+          : ttsProviderDraft === "openai"
+            ? "local"
+            : "openai";
+    const prev = {
+      llm: llmProviderDraft,
+      asr: asrProviderDraft,
+      tts: ttsProviderDraft,
+    };
+    if (module === "llm") setLlmProviderDraft(nextProvider);
+    if (module === "asr") setAsrProviderDraft(nextProvider);
+    if (module === "tts") setTtsProviderDraft(nextProvider);
+    setProviderBusy(module);
+    try {
+      await api.aiRuntimeSet({
+        llm_provider: module === "llm" ? nextProvider : llmProviderDraft,
+        asr_provider: module === "asr" ? nextProvider : asrProviderDraft,
+        tts_provider: module === "tts" ? nextProvider : ttsProviderDraft,
+      });
+      await aiRuntime.refetch();
+    } catch (err) {
+      setLlmProviderDraft(prev.llm);
+      setAsrProviderDraft(prev.asr);
+      setTtsProviderDraft(prev.tts);
+      pushToast("error", getErrorMessage(err));
+    } finally {
+      setProviderBusy(null);
+    }
+  }
+
+  async function onSaveBudget(event: FormEvent) {
+    event.preventDefault();
+    setBudgetSaving(true);
+    try {
+      await api.usageBudgetSet({
+        user_id: userId,
+        daily_token_cap: Number(dailyTokenCap),
+        weekly_token_cap: Number(weeklyTokenCap),
+        warning_threshold: Number(warningThreshold),
+      });
+      await usageBudget.refetch();
+      pushToast("success", "Usage limits updated");
+    } catch (err) {
+      pushToast("error", getErrorMessage(err));
+    } finally {
+      setBudgetSaving(false);
+    }
+  }
+
+  async function onSaveApiKeySidebar() {
+    const candidate = apiKeyDraft.trim();
+    if (!candidate) return;
+    setApiKeyBusy(true);
+    try {
+      await api.openaiKeySet({ api_key: candidate });
+      await keyStatus.refetch();
+      await keyProbe.refetch();
+      setApiKeyDraft("");
+      pushToast("success", "OpenAI key saved");
+    } catch (err) {
+      pushToast("error", getErrorMessage(err));
+    } finally {
+      setApiKeyBusy(false);
+    }
+  }
 
   return (
     <div className="app-layout">
@@ -187,6 +309,104 @@ export function AppLayout() {
             </section>
           ))}
         </nav>
+        {showProfileRuntimeStrip && (
+          <article className="sidebar-key-widget">
+            <div className="sidebar-key-head">
+              <h3>OpenAI API Key</h3>
+              <span className={`key-lamp ${keyLampTone}`} title={keyLampHint} aria-label={keyLampHint} />
+            </div>
+            <label>
+              Key
+              <input
+                id="openai-key-input"
+                aria-label="OpenAI API key (Sidebar)"
+                type="password"
+                placeholder="sk-..."
+                value={apiKeyDraft}
+                onChange={(e) => setApiKeyDraft(e.target.value)}
+              />
+            </label>
+            <div className="sidebar-key-actions">
+              <button type="button" onClick={onSaveApiKeySidebar} disabled={apiKeyBusy || !apiKeyDraft.trim()}>
+                {apiKeyBusy ? "Saving..." : "Save key"}
+              </button>
+              <button type="button" onClick={() => void keyStatus.refetch()} disabled={keyStatus.isPending || apiKeyBusy}>
+                Refresh status
+              </button>
+            </div>
+          </article>
+        )}
+        {showProfileRuntimeStrip && (
+          <article className="sidebar-budget-widget" aria-live="polite">
+            <h3>AI Usage Budget</h3>
+            {usageBudget.isPending && <p className="sidebar-budget-note">Loading...</p>}
+            {usageBudget.isError && <p className="sidebar-budget-note">Failed to load budget.</p>}
+            {usageBudget.isSuccess && (
+              <>
+                <table className="sidebar-budget-table">
+                  <thead>
+                    <tr>
+                      <th>save</th>
+                      <th>Today</th>
+                      <th>Week</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>used</td>
+                      <td>{usageBudget.data.daily_used_tokens}</td>
+                      <td>{usageBudget.data.weekly_used_tokens}</td>
+                    </tr>
+                    <tr>
+                      <td>limit</td>
+                      <td>{usageBudget.data.daily_token_cap}</td>
+                      <td>{usageBudget.data.weekly_token_cap}</td>
+                    </tr>
+                    <tr>
+                      <td>usage</td>
+                      <td>
+                        {usageBudget.data.daily_token_cap > 0
+                          ? Math.round((usageBudget.data.daily_used_tokens / usageBudget.data.daily_token_cap) * 100)
+                          : 0}
+                        %
+                      </td>
+                      <td>
+                        {usageBudget.data.weekly_token_cap > 0
+                          ? Math.round((usageBudget.data.weekly_used_tokens / usageBudget.data.weekly_token_cap) * 100)
+                          : 0}
+                        %
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <form className="sidebar-budget-form" onSubmit={onSaveBudget}>
+                  <label>
+                    Daily
+                    <input type="number" min={0} value={dailyTokenCap} onChange={(e) => setDailyTokenCap(e.target.value)} />
+                  </label>
+                  <label>
+                    Weekly
+                    <input type="number" min={0} value={weeklyTokenCap} onChange={(e) => setWeeklyTokenCap(e.target.value)} />
+                  </label>
+                  <label>
+                    Warn
+                    <input
+                      type="number"
+                      min={0.5}
+                      max={0.95}
+                      step={0.05}
+                      value={warningThreshold}
+                      onChange={(e) => setWarningThreshold(e.target.value)}
+                    />
+                  </label>
+                  <button type="submit" disabled={budgetSaving}>
+                    {budgetSaving ? "Saving..." : "Save"}
+                  </button>
+                </form>
+              </>
+            )}
+          </article>
+        )}
       </aside>
       <div className={`mobile-backdrop ${mobileNavOpen ? "show" : ""}`} onClick={() => setMobileNavOpen(false)} />
       <div className="app-main">
@@ -207,6 +427,56 @@ export function AppLayout() {
                 <p>{activeNavLabel ? t(locale, activeNavLabel) : t(locale, "app_tagline")}</p>
               </div>
             </div>
+            {showProfileRuntimeStrip && aiRuntime.data && (
+              <div className="header-runtime-strip">
+                <button
+                  type="button"
+                  className="header-runtime-entity"
+                  onClick={() => void onChangeProvider("llm")}
+                  disabled={providerBusy !== null}
+                  aria-label="Toggle LLM provider"
+                >
+                  <span>LLM</span>
+                  <span className={`runtime-provider-word ${llmProviderDraft}`}>
+                    {providerBusy === "llm" ? "..." : llmProviderDraft.toUpperCase()}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="header-runtime-entity"
+                  onClick={() => void onChangeProvider("asr")}
+                  disabled={providerBusy !== null}
+                  aria-label="Toggle ASR provider"
+                >
+                  <span>ASR</span>
+                  <span className={`runtime-provider-word ${asrProviderDraft}`}>
+                    {providerBusy === "asr" ? "..." : asrProviderDraft.toUpperCase()}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="header-runtime-entity"
+                  onClick={() => void onChangeProvider("tts")}
+                  disabled={providerBusy !== null}
+                  aria-label="Toggle TTS provider"
+                >
+                  <span>TTS</span>
+                  <span className={`runtime-provider-word ${ttsProviderDraft}`}>
+                    {providerBusy === "tts" ? "..." : ttsProviderDraft.toUpperCase()}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="header-runtime-refresh"
+                  onClick={() => aiRuntime.refetch()}
+                  disabled={aiRuntime.isFetching || providerBusy !== null}
+                  aria-label="Refresh runtime status"
+                  title="Refresh runtime status"
+                >
+                  {aiRuntime.isFetching ? "…" : "↻"}
+                </button>
+              </div>
+            )}
             <div className="shell-header-actions">
               <Link to="/app/session" className="shell-header-cta">
                 Continue session

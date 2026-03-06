@@ -135,12 +135,12 @@ describe("ProfilePage", () => {
       preferences: { strictness: "medium" },
     });
     mocks.progressSkillMap.mockResolvedValue({
-      speaking: 50,
-      listening: 52,
-      grammar: 48,
-      vocab: 55,
-      reading: 53,
-      writing: 47,
+      speaking: 31.6,
+      listening: 31.9,
+      grammar: 35.5,
+      vocab: 36.6,
+      reading: 31.9,
+      writing: 33.3,
     });
     mocks.progressStreak.mockResolvedValue({
       streak_days: 2,
@@ -181,24 +181,24 @@ describe("ProfilePage", () => {
     });
     mocks.progressSkillTree.mockResolvedValue({
       user_id: 1,
-      current_level: "B1",
-      estimated_level_from_skills: "B1",
-      avg_skill_score: 52,
-      next_target_level: "B2",
+      current_level: "A2",
+      estimated_level_from_skills: "A2",
+      avg_skill_score: 33.46,
+      next_target_level: "B1",
       items: [
         {
           level: "A1",
-          status: "completed",
-          progress_percent: 100,
+          status: "in_progress",
+          progress_percent: 75,
           closed_criteria: ["Avg skill >= 20"],
-          remaining_criteria: [],
+          remaining_criteria: ["Complete 4 sessions"],
         },
         {
-          level: "B2",
+          level: "A2",
           status: "in_progress",
-          progress_percent: 50,
-          closed_criteria: ["Complete 16 sessions"],
-          remaining_criteria: ["Avg skill >= 62"],
+          progress_percent: 25,
+          closed_criteria: ["Reach 3 sessions this week"],
+          remaining_criteria: ["Avg skill >= 35"],
         },
       ],
     });
@@ -398,59 +398,27 @@ describe("ProfilePage", () => {
     });
   });
 
-  it("loads profile settings and saves edits", async () => {
+  it("renders redesigned profile sections", async () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue("ru")).toBeInTheDocument();
-      expect(screen.getByText("Weekly Journal")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Coach Profile" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Learning Spaces" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Skill Map" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "CEFR Skill Tree" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Weekly Journal" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Learning Timeline" })).toBeInTheDocument();
-      expect(screen.getByText("Coach chat session")).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByLabelText("Profile goal"), { target: { value: "travel" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save settings" }));
-
-    await waitFor(() => {
-      expect(mocks.profileSetup).toHaveBeenCalledWith(
-        expect.objectContaining({
-          user_id: 1,
-          native_lang: "ru",
-          target_lang: "en",
-          level: "B1",
-          goal: "travel",
-        }),
-      );
-      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Profile updated");
-    });
-  });
-
-  it("saves OpenAI key from profile section", async () => {
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByLabelText("OpenAI API key (Profile)")).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByLabelText("OpenAI API key (Profile)"), { target: { value: "sk-test-key" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save API key" }));
-
-    await waitFor(() => {
-      expect(mocks.openaiKeySet).toHaveBeenCalledWith({ api_key: "sk-test-key" });
-      expect(mocks.debugOpenai).toHaveBeenCalled();
-      expect(mocks.pushToast).toHaveBeenCalledWith("success", "OpenAI key saved and verified");
     });
   });
 
   it("retakes placement test and updates level", async () => {
     renderPage();
 
+    const recalibrateButton = await screen.findByRole("button", { name: "Recalibrate" });
     await waitFor(() => {
-      expect(screen.getByDisplayValue("B1")).toBeInTheDocument();
+      expect(recalibrateButton).toBeEnabled();
     });
-
-    fireEvent.click(screen.getByRole("button", { name: "Recalibrate level" }));
+    fireEvent.click(recalibrateButton);
 
     await waitFor(() => {
       expect(screen.getByText("Describe your last weekend.")).toBeInTheDocument();
@@ -548,36 +516,18 @@ describe("ProfilePage", () => {
     expect(screen.getByLabelText("New space target language")).toHaveValue("de");
   });
 
-  it("deletes a non-active space", async () => {
+  it("switches active learning space from manage list", async () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Manage spaces")).toBeInTheDocument();
+      expect(screen.getByRole("listbox", { name: "Learning spaces" })).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByRole("button", { name: "Delete space" });
-    fireEvent.click(deleteButtons[1]);
+    fireEvent.click(screen.getByRole("option", { name: /German \(de\) -> English \(en\) switch/i }));
 
     await waitFor(() => {
-      expect(mocks.workspaceDelete).toHaveBeenCalledWith(2);
-      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Learning space deleted");
-    });
-  });
-
-  it("updates goal for a specific space", async () => {
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByLabelText("Space goal 2")).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByLabelText("Space goal 2"), { target: { value: "relocation prep" } });
-    const saveGoalButtons = screen.getAllByRole("button", { name: "Save goal" });
-    fireEvent.click(saveGoalButtons[1]);
-
-    await waitFor(() => {
-      expect(mocks.workspaceUpdate).toHaveBeenCalledWith(2, { goal: "relocation prep" });
-      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Space goal updated");
+      expect(mocks.workspaceSwitch).toHaveBeenCalledWith({ workspace_id: 2 });
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Learning space switched");
     });
   });
 
@@ -594,12 +544,12 @@ describe("ProfilePage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Start over (delete all data)" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start over" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Start over (delete all data)" }));
-    fireEvent.change(screen.getByLabelText("Type RESET to confirm"), { target: { value: "RESET" } });
-    fireEvent.click(screen.getByRole("button", { name: "Delete all my data" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    fireEvent.change(screen.getByLabelText("Confirmation"), { target: { value: "RESET" } });
+    fireEvent.click(screen.getByRole("button", { name: "Delete all data" }));
 
     await waitFor(() => {
       expect(mocks.appReset).toHaveBeenCalledWith({ confirmation: "RESET" });
@@ -608,59 +558,14 @@ describe("ProfilePage", () => {
     });
   });
 
-  it("updates usage budget limits", async () => {
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "AI Usage Budget" })).toBeInTheDocument();
-      expect(screen.getByLabelText("Daily token cap")).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByLabelText("Daily token cap"), { target: { value: "10000" } });
-    fireEvent.change(screen.getByLabelText("Weekly token cap"), { target: { value: "50000" } });
-    fireEvent.change(screen.getByLabelText("Warning threshold"), { target: { value: "0.85" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save usage limits" }));
-
-    await waitFor(() => {
-      expect(mocks.usageBudgetSet).toHaveBeenCalledWith({
-        user_id: 1,
-        daily_token_cap: 10000,
-        weekly_token_cap: 50000,
-        warning_threshold: 0.85,
-      });
-      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Usage limits updated");
-    });
-  });
-
-  it("updates ai runtime providers", async () => {
-    renderPage();
-
-    await screen.findByRole("heading", { name: "AI Runtime Providers" });
-    await screen.findByLabelText("LLM provider");
-
-    fireEvent.change(screen.getByLabelText("LLM provider"), { target: { value: "local" } });
-    fireEvent.change(screen.getByLabelText("ASR provider"), { target: { value: "local" } });
-    fireEvent.change(screen.getByLabelText("TTS provider"), { target: { value: "local" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save provider settings" }));
-
-    await waitFor(() => {
-      expect(mocks.aiRuntimeSet).toHaveBeenCalledWith({
-        llm_provider: "local",
-        asr_provider: "local",
-        tts_provider: "local",
-      });
-      expect(mocks.pushToast).toHaveBeenCalledWith("success", "AI runtime providers updated");
-    });
-  });
-
   it("exports backup as JSON", async () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Export backup (JSON)" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Export" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Export backup (JSON)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
 
     await waitFor(() => {
       expect(mocks.appBackupExport).toHaveBeenCalledTimes(1);
@@ -675,27 +580,14 @@ describe("ProfilePage", () => {
       expect(screen.getByLabelText("Import backup file")).toBeInTheDocument();
     });
 
-    const file = new File(
-      [
-        JSON.stringify({
-          version: 1,
-          exported_at: "2026-03-06T00:00:00Z",
-          snapshot: { users: [{ id: 1 }] },
-        }),
-      ],
-      "backup.json",
-      { type: "application/json" },
-    );
+    const payload = {
+      version: 1,
+      exported_at: "2026-03-06T00:00:00Z",
+      snapshot: { users: [{ id: 1 }] },
+    };
+    const file = new File([JSON.stringify(payload)], "backup.json", { type: "application/json" });
     Object.defineProperty(file, "arrayBuffer", {
-      value: vi.fn().mockResolvedValue(
-        new TextEncoder().encode(
-          JSON.stringify({
-            version: 1,
-            exported_at: "2026-03-06T00:00:00Z",
-            snapshot: { users: [{ id: 1 }] },
-          }),
-        ).buffer,
-      ),
+      value: vi.fn().mockResolvedValue(new TextEncoder().encode(JSON.stringify(payload)).buffer),
     });
 
     const importInput = screen.getByLabelText("Import backup file") as HTMLInputElement;
@@ -710,7 +602,7 @@ describe("ProfilePage", () => {
     });
 
     fireEvent.change(screen.getByLabelText("Type RESTORE to confirm"), { target: { value: "RESTORE" } });
-    fireEvent.click(screen.getByRole("button", { name: "Restore from backup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restore" }));
 
     await waitFor(() => {
       expect(mocks.appBackupRestore).toHaveBeenCalledWith({

@@ -1,974 +1,635 @@
-# LinguaCoach-AI
+# LinguaCoach AI
 
-Dockerized MVP backend for an AI language tutor:
-- `services/api` (FastAPI orchestrator)
-- `services/asr` (speech-to-text service)
-- `services/tts` (text-to-speech service)
-- `postgres` (database)
+Multilingual AI language coach with two runtime modes:
+- OpenAI API mode (`openai`)
+- Fully local model mode (`local`)
 
-## Requirements
+Supports:
+- Web app (Vite + React)
+- Desktop app (Electron shell over web UI)
+- Dockerized backend services (`api`, `asr`, `tts`, `postgres`)
 
-- Docker Desktop (or Docker Engine + Compose)
-- Python 3.11+ (for local tests)
+---
 
-## AI Runtime Modes (OpenAI + Local Models)
+## 1. What this project does
 
-LinguaCoach supports two runtime modes:
-- `openai` (default)
-- `local` (self-hosted models on your machine)
+LinguaCoach AI is a local-first language learning coach with:
+- onboarding + placement test
+- isolated learning spaces per language pair
+- daily session flow and next-best-action loop
+- chat coaching with rubric-based feedback
+- speaking practice (ASR + coach feedback + optional TTS reply)
+- text + voice translation
+- vocabulary + SRS review
+- drills, roleplay scenarios, grammar analyzer, homework
+- streaks, skill map, CEFR skill-tree, timeline, achievements, weekly checkpoints
+- backup/restore and full reset
+- AI runtime provider switching (OpenAI/Local) for LLM, ASR, TTS
+- diagnostics and health endpoints for runtime status
 
-Switch via `.env`:
+---
 
-```powershell
+## 2. Architecture
+
+Services:
+- `services/api` - main FastAPI orchestrator, DB models, routing, coaching logic
+- `services/asr` - speech-to-text provider service (OpenAI/local)
+- `services/tts` - text-to-speech provider service (OpenAI/local)
+- `postgres` - main DB in Docker mode
+- `web` - React SPA
+- `desktop` - Electron wrapper that opens the web UI
+
+High-level flow:
+1. UI sends requests to API (`:8000`)
+2. API calls ASR (`:8001`) and TTS (`:8002`) as needed
+3. Runtime provider per module can be `openai` or `local`
+4. UI can switch providers from Profile -> AI Runtime Providers
+
+---
+
+## 3. Tech stack
+
+Backend:
+- Python 3.12 (in Docker), FastAPI, Pydantic, SQLAlchemy, Alembic, Uvicorn
+- OpenAI SDK (`openai`)
+- Local LLM: `llama-cpp-python` (GGUF)
+- Local ASR: `faster-whisper` or HuggingFace Whisper folder via `transformers+torch`
+- Local TTS: `qwen-tts` / `transformers+torch` path depending on model type
+
+Frontend:
+- React 18, TypeScript, Vite
+- React Query, Zustand, React Router
+- Vitest + Testing Library
+- Playwright smoke tests
+
+Desktop:
+- Electron
+
+Infra:
+- Docker Compose (base/dev/prod/local-model overlays)
+- GitHub Actions CI (lint/test/build + e2e smoke)
+
+---
+
+## 4. Repository map
+
+- `services/api` - core API, app routes, migrations, API tests
+- `services/asr` - ASR microservice + tests
+- `services/tts` - TTS microservice + tests
+- `web` - frontend app + unit tests + playwright
+- `desktop` - electron shell
+- `scripts` - smoke scripts and local all-in-one launcher
+- `docker-compose.yml` - base stack
+- `docker-compose.dev.yml` - live-reload overlay
+- `docker-compose.prod.yml` - prod-like overlay
+- `docker-compose.local-models.yml` - local-model provider overlay
+
+---
+
+## 5. Prerequisites
+
+Required:
+- Docker Desktop running
+- Node.js 20+
+- npm 10+ (or equivalent npm bundled with Node)
+- Python 3.11+ (for local test commands outside Docker)
+
+For Local AI runtime mode:
+- pre-downloaded local model files on disk
+- enough RAM/CPU for local inference
+
+---
+
+## 6. Supported runtime modes
+
+Set in `.env`:
+
+```env
 API_LLM_PROVIDER=openai   # or local
 ASR_PROVIDER=openai       # or local
 TTS_PROVIDER=openai       # or local
 ```
 
-Local model paths:
+You can also switch providers at runtime in UI:
+- Profile -> AI Runtime Providers
+- choose provider per module (LLM/ASR/TTS)
+- Save provider settings
+- Refresh status
 
-```powershell
+Diagnostics shown in UI:
+- provider status (`ok`, `disabled`, `error`)
+- model path
+- dependency availability
+- device
+- load/probe timings
+
+---
+
+## 7. Models for local mode
+
+Expected local paths example:
+
+```text
+F:\AI_MODELS_GENERIC\LINGUA_MODELS
+  \qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m.gguf
+  \whisper-small\...
+  \qwen3-tts\...
+```
+
+Set either direct paths:
+
+```env
 LOCAL_LLM_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m.gguf
 LOCAL_ASR_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\whisper-small
 LOCAL_TTS_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen3-tts
 ```
 
-ASR local supports two model folder formats:
-- `faster-whisper` converted folder (contains `model.bin`)
-- Hugging Face Whisper folder (for example `openai/whisper-small`, contains `pytorch_model.bin`)
+Or set root + rely on compose local overlay defaults:
 
-OpenAI fallback remains available for each component when provider is set to `openai`.
+```env
+LOCAL_MODELS_ROOT=F:\AI_MODELS_GENERIC\LINGUA_MODELS
+```
 
-## Quick Start
+Notes:
+- Local LLM expects GGUF file for `llama-cpp-python`.
+- Local ASR supports:
+  - faster-whisper converted model folder (`model.bin`)
+  - HF Whisper folder (`pytorch_model.bin`, config, tokenizer)
+- Local TTS supports Qwen3-TTS local folder.
 
-1. Copy env file:
+Models are not stored in this repository.
+
+---
+
+## 8. Environment variables (full reference)
+
+Base keys from `.env.example`:
+
+```env
+OPENAI_API_KEY=sk-...
+
+API_LLM_PROVIDER=openai
+ASR_PROVIDER=openai
+TTS_PROVIDER=openai
+
+LOCAL_LLM_MODEL_PATH=
+LOCAL_ASR_MODEL_PATH=
+LOCAL_TTS_MODEL_PATH=
+LOCAL_MODELS_ROOT=
+LOCAL_LLM_N_CTX=4096
+LOCAL_LLM_N_THREADS=6
+LOCAL_ASR_DEVICE=auto
+LOCAL_ASR_COMPUTE_TYPE=int8
+
+OPENAI_CHAT_MODEL=gpt-4.1-mini
+OPENAI_VOICE_MODEL=gpt-4.1-mini
+OPENAI_TRANSLATE_MODEL=gpt-4.1-mini
+OPENAI_ASR_MODEL=whisper-1
+OPENAI_TTS_MODEL=tts-1
+OPENAI_CHAT_MAX_OUTPUT_TOKENS=320
+OPENAI_VOICE_MAX_OUTPUT_TOKENS=180
+OPENAI_TRANSLATE_MAX_OUTPUT_TOKENS=180
+OPENAI_TEMPERATURE_CHAT=0.4
+OPENAI_TEMPERATURE_VOICE=0.3
+OPENAI_TEMPERATURE_TRANSLATE=0.0
+
+AI_CACHE_MAX_ITEMS=512
+
+DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/linguacoach
+ASR_URL=http://asr:8001
+TTS_URL=http://tts:8002
+API_PORT=8000
+ASR_PORT=8001
+TTS_PORT=8002
+POSTGRES_DB=linguacoach
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+```
+
+Optional/advanced envs used by services:
+- `TTS_AUDIO_DIR` (path for generated audio files in TTS service)
+
+Important:
+- Placeholder `OPENAI_API_KEY=sk-...` is treated as not configured.
+- Keep Windows paths absolute and unquoted.
+
+---
+
+## 9. Install and run (quick)
+
+### 9.1 Create `.env`
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-2. Start stack:
+### 9.2 Start Docker stack (default OpenAI mode)
 
 ```powershell
 docker compose up -d --build
 ```
 
-Dev mode with live reload for Python services:
+### 9.3 Dev hot-reload mode for backend
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
-Local-model mode (LLM + ASR + TTS from mounted model volume):
+### 9.4 Local-model mode (Docker + mounted models + local deps)
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build
 ```
 
-Note: `docker-compose.local-models.yml` enables extra local-runtime dependencies inside
-containers (`llama-cpp-python`, `faster-whisper`, `numpy/transformers/torch`).
-
-Prod-like mode:
+### 9.5 Start web UI
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+cd web
+npm install
+npm run dev
 ```
 
-3. Run database migrations (optional for local SQLite dev, required for Postgres flow):
+Open `http://localhost:5173`.
 
-```powershell
-cd services/api
-..\..\.venv\Scripts\python.exe -m alembic -c alembic.ini upgrade head
-cd ..\..
-```
+### 9.6 Start desktop UI
 
-4. Health checks:
-
-```powershell
-Invoke-WebRequest http://localhost:8000/health -UseBasicParsing
-Invoke-WebRequest http://localhost:8001/health -UseBasicParsing
-Invoke-WebRequest http://localhost:8002/health -UseBasicParsing
-```
-
-Compose config validation:
-
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.dev.yml config > $null
-docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
-```
-
-## One-Command Local Start (Web + Desktop + Local Models)
-
-If you already downloaded models (LLM/STT/TTS), you can start everything with one command:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1
-```
-
-This script does:
-- starts backend stack in local-model mode (`docker-compose.yml + docker-compose.local-models.yml`)
-- starts web dev server (`web/npm run dev`)
-- starts desktop shell (`desktop/npm run start:web`)
-- builds local-runtime dependencies for `api/asr/tts` automatically
-
-If backend containers are already running and you only need web + desktop:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1 -SkipDocker
-```
-
-Required `.env` fields for local mode:
-
-```powershell
-API_LLM_PROVIDER=local
-ASR_PROVIDER=local
-TTS_PROVIDER=local
-LOCAL_MODELS_ROOT=F:\AI_MODELS_GENERIC\LINGUA_MODELS
-LOCAL_LLM_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m.gguf
-LOCAL_ASR_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\whisper-small
-LOCAL_TTS_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen3-tts
-```
-
-Stop local-mode backend containers:
-
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.local-models.yml down
-```
-
-## Full Runbook: From Zero to Running (Web + Desktop, Models Already Downloaded)
-
-This is the full sequential path for a new user on Windows PowerShell.
-Assumption: model files are already downloaded on disk.
-
-### 0. Prerequisites
-
-- Docker Desktop is installed and running.
-- Node.js 20+ is installed.
-- Python 3.11+ is installed.
-- Git repo is cloned.
-- You run commands from repository root (folder with `README.md`, `docker-compose.yml`, `scripts`).
-
-Quick root check:
-
-```powershell
-Get-ChildItem README.md, docker-compose.yml, scripts\start-local-all.ps1
-```
-
-### 1. Prepare `.env`
-
-Create local env file:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Open `.env` and set local runtime values:
-
-```powershell
-API_LLM_PROVIDER=local
-ASR_PROVIDER=local
-TTS_PROVIDER=local
-LOCAL_MODELS_ROOT=F:\AI_MODELS_GENERIC\LINGUA_MODELS
-LOCAL_LLM_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m.gguf
-LOCAL_ASR_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\whisper-small
-LOCAL_TTS_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen3-tts
-```
-
-Important:
-- keep paths absolute;
-- do not wrap paths in quotes;
-- use the real path on your machine.
-
-### 2. Start everything with one command
-
-From repo root:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1
-```
-
-What this command starts:
-- Docker services (`api`, `asr`, `tts`, `postgres`) in local-model profile;
-- web dev server (`http://localhost:5173`);
-- desktop shell (Electron window).
-
-If Docker is already running and you only need web+desktop:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1 -SkipDocker
-```
-
-### 3. Verify backend availability
-
-Run:
-
-```powershell
-Invoke-WebRequest http://localhost:8000/health -UseBasicParsing
-Invoke-WebRequest http://localhost:8001/health -UseBasicParsing
-Invoke-WebRequest http://localhost:8002/health -UseBasicParsing
-Invoke-WebRequest http://localhost:8000/settings/ai-runtime?probe=false -UseBasicParsing
-Invoke-WebRequest http://localhost:8001/asr/diagnostics -UseBasicParsing
-Invoke-WebRequest http://localhost:8002/tts/diagnostics -UseBasicParsing
-```
-
-Expected:
-- all requests return `200`;
-- `/settings/ai-runtime` reports providers you set (`local` or `openai`);
-- diagnostics include explicit status/message for each module.
-
-### 4. Open app (both modes)
-
-- Web: open `http://localhost:5173`
-- Desktop: Electron window should open automatically from the start script.
-
-If desktop did not open:
+In a second terminal:
 
 ```powershell
 cd desktop
 npm install
 npm run start:web
-cd ..
 ```
 
-### 5. First Launch Setup
+---
 
-In onboarding screen:
-- choose native/target language pair;
-- set goal and preferences;
-- run placement test;
-- if using OpenAI mode, optionally save key;
-- if using local mode, key is not required.
+## 10. One-command local start (web + desktop + backend)
 
-After placement test finish, app should route to main dashboard/session flow.
-
-## Smoke Checklist (Full, End-to-End)
-
-Use this checklist after startup to confirm real working state.
-
-### A. Runtime and diagnostics
-
-1. Open `Profile`.
-2. Find `AI Runtime Providers`.
-3. Set providers (`OpenAI` or `Local`) for `LLM / ASR / TTS`.
-4. Click `Save provider settings`.
-5. Click `Refresh status`.
-6. Confirm diagnostics block shows module-by-module status:
-   - provider,
-   - model path,
-   - dependency availability,
-   - device,
-   - load/probe timings,
-   - readable error if not ready.
-
-Expected:
-- no `Failed to load AI runtime status`;
-- statuses reflect current env/provider selection.
-
-### B. Onboarding and workspace baseline
-
-1. Start from first-launch flow.
-2. Complete placement test.
-3. Verify dashboard loads.
-4. Open `Profile` -> `Learning Spaces` and confirm active space exists.
-
-Expected:
-- active space created;
-- CEFR/goal data saved;
-- no blocking errors.
-
-### C. Core learning paths
-
-1. `Daily Session`:
-   - open next step;
-   - mark started/completed.
-2. `Coach Chat`:
-   - send one user message;
-   - receive response/rubric/fallback depending on provider status.
-3. `Speaking`:
-   - upload short audio file;
-   - get transcription/feedback.
-4. `Translate`:
-   - run text translation;
-   - run voice translation via file upload.
-5. `Word Bank`:
-   - add word;
-   - run one review action.
-6. `Drills`:
-   - generate drill set;
-   - submit one answer.
-7. `Roleplays`:
-   - open available scenario;
-   - send one turn.
-8. `Grammar`:
-   - submit sentence;
-   - get corrections.
-9. `Homework`:
-   - create one homework item;
-   - submit a response.
-
-Expected:
-- all screens render;
-- actions return responses (full mode or fallback mode with clear messaging);
-- no crashes/navigation loops.
-
-### D. Multi-space persistence
-
-1. In `Profile`, create second language pair workspace.
-2. Switch to it and do at least one activity.
-3. Switch back to first workspace.
-4. Confirm previous progress is still there.
-5. Switch again to second workspace and confirm its isolated progress.
-
-Expected:
-- per-space isolation works;
-- switching is fast and stable;
-- progress persists across switches.
-
-### E. Theme, responsive, and desktop shell
-
-1. Toggle Light/Dark theme button.
-2. Confirm active menu item is clearly visible in both themes.
-3. Confirm styled file picker appears consistent.
-4. Resize desktop window to narrow width and verify sidebar/mobile behavior.
-
-Expected:
-- theme changes instantly;
-- readability and contrast remain good;
-- layout remains usable on narrow widths.
-
-### F. Backup / restore / reset safety
-
-1. In `Profile`, run `Export backup (JSON)`.
-2. Verify file downloaded.
-3. Import same backup.
-4. (Optional) run Start Over flow and confirm double-confirm behavior.
-
-Expected:
-- backup/import succeeds without corruption;
-- reset requires confirmation and returns to first-launch state.
-
-### G. API-level smoke scripts
+Script:
+- `scripts/start-local-all.ps1`
 
 Run from repo root:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-smoke.ps1 -BaseUrl http://localhost:8000 -UserId 1
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-key-paths.ps1 -BaseUrl http://localhost:8000 -UserId 1
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-workspace-journey.ps1 -BaseUrl http://localhost:8000 -UserId 1
-```
-
-Optional local runtime latency run:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-local-runtime.ps1 -BaseUrl http://localhost:8000 -UserId 1
-```
-
-Expected:
-- scripts finish without failing assertions;
-- local runtime script prints timings.
-
-## Common Launch Mistakes and Fixes
-
-- Script not found (`start-local-all.ps1`):
-  - you are in wrong folder; return to repo root.
-- `Failed to load AI runtime status`:
-  - rebuild local stack:
-  ```powershell
-  docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build
-  ```
-- Local diagnostics show missing deps (`llama-cpp-python`, `faster-whisper`, `numpy`):
-  - pull latest repo and rebuild local containers with `--build`.
-- Desktop opens but blank:
-  - ensure web dev server is running on `5173`, then restart `npm run start:web` in `desktop`.
-
-## Stop / Cleanup
-
-Stop backend:
-
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.local-models.yml down
-```
-
-Stop web/desktop:
-- close terminal windows started by the local script, or press `Ctrl + C` in each running terminal.
-
-## User Quick Guide (future-proof)
-
-Use this section as the shortest setup for new users.
-
-1. Prepare models outside the repo (example root):
-   - `F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m.gguf`
-   - `F:\AI_MODELS_GENERIC\LINGUA_MODELS\whisper-small`
-   - `F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen3-tts`
-2. Create `.env` from template:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-3. In `.env`, set local runtime and model paths:
-
-```powershell
-API_LLM_PROVIDER=local
-ASR_PROVIDER=local
-TTS_PROVIDER=local
-LOCAL_MODELS_ROOT=F:\AI_MODELS_GENERIC\LINGUA_MODELS
-LOCAL_LLM_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m.gguf
-LOCAL_ASR_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\whisper-small
-LOCAL_TTS_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen3-tts
-```
-
-4. Start everything (backend + web + desktop):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1
 ```
 
-5. Optional: if docker services are already up, start only web + desktop:
+If Docker stack already running:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\start-local-all.ps1 -SkipDocker
 ```
 
-6. Stop local backend stack:
+This script:
+- starts local-model docker stack
+- starts web dev server
+- starts electron desktop shell
+
+---
+
+## 11. Full runbook (from zero to working app)
+
+1. Ensure Docker Desktop is running.
+2. Clone repo.
+3. Create `.env` from `.env.example`.
+4. Fill provider mode and model paths (OpenAI or Local).
+5. Build/start stack:
+   - OpenAI mode: `docker compose up -d --build`
+   - Local mode: `docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build`
+6. Verify backend health:
+   - `http://localhost:8000/health`
+   - `http://localhost:8001/health`
+   - `http://localhost:8002/health`
+7. Start web:
+   - `cd web && npm install && npm run dev`
+8. Start desktop (optional):
+   - `cd desktop && npm install && npm run start:web`
+9. Open app and complete first-launch setup:
+   - choose native/target language
+   - choose goal
+   - run placement test
+10. Open Profile -> AI Runtime Providers and verify statuses.
+
+---
+
+## 12. Health and diagnostics endpoints
+
+Core:
+- `GET /health` on each service:
+  - API `:8000/health`
+  - ASR `:8001/health`
+  - TTS `:8002/health`
+
+Runtime:
+- API:
+  - `GET /settings/ai-runtime`
+  - `POST /settings/ai-runtime`
+- ASR:
+  - `GET /asr/provider`
+  - `POST /asr/provider`
+  - `GET /asr/diagnostics`
+- TTS:
+  - `GET /tts/provider`
+  - `POST /tts/provider`
+  - `GET /tts/diagnostics`
+
+Useful checks:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.local-models.yml down
+Invoke-WebRequest http://localhost:8000/settings/ai-runtime?probe=false -UseBasicParsing
+Invoke-WebRequest http://localhost:8001/asr/diagnostics -UseBasicParsing
+Invoke-WebRequest http://localhost:8002/tts/diagnostics -UseBasicParsing
 ```
 
-## Local Mode Troubleshooting
+---
 
-If Profile shows `Failed to load AI runtime status` or `/settings/ai-runtime` returns `404`:
+## 13. Feature list (product capabilities)
+
+Onboarding and profile:
+- first launch setup
+- placement test
+- dynamic language pair spaces
+- workspace switch + per-space progress isolation
+
+Coach loop:
+- daily plan and session progression (start -> progress -> complete)
+- next-best-action loop
+- reactivation recommendations
+
+Practice modules:
+- coach chat
+- speaking practice with:
+  - file upload
+  - microphone recording in UI
+  - ASR transcription
+  - rubric/feedback
+  - optional TTS coach audio reply
+- translation:
+  - text translate
+  - voice translate (file or microphone)
+- vocabulary + SRS
+- drills
+- roleplays / scenario tracks
+- grammar analyzer
+- homework
+
+Progress and retention:
+- streaks
+- skill map
+- CEFR skill-tree
+- achievements/rewards
+- weekly goal + weekly review + weekly checkpoint
+- timeline and journal
+- outcomes and report
+
+Data control:
+- export backup JSON
+- import backup
+- full reset with confirmation
+
+---
+
+## 14. API overview (main routes)
+
+App/profile/settings:
+- `GET /app/bootstrap`
+- `POST /app/reset`
+- `GET /app/backup/export`
+- `POST /app/backup/restore`
+- `POST /profile/setup`
+- `GET /profile`
+- `POST /profile/placement-test/start`
+- `POST /profile/placement-test/answer`
+- `POST /profile/placement-test/finish`
+- `GET /settings/openai-key`
+- `POST /settings/openai-key`
+- `GET /settings/ai-runtime`
+- `POST /settings/ai-runtime`
+- `GET /settings/usage-budget`
+- `POST /settings/usage-budget`
+- `GET /settings/language-capabilities`
+
+Workspaces:
+- `GET /workspaces`
+- `POST /workspaces`
+- `PATCH /workspaces/{workspace_id}`
+- `POST /workspaces/switch`
+- `GET /workspaces/active`
+- `GET /workspaces/overview`
+- `DELETE /workspaces/{workspace_id}`
+
+Chat/voice/translation:
+- `POST /chat/start`
+- `POST /chat/message`
+- `POST /chat/end`
+- `POST /voice/transcribe`
+- `POST /voice/message`
+- `GET /voice/progress`
+- `POST /translate`
+- `POST /translate/voice`
+
+Learning and coach:
+- `POST /grammar/analyze`
+- `POST /exercises/generate`
+- `POST /exercises/grade`
+- `GET /plan/today`
+- `GET /coach/session/today`
+- `GET /coach/session/progress`
+- `POST /coach/session/progress`
+- `GET /coach/error-bank`
+- `GET /coach/next-actions`
+- `GET /coach/review-queue`
+- `GET /coach/daily-challenge`
+- `GET /coach/trajectory`
+- `GET /coach/roadmap`
+- `GET /coach/outcome-packs`
+- `GET /coach/reactivation`
+- `GET /scenarios`
+- `GET /coach/scenario-tracks`
+- `GET /scenarios/script`
+- `POST /scenarios/select`
+- `POST /scenarios/turn`
+
+Vocab/homework/progress:
+- `GET /vocab`
+- `POST /vocab/add`
+- `POST /vocab/review/next`
+- `POST /vocab/review/submit`
+- `POST /homework/create`
+- `GET /homework`
+- `POST /homework/submit`
+- `GET /progress/summary`
+- `GET /progress/skill-map`
+- `GET /progress/skill-tree`
+- `GET /progress/streak`
+- `GET /progress/weekly-review`
+- `GET /progress/weekly-checkpoint`
+- `GET /progress/outcomes`
+- `GET /progress/achievements`
+- `GET /progress/report`
+- `GET /progress/timeline`
+- `GET /progress/journal`
+- `GET /progress/weekly-goal`
+- `POST /progress/weekly-goal`
+- `GET /progress/rewards`
+- `POST /progress/rewards/claim`
+
+ASR/TTS service routes:
+- ASR: `GET /asr/provider`, `POST /asr/provider`, `GET /asr/diagnostics`, `POST /asr/transcribe`
+- TTS: `GET /tts/provider`, `POST /tts/provider`, `GET /tts/diagnostics`, `POST /tts/speak`, `GET /audio/{file_name}`
+
+---
+
+## 15. Testing
+
+Backend tests:
+
+```powershell
+cd services/api
+python -m pytest -q
+
+cd ..\asr
+python -m pytest -q
+
+cd ..\tts
+python -m pytest -q
+```
+
+Web tests:
+
+```powershell
+cd web
+npm test
+npm run build
+```
+
+Web e2e smoke:
+
+```powershell
+cd web
+npm run test:e2e:smoke
+```
+
+PowerShell smoke scripts from repo root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-smoke.ps1 -BaseUrl http://localhost:8000 -UserId 1
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-key-paths.ps1 -BaseUrl http://localhost:8000 -UserId 1
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-workspace-journey.ps1 -BaseUrl http://localhost:8000 -UserId 1
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-local-runtime.ps1 -BaseUrl http://localhost:8000 -UserId 1
+```
+
+---
+
+## 16. CI
+
+CI pipeline runs:
+- backend lint + tests
+- web tests + build
+- API e2e smoke (critical paths)
+- Playwright UI smoke
+
+Workflow location:
+- `.github/workflows/ci.yml`
+
+---
+
+## 17. Smoke checklist (manual QA)
+
+After startup validate:
+
+1. Health endpoints all return 200.
+2. First launch setup completes and routes to dashboard.
+3. AI runtime status loads in Profile (no `Failed to load AI runtime status`).
+4. Provider switching in Profile works (OpenAI/Local) for all 3 modules.
+5. Chat responds.
+6. Speaking:
+   - file upload works
+   - microphone recording works
+   - ASR transcript appears
+   - coach response appears
+   - audio reply works when TTS available
+7. Translate:
+   - text translation works
+   - voice translation works via upload and recording
+8. Word bank + SRS works.
+9. Drills/Roleplays/Grammar/Homework return responses.
+10. Create second workspace and confirm progress isolation.
+11. Backup export/import works.
+12. Start-over reset returns app to first launch.
+13. Theme toggle works and active nav item remains readable in both themes.
+
+---
+
+## 18. Troubleshooting
+
+### Script path errors (PowerShell)
+Run commands from repo root (`README.md` folder), not from `desktop` subfolder.
+
+### `Failed to load AI runtime status`
+Rebuild API + ASR + TTS:
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build api asr tts
 ```
 
-If diagnostics show missing local dependencies, rebuild local stack with `--build`:
+### Local diagnostics show missing dependencies
+Rebuild local stack with local overlay:
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build
 ```
 
-If voice page shows `offline://tts-unavailable` (or message "Audio playback is temporarily unavailable"):
-- local TTS generation failed inside `tts` service;
-- check exact error:
+### ASR 500 / transcribe errors
+Check ASR logs:
 
 ```powershell
+docker compose -f docker-compose.yml -f docker-compose.local-models.yml logs asr --tail 200
+```
+
+### TTS unavailable / audio playback unavailable
+Check TTS diagnostics and logs:
+
+```powershell
+Invoke-WebRequest http://localhost:8002/tts/diagnostics -UseBasicParsing
 docker compose -f docker-compose.yml -f docker-compose.local-models.yml logs tts --tail 200
 ```
 
-For Qwen3-TTS specifically, latest `transformers` code may be required.
-Pull latest project changes and rebuild local stack:
+### OpenAI mode not working
+Verify:
+- valid key saved (Profile -> OpenAI API key)
+- billing/quota available in OpenAI account
+- providers set to `OpenAI` in Profile AI Runtime Providers
+
+### Desktop opens but UI blank
+Ensure web dev server is running on `http://localhost:5173` before `npm run start:web`.
+
+---
+
+## 19. Stop and cleanup
+
+Stop local-model stack:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build tts api
+docker compose -f docker-compose.yml -f docker-compose.local-models.yml down
 ```
 
-First local build can be long (LLM/TTS dependencies are heavy).
-Please wait for build completion before opening Profile diagnostics.
-
-Quick diagnostics checks:
+Stop base stack:
 
 ```powershell
-Invoke-WebRequest http://localhost:8000/settings/ai-runtime?probe=false -UseBasicParsing
-Invoke-WebRequest http://localhost:8001/asr/diagnostics -UseBasicParsing
-Invoke-WebRequest http://localhost:8002/tts/diagnostics -UseBasicParsing
+docker compose down
 ```
 
-Expected behavior in local mode:
-- `llm_provider/asr_provider/tts_provider` are `local`
-- diagnostics `status` is `ok` (or detailed error with exact missing dependency/model path)
+Stop web/desktop terminals:
+- `Ctrl + C` in their terminal windows
 
-If API local LLM build fails with `Could not find compiler ... gcc`, pull latest changes and rebuild.
-The project now installs required toolchain automatically for local API image.
+---
 
-## API Highlights
+## 20. Notes for contributors
 
-- Profile/onboarding:
-  - `GET /app/bootstrap`
-  - `POST /app/reset`
-  - `GET /app/backup/export`
-  - `POST /app/backup/restore`
-  - `POST /profile/setup`
-  - `POST /profile/placement-test/start`
-  - `POST /profile/placement-test/answer`
-  - `POST /profile/placement-test/finish`
-  - `GET /settings/usage-budget`
-  - `POST /settings/usage-budget`
-  - `GET /settings/ai-runtime`
-  - `POST /settings/ai-runtime`
-- Workspaces (multi-language spaces):
-  - `GET /workspaces`
-  - `POST /workspaces`
-  - `PATCH /workspaces/{workspace_id}`
-  - `POST /workspaces/switch`
-  - `GET /workspaces/active`
-  - `GET /workspaces/overview`
-  - `DELETE /workspaces/{workspace_id}`
-- Chat + memory:
-  - `POST /chat/start`
-  - `POST /chat/message`
-  - `POST /chat/end`
-- Translation + TTS:
-  - `POST /translate`
-  - `POST /translate/voice`
-  - `POST /tts/speak` (on tts service)
-- Grammar + exercises + planning:
-  - `POST /grammar/analyze`
-  - `POST /exercises/generate`
-  - `POST /exercises/grade`
-  - `GET /plan/today`
-  - `GET /coach/session/today`
-  - `GET /coach/review-queue`
-  - `GET /coach/scenario-tracks`
-  - `GET /coach/error-bank`
-  - `GET /coach/trajectory`
-  - `GET /coach/roadmap`
-  - `GET /coach/outcome-packs`
-  - `GET /scenarios`
-  - `POST /scenarios/select`
-- Voice pipeline:
-  - `POST /voice/transcribe`
-  - `POST /voice/message`
-  - `GET /voice/progress`
-  - `GET /asr/provider` (ASR service)
-  - `POST /asr/provider` (ASR service)
-  - `GET /asr/diagnostics` (ASR service)
-  - `GET /tts/provider` (TTS service)
-  - `POST /tts/provider` (TTS service)
-  - `GET /tts/diagnostics` (TTS service)
-- Vocabulary + SRS:
-  - `GET /vocab`
-  - `POST /vocab/add`
-  - `POST /vocab/review/next`
-  - `POST /vocab/review/submit`
-- Homework + analytics:
-  - `POST /homework/create`
-  - `POST /homework/submit`
-  - `GET /homework`
-  - `GET /progress/summary`
-  - `GET /progress/skill-map`
-  - `GET /progress/skill-tree`
-  - `GET /progress/streak`
-  - `GET /progress/journal`
-  - `GET /progress/timeline`
-  - `GET /progress/weekly-goal`
-  - `GET /progress/weekly-review`
-  - `GET /progress/weekly-checkpoint`
-  - `GET /progress/outcomes`
-  - `GET /progress/rewards`
-  - `GET /progress/achievements`
-  - `GET /progress/report`
-  - `GET /coach/daily-challenge`
-  - `GET /coach/reactivation`
-
-## API Contract Notes
-
-- `GET /app/bootstrap`
-  - returns active workspace context for UI routing and state sync:
-    - `active_workspace_id`
-    - `active_workspace_native_lang`
-    - `active_workspace_target_lang`
-    - `active_workspace_goal`
-
-- `POST /app/reset`
-  - full local reset for single-user desktop mode.
-  - requires payload confirmation token: `"RESET"`.
-  - clears users, workspaces, profiles, progress data, and in-process OpenAI key.
-
-- `GET /app/backup/export`
-  - returns a full JSON snapshot of local desktop data for backup:
-    - workspaces, profiles, sessions/messages, vocab/srs, homework, progress snapshots, usage events.
-
-- `POST /app/backup/restore`
-  - requires confirmation token `"RESTORE"`.
-  - replaces current local data with the provided JSON snapshot and restores table rows with IDs.
-
-- `GET /workspaces`
-  - returns owner scope workspace list:
-    - `owner_user_id`
-    - `active_workspace_id`
-    - `items[]` (`id`, `native_lang`, `target_lang`, `goal`, `is_active`, timestamps)
-
-- `POST /workspaces/switch`
-  - activates selected workspace and returns:
-    - `active_workspace_id`
-    - `active_user_id`
-
-- `GET /workspaces/overview`
-  - per-space progress snapshot for dashboard cards:
-    - `workspace_id`
-    - `native_lang`, `target_lang`, `goal`, `is_active`
-    - `has_profile`, `streak_days`, `minutes_practiced`, `words_learned`, `last_activity_at`
-
-- `DELETE /workspaces/{workspace_id}`
-  - prevents deleting the last remaining space.
-  - response:
-    - `deleted_workspace_id`
-    - `active_workspace_id` (fallback active space after deletion)
-
-- `GET /plan/today`
-  - response includes `adaptation_notes: string[]` with short reasoning for plan adaptation.
-
-- `GET /coach/next-actions`
-  - each action may include `quick_mode_minutes` to enable one-click short mode before routing.
-
-- `GET /coach/session/today`
-  - returns guided step sequence for the day:
-    - `steps[].id`
-    - `steps[].title`
-    - `steps[].description`
-    - `steps[].route`
-    - `steps[].duration_minutes`
-
-- `GET /coach/error-bank`
-  - returns recurring correction patterns to drive targeted drills:
-    - `items[].category`
-    - `items[].occurrences`
-    - `items[].latest_bad`, `items[].latest_good`
-    - `items[].drill_prompt`
-    - `items[].suggested_route`
-
-- `GET /coach/review-queue`
-  - unified spaced review planner combining:
-    - due vocabulary cards
-    - recurring error-bank patterns
-    - grammar-focused repetitions
-    - pronunciation retries
-
-- `GET /coach/reactivation`
-  - supports `available_minutes` to build personalized easy-return plans for the real time budget.
-  - response includes:
-    - `available_minutes`
-    - `recommended_minutes`
-    - `plan_mode` (`micro|standard|extended`)
-
-- `GET /scenarios`
-  - supports optional `user_id` for mastery-gated visibility:
-    - `items[].required_level`
-    - `items[].unlocked`
-    - `items[].gate_reason`
-  - locked scenarios are rejected by `POST /scenarios/select` until gate is satisfied.
-
-- `GET /coach/scenario-tracks`
-  - goal-based scenario sequences with explicit progress and milestones:
-    - `track_id`, `goal`, `title`
-    - `completed_steps`, `total_steps`, `completion_percent`
-    - `next_scenario_id`
-    - `milestones[]` for track progression
-
-- `POST /chat/message`
-  - response includes coaching rubric in `rubric`:
-    - `overall_score` (0..100)
-    - `level_band`
-    - `grammar_accuracy`, `lexical_range`, `fluency_coherence`, `task_completion` (each with `score` 1..5 + `feedback`)
-    - `strengths[]`
-    - `priority_fixes[]`
-    - `next_drill`
-  - if usage cap is reached, endpoint returns lightweight local fallback guidance instead of failing.
-
-- `POST /translate` and `POST /voice/message`
-  - provider/TTS failures degrade to lightweight mode (`200 OK`) with text-first fallback instead of hard `502`.
-
-- `GET /settings/usage-budget`
-  - returns per-user usage limits and current consumption:
-    - `daily_token_cap`, `weekly_token_cap`, `warning_threshold`
-    - `daily_used_tokens`, `weekly_used_tokens`
-    - `daily_remaining_tokens`, `weekly_remaining_tokens`
-    - `daily_warning`, `weekly_warning`, `blocked`
-
-- `POST /settings/usage-budget`
-  - updates per-user budget caps and warning threshold.
-  - stored in learner profile preferences for desktop-local persistence.
-
-- `GET /settings/ai-runtime`
-  - returns currently active providers and diagnostics for all modules:
-    - `llm_provider`, `asr_provider`, `tts_provider`
-    - `llm`, `asr`, `tts` diagnostic blocks with:
-      - `status`, `message`
-      - `model_path`, `model_exists`
-      - `dependency_available`, `device`
-      - `load_ms`, `probe_ms`
-
-- `POST /settings/ai-runtime`
-  - switches runtime providers (`openai|local`) for:
-    - LLM in API
-    - ASR service
-    - TTS service
-  - persists selection for next app start in secure/local store.
-
-- `GET /progress/journal`
-  - response includes weekly view and actionable recommendations:
-    - `weekly_minutes`
-    - `weekly_sessions`
-    - `weak_areas[]`
-    - `next_actions[]`
-    - `entries[]` (recent sessions with mode, message count, completion)
-
-- `GET /progress/timeline`
-  - chronological history feed with filters:
-    - `workspace_id`
-    - `skill`
-    - `activity_type` (`chat|scenario|correction|vocab_review|homework`)
-
-- `GET /progress/outcomes`
-  - learning-outcome snapshot (not only activity):
-    - `current_level`
-    - `estimated_level_from_skills`
-    - `avg_skill_score`
-    - `improvement_7d_points`
-    - `confidence`
-    - `recommendations[]`
-
-- `GET /progress/weekly-checkpoint`
-  - explicit before/after checkpoint over a 7-day (configurable) window:
-    - `baseline_avg_skill`, `current_avg_skill`
-    - `delta_points`, `delta_percent`, `measurable_growth`
-    - `top_gain_skill`, `top_gain_points`
-    - per-skill deltas in `skills[]`
-
-- `GET /progress/skill-tree`
-  - CEFR ladder with transparent completion criteria and progress:
-    - `items[].level`, `items[].status`, `items[].progress_percent`
-    - `items[].closed_criteria[]`
-    - `items[].remaining_criteria[]`
-
-## Quality / Platform Features
-
-- Request tracing: all responses include `X-Request-ID`.
-- Unified API error shape:
-  - `{"error":"...", "detail":"...", "request_id":"..."}`
-- Basic in-memory rate limit in API.
-- JSON-style access logs in API middleware.
-- AI cost controls:
-  - configurable OpenAI models (`OPENAI_CHAT_MODEL`, `OPENAI_VOICE_MODEL`, `OPENAI_TRANSLATE_MODEL`, `OPENAI_ASR_MODEL`)
-  - configurable output token caps (`OPENAI_*_MAX_OUTPUT_TOKENS`)
-  - configurable temperatures (`OPENAI_TEMPERATURE_*`)
-  - lightweight in-memory AI cache (`AI_CACHE_MAX_ITEMS`)
-
-## CI / Automated Checks
-
-GitHub Actions workflow: `.github/workflows/ci.yml`
-
-Runs on every `push` / `pull_request` (and manual `workflow_dispatch`):
-- Backend lint (critical Python rules via Ruff) + unit tests (`api`, `asr`, `tts`)
-- Web tests + production build
-- E2E smoke for critical user paths (`scripts/e2e-key-paths.ps1` + `scripts/e2e-workspace-journey.ps1`) against a started local API in CI
-- Browser UI smoke via Playwright (onboarding -> dashboard critical path)
-- CI reliability guards: concurrency cancel, job timeouts, dependency caching, API log artifact upload
-
-## Running Tests
-
-```powershell
-cd services/api
-..\..\.venv\Scripts\python.exe -m pytest tests -q
-cd ..\asr
-..\..\.venv\Scripts\python.exe -m pytest tests -q
-cd ..\tts
-..\..\.venv\Scripts\python.exe -m pytest tests -q
-cd ..\..
-```
-
-Frontend (`web`) tests/build:
-
-```powershell
-cd web
-npm install
-npm run test
-npm run build
-cd ..
-```
-
-## Mobile Web + PWA
-
-Web client is now mobile-ready and can be installed as a Progressive Web App:
-- responsive layout tuned for phone/tablet widths
-- web manifest (`web/public/manifest.webmanifest`)
-- service worker (`web/public/sw.js`) with offline fallback page (`web/public/offline.html`)
-
-Local check:
-
-```powershell
-cd web
-npm install
-npm run build
-npm run preview
-```
-
-Then open from phone browser on the same network (or deployed host) and install via browser "Add to Home Screen".
-
-Desktop shell (`desktop`):
-
-```powershell
-cd desktop
-npm install
-npm run start:web
-cd ..
-```
-
-## Local Model Download Guide
-
-Install HuggingFace Hub:
-
-```powershell
-pip install huggingface_hub
-```
-
-Create local model directory (example):
-
-```powershell
-mkdir F:\AI_MODELS_GENERIC\LINGUA_MODELS
-```
-
-Download Whisper Small (ASR):
-
-```powershell
-python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='openai/whisper-small', local_dir='F:/AI_MODELS_GENERIC/LINGUA_MODELS/whisper-small')"
-```
-
-Download Qwen3-TTS (TTS):
-
-```powershell
-python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice', local_dir='F:/AI_MODELS_GENERIC/LINGUA_MODELS/qwen3-tts')"
-```
-
-Download Qwen2.5 7B GGUF (LLM):
-
-```powershell
-python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='Smoffyy/Qwen2.5-7B-Instruct-Q4_K-M-GGUF', filename='qwen2.5-7b-instruct-q4_k_m.gguf', local_dir='F:/AI_MODELS_GENERIC/LINGUA_MODELS/qwen2.5-7b')"
-```
-
-Optional faster download:
-
-```powershell
-python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='openai/whisper-small', local_dir='F:/AI_MODELS_GENERIC/LINGUA_MODELS/whisper-small', max_workers=8)"
-```
-
-### Optional Python dependencies for local mode
-
-Local providers use optional dependencies and are loaded lazily:
-
-```powershell
-pip install llama-cpp-python faster-whisper transformers numpy
-```
-
-If dependencies are missing, services return a clear setup error instead of crashing.
-
-## E2E Smoke (Manual)
-
-1. Start stack: `docker compose up -d --build`
-2. Create profile:
-
-```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/profile/setup -ContentType "application/json" -Body '{"user_id":1,"native_lang":"ru","target_lang":"en","level":"A2","goal":"travel","preferences":{}}'
-```
-
-3. Start chat:
-
-```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/chat/start -ContentType "application/json" -Body '{"user_id":1,"mode":"chat"}'
-```
-
-4. Add vocab:
-
-```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/vocab/add -ContentType "application/json" -Body '{"user_id":1,"word":"achieve","translation":"to achieve"}'
-```
-
-5. Get progress summary:
-
-```powershell
-Invoke-RestMethod -Method Get -Uri "http://localhost:8000/progress/summary?user_id=1"
-```
-
-## E2E Smoke (Script)
-
-End-to-end smoke flow script:
-- health check
-- bootstrap/onboarding placement flow
-- chat lesson
-- vocab add
-- progress summary validation
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-smoke.ps1 -BaseUrl http://localhost:8000 -UserId 1
-```
-
-Dry run (no network calls):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-smoke.ps1 -DryRun
-```
-
-## E2E Key Paths (Script)
-
-Covers key product flows end-to-end:
-- bootstrap + onboarding/placement
-- daily planning (`/plan/today`, `/coach/session/today`, next actions, daily challenge, reactivation)
-- chat learning turn
-- scenario selection + scripted turn
-- progress and retention analytics (`summary/journal/weekly-goal/weekly-review/rewards`)
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-key-paths.ps1 -BaseUrl http://localhost:8000 -UserId 1
-```
-
-Dry run:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-key-paths.ps1 -DryRun
-```
-
-## E2E Local Runtime (Latency + Stability)
-
-Runs a local-mode smoke and prints request latency summary:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-local-runtime.ps1 -BaseUrl http://localhost:8000 -UserId 1
-```
-
-Optional voice step with real sample:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-local-runtime.ps1 -BaseUrl http://localhost:8000 -UserId 1 -AudioSamplePath C:\path\sample.wav
-```
-
-## E2E Workspace Journey (Script)
-
-Validates multi-space core behavior:
-- create second language-pair workspace
-- switch between spaces
-- isolated progress per workspace user
-- bootstrap context follows active workspace
-- previous workspace progress persists after return
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-workspace-journey.ps1 -BaseUrl http://localhost:8000 -UserId 1
-```
-
-Dry run:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\e2e-workspace-journey.ps1 -DryRun
-```
-
-## UI Smoke (Playwright)
-
-Runs browser smoke path for onboarding -> dashboard:
-
-```powershell
-cd web
-npx playwright install chromium
-npm run test:e2e:smoke
-cd ..
-```
-
-## Eval Harness (P0 Quality Checks)
-
-Runs focused quality guardrails for teacher behavior and scenario content quality:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\eval-harness.ps1
-```
+- Keep model files outside git.
+- Keep `.env` private.
+- Do not commit `node_modules`, generated audio, local caches.
+- When changing API contracts, update this README and frontend client contracts.
+- Before push: run backend tests + web tests + web build.
 

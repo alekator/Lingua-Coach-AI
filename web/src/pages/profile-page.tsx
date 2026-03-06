@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { FilePicker } from "../components/file-picker";
@@ -14,8 +14,6 @@ import { useToastStore } from "../store/toast-store";
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const openaiInputRef = useRef<HTMLInputElement | null>(null);
   const queryClient = useQueryClient();
   const userId = useAppStore((s) => s.userId) ?? 1;
   const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
@@ -27,11 +25,8 @@ export function ProfilePage() {
   const [newNativeLang, setNewNativeLang] = useState("");
   const [newTargetLang, setNewTargetLang] = useState("");
   const [newGoal, setNewGoal] = useState("");
-  const [goalDrafts, setGoalDrafts] = useState<Record<number, string>>({});
-  const [saveError, setSaveError] = useState("");
   const [workspaceError, setWorkspaceError] = useState("");
   const [placementError, setPlacementError] = useState("");
-  const [saving, setSaving] = useState(false);
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [retakeOpen, setRetakeOpen] = useState(false);
   const [retakeSessionId, setRetakeSessionId] = useState<number | null>(null);
@@ -46,25 +41,12 @@ export function ProfilePage() {
   const [resetError, setResetError] = useState("");
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupError, setBackupError] = useState("");
-  const [apiKeyDraft, setApiKeyDraft] = useState("");
-  const [apiKeyBusy, setApiKeyBusy] = useState(false);
-  const [apiKeyError, setApiKeyError] = useState("");
-  const [llmProviderDraft, setLlmProviderDraft] = useState<"openai" | "local">("openai");
-  const [asrProviderDraft, setAsrProviderDraft] = useState<"openai" | "local">("openai");
-  const [ttsProviderDraft, setTtsProviderDraft] = useState<"openai" | "local">("openai");
-  const [providerBusy, setProviderBusy] = useState(false);
-  const [providerError, setProviderError] = useState("");
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
   const [restoreToken, setRestoreToken] = useState("");
   const [restoreBusy, setRestoreBusy] = useState(false);
   const [restoreError, setRestoreError] = useState("");
   const [restoreFileName, setRestoreFileName] = useState("");
   const [restoreSnapshot, setRestoreSnapshot] = useState<Record<string, unknown> | null>(null);
-  const [dailyTokenCap, setDailyTokenCap] = useState("12000");
-  const [weeklyTokenCap, setWeeklyTokenCap] = useState("60000");
-  const [warningThreshold, setWarningThreshold] = useState("0.8");
-  const [budgetSaving, setBudgetSaving] = useState(false);
-  const [budgetError, setBudgetError] = useState("");
   const [timelineWorkspaceId, setTimelineWorkspaceId] = useState<number | "all">("all");
   const [timelineSkill, setTimelineSkill] = useState("all");
   const [timelineActivityType, setTimelineActivityType] = useState("all");
@@ -104,21 +86,6 @@ export function ProfilePage() {
         limit: 40,
       }),
   });
-  const usageBudget = useQuery({
-    queryKey: ["usage-budget", userId],
-    queryFn: () => api.usageBudgetStatus(userId),
-  });
-  const openaiKeyStatus = useQuery({
-    queryKey: ["openai-key-status-profile"],
-    queryFn: api.openaiKeyStatus,
-    retry: false,
-  });
-  const aiRuntimeStatus = useQuery({
-    queryKey: ["ai-runtime-status"],
-    queryFn: () => api.aiRuntimeStatus(false),
-    retry: false,
-  });
-
   useEffect(() => {
     if (!profile.data) return;
     setNativeLang(profile.data.native_lang);
@@ -127,65 +94,10 @@ export function ProfilePage() {
     setGoal(profile.data.goal ?? "");
   }, [profile.data]);
 
-  useEffect(() => {
-    if (!workspaces.data?.items) return;
-    const next: Record<number, string> = {};
-    for (const item of workspaces.data.items) {
-      next[item.id] = item.goal ?? "";
-    }
-    setGoalDrafts(next);
-  }, [workspaces.data]);
-
-  useEffect(() => {
-    if (!usageBudget.data) return;
-    setDailyTokenCap(String(usageBudget.data.daily_token_cap));
-    setWeeklyTokenCap(String(usageBudget.data.weekly_token_cap));
-    setWarningThreshold(String(usageBudget.data.warning_threshold));
-  }, [usageBudget.data]);
-
-  useEffect(() => {
-    if (location.hash !== "#openai-key-input" && location.hash !== "#openai-key") return;
-    const element = openaiInputRef.current;
-    if (!element) return;
-    element.scrollIntoView({ behavior: "smooth", block: "center" });
-    element.focus();
-  }, [location.hash]);
-
-  useEffect(() => {
-    if (!aiRuntimeStatus.data) return;
-    setLlmProviderDraft(aiRuntimeStatus.data.llm_provider);
-    setAsrProviderDraft(aiRuntimeStatus.data.asr_provider);
-    setTtsProviderDraft(aiRuntimeStatus.data.tts_provider);
-  }, [aiRuntimeStatus.data]);
-
   async function syncBootstrapContext() {
     const bootstrap = await syncWorkspaceContext(queryClient, setBootstrapState);
     if (bootstrap.needs_onboarding) {
       navigate("/", { replace: true });
-    }
-  }
-
-  async function onSave(event: FormEvent) {
-    event.preventDefault();
-    setSaving(true);
-    try {
-      await api.profileSetup({
-        user_id: userId,
-        native_lang: nativeLang,
-        target_lang: targetLang,
-        level,
-        goal,
-        preferences: profile.data?.preferences ?? {},
-      });
-      setSaveError("");
-      pushToast("success", "Profile updated");
-      await profile.refetch();
-    } catch (err) {
-      const msg = getErrorMessage(err);
-      setSaveError(msg);
-      pushToast("error", msg);
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -231,38 +143,6 @@ export function ProfilePage() {
       await syncBootstrapContext();
       setWorkspaceError("");
       pushToast("success", "Learning space switched");
-    } catch (err) {
-      const msg = getErrorMessage(err);
-      setWorkspaceError(msg);
-      pushToast("error", msg);
-    } finally {
-      setWorkspaceBusy(false);
-    }
-  }
-
-  async function onDeleteWorkspace(workspaceId: number) {
-    setWorkspaceBusy(true);
-    try {
-      await api.workspaceDelete(workspaceId);
-      await syncBootstrapContext();
-      setWorkspaceError("");
-      pushToast("success", "Learning space deleted");
-    } catch (err) {
-      const msg = getErrorMessage(err);
-      setWorkspaceError(msg);
-      pushToast("error", msg);
-    } finally {
-      setWorkspaceBusy(false);
-    }
-  }
-
-  async function onSaveWorkspaceGoal(workspaceId: number) {
-    setWorkspaceBusy(true);
-    try {
-      await api.workspaceUpdate(workspaceId, { goal: goalDrafts[workspaceId] ?? null });
-      await syncWorkspaceContext(queryClient, setBootstrapState);
-      setWorkspaceError("");
-      pushToast("success", "Space goal updated");
     } catch (err) {
       const msg = getErrorMessage(err);
       setWorkspaceError(msg);
@@ -365,28 +245,6 @@ export function ProfilePage() {
       pushToast("error", msg);
     } finally {
       setResetBusy(false);
-    }
-  }
-
-  async function onSaveBudget(event: FormEvent) {
-    event.preventDefault();
-    setBudgetSaving(true);
-    try {
-      await api.usageBudgetSet({
-        user_id: userId,
-        daily_token_cap: Number(dailyTokenCap),
-        weekly_token_cap: Number(weeklyTokenCap),
-        warning_threshold: Number(warningThreshold),
-      });
-      setBudgetError("");
-      await usageBudget.refetch();
-      pushToast("success", "Usage limits updated");
-    } catch (err) {
-      const msg = getErrorMessage(err);
-      setBudgetError(msg);
-      pushToast("error", msg);
-    } finally {
-      setBudgetSaving(false);
     }
   }
 
@@ -495,76 +353,77 @@ export function ProfilePage() {
     }
   }
 
-  async function onSaveApiKey() {
-    if (!apiKeyDraft.trim()) {
-      setApiKeyError("Enter API key before saving.");
-      return;
-    }
-    setApiKeyBusy(true);
-    try {
-      await api.openaiKeySet({ api_key: apiKeyDraft.trim() });
-      await api.debugOpenai();
-      await openaiKeyStatus.refetch();
-      setApiKeyDraft("");
-      setApiKeyError("");
-      pushToast("success", "OpenAI key saved and verified");
-    } catch (err) {
-      const msg = getErrorMessage(err);
-      setApiKeyError(msg);
-      pushToast("error", msg);
-    } finally {
-      setApiKeyBusy(false);
-    }
-  }
+  const skillEntries = skillMap.data
+    ? ([
+        ["Speaking", skillMap.data.speaking],
+        ["Listening", skillMap.data.listening],
+        ["Grammar", skillMap.data.grammar],
+        ["Vocab", skillMap.data.vocab],
+        ["Reading", skillMap.data.reading],
+        ["Writing", skillMap.data.writing],
+      ] as const)
+    : [];
 
-  async function onSaveRuntimeProviders() {
-    setProviderBusy(true);
-    try {
-      await api.aiRuntimeSet({
-        llm_provider: llmProviderDraft,
-        asr_provider: asrProviderDraft,
-        tts_provider: ttsProviderDraft,
-      });
-      await aiRuntimeStatus.refetch();
-      setProviderError("");
-      pushToast("success", "AI runtime providers updated");
-    } catch (err) {
-      const msg = getErrorMessage(err);
-      setProviderError(msg);
-      pushToast("error", msg);
-    } finally {
-      setProviderBusy(false);
-    }
+  function scoreToCefrLabel(score: number): "A1" | "A2" | "B1" | "B2" | "C1" | "C2" {
+    if (score < 20) return "A1";
+    if (score < 35) return "A2";
+    if (score < 50) return "B1";
+    if (score < 65) return "B2";
+    if (score < 80) return "C1";
+    return "C2";
   }
 
   return (
-    <section className="panel stack">
-      <h2>Coach Profile</h2>
-      <p>Manage your learning spaces, preferences, and progress signals in one place.</p>
-      <article className="panel stack">
+    <section className="panel stack profile-page">
+      <header className="profile-hero panel">
+        <div>
+          <h2>Coach Profile</h2>
+          <p>Manage your learning spaces, preferences, and progress signals in one place.</p>
+        </div>
+        {streak.isSuccess && streak.data.streak_days > 0 && (
+          <aside className="streak-float-card" aria-live="polite">
+            <strong>{streak.data.streak_days}-day streak</strong>
+            <span>
+              {streak.data.active_dates.length > 0
+                ? `Last active: ${streak.data.active_dates[streak.data.active_dates.length - 1]}`
+                : "Keep it alive today"}
+            </span>
+          </aside>
+        )}
+      </header>
+      <article className="panel stack profile-heavy-card">
         <h3>Learning Spaces</h3>
         <p>Each language pair is an isolated coach space with its own progress and recommendations.</p>
         {workspaces.isPending && <LoadingState text="Loading learning spaces..." />}
         {workspaces.isError && <ErrorState text="Failed to load learning spaces." />}
         {workspaces.isSuccess && (
-          <>
-            <label>
-              Switch active space
-              <select
-                value={activeWorkspaceId ?? workspaces.data.active_workspace_id ?? ""}
-                onChange={(e) => onSwitchWorkspace(Number(e.target.value))}
-                disabled={workspaceBusy}
-              >
-                {workspaces.data.items.map((item) => (
-                  <option key={item.id} value={item.id}>
+          <div className="learning-hub-grid">
+            <article className="panel stack profile-space-manage">
+              <h4>Manage spaces</h4>
+              <p>Pick an active learning space from the list.</p>
+              <div className="space-list" role="listbox" aria-label="Learning spaces">
+              {workspaces.data.items.map((item) => (
+                <button
+                  key={`space-item-${item.id}`}
+                  type="button"
+                  className={`space-list-item ${(activeWorkspaceId ?? workspaces.data.active_workspace_id) === item.id ? "active" : ""}`}
+                  role="option"
+                  aria-selected={(activeWorkspaceId ?? workspaces.data.active_workspace_id) === item.id}
+                  onClick={() => onSwitchWorkspace(item.id)}
+                  disabled={workspaceBusy}
+                >
+                  <span className="space-list-item-title">
                     {languageLabelByCode(item.native_lang)} {"->"} {languageLabelByCode(item.target_lang)}
-                    {item.is_active ? " (active)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <form className="stack" onSubmit={onCreateWorkspace}>
+                  </span>
+                  <span className="space-list-item-meta">{item.is_active ? "active" : "switch"}</span>
+                </button>
+              ))}
+              </div>
+              {workspaceBusy && <p className="space-list-note">Switching active space...</p>}
+            </article>
+            <form className="panel stack profile-space-create" onSubmit={onCreateWorkspace}>
               <h4>Create new space</h4>
+              <p>Launch a new language pair as an isolated learning universe.</p>
               <LanguagePairSelector
                 nativeLang={newNativeLang}
                 targetLang={newTargetLang}
@@ -578,88 +437,18 @@ export function ProfilePage() {
               </label>
               <button
                 type="submit"
+                className="cta-primary"
                 disabled={workspaceBusy || !newNativeLang.trim() || !newTargetLang.trim()}
               >
                 {workspaceBusy ? "Creating..." : "Create and switch space"}
               </button>
             </form>
-            <article className="panel stack">
-              <h4>Manage spaces</h4>
-              {workspaces.data.items.map((item) => (
-                <div key={`manage-${item.id}`} className="stack">
-                  <span>
-                    {languageLabelByCode(item.native_lang)} {"->"} {languageLabelByCode(item.target_lang)}
-                    {item.is_active ? " (active)" : ""}
-                  </span>
-                  <label>
-                    Goal
-                    <input
-                      aria-label={`Space goal ${item.id}`}
-                      value={goalDrafts[item.id] ?? ""}
-                      onChange={(e) =>
-                        setGoalDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))
-                      }
-                    />
-                  </label>
-                  <div className="row">
-                    <button
-                      type="button"
-                      onClick={() => onSaveWorkspaceGoal(item.id)}
-                      disabled={workspaceBusy}
-                    >
-                      Save goal
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteWorkspace(item.id)}
-                      disabled={workspaceBusy || workspaces.data.items.length <= 1}
-                    >
-                      Delete space
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {workspaces.data.items.length <= 1 && (
-                <p>At least one space must remain. Create another space before deleting this one.</p>
-              )}
-            </article>
-          </>
+          </div>
         )}
         {workspaceError && <ErrorState text={workspaceError} />}
       </article>
       {profile.isPending && <LoadingState text="Loading profile settings..." />}
       {profile.isError && <ErrorState text="Failed to load profile settings." />}
-      {profile.isSuccess && (
-        <form className="stack" onSubmit={onSave}>
-          <label>
-            Native language
-            <input value={nativeLang} disabled />
-          </label>
-          <label>
-            Target language
-            <input value={targetLang} disabled />
-          </label>
-          <label>
-            CEFR level
-            <input aria-label="Profile CEFR level" value={level} onChange={(e) => setLevel(e.target.value)} />
-          </label>
-          <label>
-            Goal
-            <input aria-label="Profile goal" value={goal} onChange={(e) => setGoal(e.target.value)} />
-          </label>
-          <button type="submit" disabled={saving}>
-            {saving ? "Saving..." : "Save settings"}
-          </button>
-          <button
-            type="button"
-            disabled={retakeBusy || !nativeLang.trim() || !targetLang.trim()}
-            onClick={onRetakeStart}
-          >
-            {retakeBusy && !retakeOpen ? "Starting..." : "Recalibrate level"}
-          </button>
-        </form>
-      )}
-      {saveError && <ErrorState text={saveError} />}
       {placementError && <ErrorState text={placementError} />}
       {retakeOpen && (
         <form className="panel stack" onSubmit={onRetakeAnswer}>
@@ -686,409 +475,279 @@ export function ProfilePage() {
       {streak.isSuccess && skillMap.isSuccess && streak.data.streak_days === 0 && (
         <EmptyState text="No tracked activity yet. Start a lesson to populate progress." />
       )}
-      {streak.isSuccess && (
-        <article className="panel">
-          <h3>Streak</h3>
-          <p>{streak.data.streak_days} days</p>
-          <p>Active dates: {streak.data.active_dates.join(", ") || "none"}</p>
-        </article>
-      )}
-      {skillMap.isSuccess && (
-        <article className="panel">
-          <h3>Skill Map</h3>
-          <p>Speaking: {skillMap.data.speaking}</p>
-          <p>Listening: {skillMap.data.listening}</p>
-          <p>Grammar: {skillMap.data.grammar}</p>
-          <p>Vocab: {skillMap.data.vocab}</p>
-          <p>Reading: {skillMap.data.reading}</p>
-          <p>Writing: {skillMap.data.writing}</p>
-        </article>
+      {(skillMap.isSuccess || skillTree.isSuccess) && (
+        <section className="profile-intel-grid">
+          {skillMap.isSuccess && (
+            <article className="panel stack intel-skill-card">
+              <h3>Skill Map</h3>
+              {skillEntries.map(([name, value]) => (
+                <div key={name} className="skill-row">
+                  <p>
+                    <strong>{name}</strong>
+                    <span className="skill-row-meta">
+                      <span>{scoreToCefrLabel(value)}</span>
+                      <span>{value.toFixed(1)}</span>
+                    </span>
+                  </p>
+                  <div className="profile-meter" role="img" aria-label={`${name} level`}>
+                    <span style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+                  </div>
+                </div>
+              ))}
+            </article>
+          )}
+          {skillTree.isSuccess && (
+            <article className="panel stack intel-tree-card">
+              <div className="cefr-head">
+                <h3>CEFR Skill Tree</h3>
+                <div className="cefr-head-stats">
+                  <span className="badge">Current: {skillTree.data.current_level}</span>
+                  <span className="badge">Estimated: {skillTree.data.estimated_level_from_skills}</span>
+                  <span className="badge">Avg: {skillTree.data.avg_skill_score}</span>
+                  <span className="badge">Next: {skillTree.data.next_target_level ?? "C2 (max)"}</span>
+                </div>
+              </div>
+              <div className="cefr-tree">
+                {skillTree.data.items.map((item) => (
+                  <div key={item.level} className={`cefr-node ${item.status}`}>
+                    <div className="cefr-node-head">
+                      <strong>{item.level}</strong>
+                      <span>{item.status.replace("_", " ")}</span>
+                    </div>
+                    <div className="profile-meter" role="img" aria-label={`${item.level} progress`}>
+                      <span style={{ width: `${Math.max(0, Math.min(100, item.progress_percent))}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          )}
+        </section>
       )}
       {skillTree.isPending && <LoadingState text="Loading CEFR skill tree..." />}
       {skillTree.isError && <ErrorState text="Failed to load CEFR skill tree." />}
-      {skillTree.isSuccess && (
-        <article className="panel stack">
-          <h3>CEFR Skill Tree</h3>
-          <p>
-            Current: {skillTree.data.current_level} | Estimated: {skillTree.data.estimated_level_from_skills} | Avg:{" "}
-            {skillTree.data.avg_skill_score}
-          </p>
-          <p>Next target: {skillTree.data.next_target_level ?? "C2 (max)"}</p>
-          {skillTree.data.items.map((item) => (
-            <div key={item.level} className="panel stack">
-              <p>
-                <strong>{item.level}</strong> | {item.status} | {item.progress_percent}%
-              </p>
-              <p>Closed: {item.closed_criteria.length > 0 ? item.closed_criteria.join("; ") : "none"}</p>
-              <p>Remaining: {item.remaining_criteria.length > 0 ? item.remaining_criteria.join("; ") : "none"}</p>
-            </div>
-          ))}
-        </article>
-      )}
-      {journal.isSuccess && (
-        <article className="panel">
+      <section className="profile-journey-grid">
+        <article className="panel stack profile-heavy-card journal-card">
           <h3>Weekly Journal</h3>
-          <p>
-            Sessions: {journal.data.weekly_sessions} | Minutes: {journal.data.weekly_minutes}
-          </p>
-          <p>Weak areas: {journal.data.weak_areas.join(", ") || "none detected"}</p>
-          <h4>Next actions</h4>
-          <p>Coach recommendation: choose one action and complete it today.</p>
-          {journal.data.next_actions.map((action) => (
-            <p key={action}>- {action}</p>
-          ))}
-          <h4>Recent sessions</h4>
-          {journal.data.entries.length === 0 && <p>No session history yet.</p>}
-          {journal.data.entries.map((entry) => (
-            <p key={entry.session_id}>
-              #{entry.session_id} | {entry.started_at} | {entry.mode} | msgs: {entry.messages_count} |{" "}
-              {entry.completed ? "completed" : "in progress"}
-            </p>
-          ))}
+          {journal.isPending && <LoadingState text="Loading weekly journal..." />}
+          {journal.isError && <ErrorState text="Failed to load weekly journal." />}
+          {journal.isSuccess && (
+            <>
+              <div className="journal-kpis">
+                <span className="badge">Sessions: {journal.data.weekly_sessions}</span>
+                <span className="badge">Minutes: {journal.data.weekly_minutes}</span>
+                <span className="badge">Weak: {journal.data.weak_areas.join(", ") || "none"}</span>
+              </div>
+              <div className="journal-columns">
+                <div className="stack">
+                  <p>
+                    <strong>Next actions</strong>
+                  </p>
+                  {(journal.data.next_actions.length > 0 ? journal.data.next_actions : ["No actions yet"]).slice(0, 3).map((action) => (
+                    <p key={action} className="journal-line">
+                      {action}
+                    </p>
+                  ))}
+                </div>
+                <div className="stack">
+                  <p>
+                    <strong>Recent sessions</strong>
+                  </p>
+                  <div className="journal-session-list">
+                    {journal.data.entries.length === 0 && <p className="journal-line">No session history yet.</p>}
+                    {journal.data.entries.slice(0, 6).map((entry) => (
+                      <p key={entry.session_id} className="journal-line">
+                        #{entry.session_id} | {entry.mode} | {entry.completed ? "completed" : "in progress"}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </article>
-      )}
-      <article className="panel stack">
-        <h3>Learning Timeline</h3>
-        <p>Filter by learning space, skill, and activity type.</p>
-        <label>
-          Workspace filter
-          <select
-            aria-label="Timeline workspace filter"
-            value={timelineWorkspaceId}
-            onChange={(e) =>
-              setTimelineWorkspaceId(e.target.value === "all" ? "all" : Number(e.target.value))
-            }
-          >
-            <option value="all">All spaces</option>
-            {(workspaces.data?.items ?? []).map((item) => (
-              <option key={`tl-ws-${item.id}`} value={item.id}>
-                {languageLabelByCode(item.native_lang)} {"->"} {languageLabelByCode(item.target_lang)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Skill filter
-          <select
-            aria-label="Timeline skill filter"
-            value={timelineSkill}
-            onChange={(e) => setTimelineSkill(e.target.value)}
-          >
-            <option value="all">All skills</option>
-            <option value="grammar">Grammar</option>
-            <option value="vocab">Vocab</option>
-            <option value="pronunciation">Pronunciation</option>
-            <option value="speaking">Speaking</option>
-            <option value="writing">Writing</option>
-          </select>
-        </label>
-        <label>
-          Activity filter
-          <select
-            aria-label="Timeline activity filter"
-            value={timelineActivityType}
-            onChange={(e) => setTimelineActivityType(e.target.value)}
-          >
-            <option value="all">All activities</option>
-            <option value="chat">Chat</option>
-            <option value="scenario">Scenario</option>
-            <option value="correction">Correction</option>
-            <option value="vocab_review">Vocab review</option>
-            <option value="homework">Homework</option>
-          </select>
-        </label>
-        {timeline.isPending && <LoadingState text="Loading timeline..." />}
-        {timeline.isError && <ErrorState text="Failed to load learning timeline." />}
-        {timeline.isSuccess && timeline.data.items.length === 0 && (
-          <EmptyState text="No timeline items for selected filters yet." />
-        )}
-        {timeline.isSuccess &&
-          timeline.data.items.map((item) => (
-            <div key={item.id} className="panel stack">
-              <p>
-                <strong>{item.title}</strong>
-              </p>
-              <p>{item.detail}</p>
-              <p>
-                {item.activity_type} | {item.skill_tags.join(", ")} | {item.workspace_label ?? "current space"} |{" "}
-                {item.happened_at}
-              </p>
+        <article className="panel stack profile-heavy-card timeline-card">
+          <h3>Learning Timeline</h3>
+          <div className="timeline-filters">
+            <label>
+              Workspace
+              <select
+                aria-label="Timeline workspace filter"
+                value={timelineWorkspaceId}
+                onChange={(e) =>
+                  setTimelineWorkspaceId(e.target.value === "all" ? "all" : Number(e.target.value))
+                }
+              >
+                <option value="all">All spaces</option>
+                {(workspaces.data?.items ?? []).map((item) => (
+                  <option key={`tl-ws-${item.id}`} value={item.id}>
+                    {languageLabelByCode(item.native_lang)} {"->"} {languageLabelByCode(item.target_lang)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Skill
+              <select
+                aria-label="Timeline skill filter"
+                value={timelineSkill}
+                onChange={(e) => setTimelineSkill(e.target.value)}
+              >
+                <option value="all">All skills</option>
+                <option value="grammar">Grammar</option>
+                <option value="vocab">Vocab</option>
+                <option value="pronunciation">Pronunciation</option>
+                <option value="speaking">Speaking</option>
+                <option value="writing">Writing</option>
+              </select>
+            </label>
+            <label>
+              Activity
+              <select
+                aria-label="Timeline activity filter"
+                value={timelineActivityType}
+                onChange={(e) => setTimelineActivityType(e.target.value)}
+              >
+                <option value="all">All activities</option>
+                <option value="chat">Chat</option>
+                <option value="scenario">Scenario</option>
+                <option value="correction">Correction</option>
+                <option value="vocab_review">Vocab review</option>
+                <option value="homework">Homework</option>
+              </select>
+            </label>
+          </div>
+          {timeline.isPending && <LoadingState text="Loading timeline..." />}
+          {timeline.isError && <ErrorState text="Failed to load learning timeline." />}
+          {timeline.isSuccess && timeline.data.items.length === 0 && (
+            <EmptyState text="No timeline items for selected filters yet." />
+          )}
+          {timeline.isSuccess && (
+            <div className="timeline-list">
+              {timeline.data.items.map((item) => (
+                <article key={item.id} className="timeline-item">
+                  <p className="timeline-item-title">{item.title}</p>
+                  <p className="timeline-item-detail">{item.detail}</p>
+                  <p className="timeline-item-meta">
+                    {item.activity_type} | {item.skill_tags.join(", ")} | {item.workspace_label ?? "current space"} | {item.happened_at}
+                  </p>
+                </article>
+              ))}
             </div>
-          ))}
-      </article>
-      <article className="panel stack">
-        <h3>AI Runtime Providers</h3>
-        <p>Choose which provider to use for LLM coaching, speech-to-text, and text-to-speech.</p>
-        {aiRuntimeStatus.isPending && <LoadingState text="Loading AI runtime status..." />}
-        {aiRuntimeStatus.isError && <ErrorState text="Failed to load AI runtime status." />}
-        {aiRuntimeStatus.isSuccess && (
-          <>
-            <div className="stack">
+          )}
+        </article>
+      </section>
+      <article className="panel profile-heavy-card profile-actions-hub">
+        <section className="profile-action-col">
+          <div className="profile-action-head">
+            <div>
+              <h3>Recalibrate</h3>
+              <p>Retake placement and refresh your CEFR baseline.</p>
+            </div>
+            <div className="profile-action-tags">
+              <button
+                type="button"
+                className="profile-tag-btn"
+                disabled={retakeBusy || !nativeLang.trim() || !targetLang.trim()}
+                onClick={onRetakeStart}
+              >
+                {retakeBusy && !retakeOpen ? "Starting..." : "Recalibrate"}
+              </button>
+            </div>
+          </div>
+        </section>
+        <section className="profile-action-col">
+          <div className="profile-action-head">
+            <div>
+              <h3>Backup & Restore</h3>
+              <p>Export data to JSON or restore from backup file.</p>
+            </div>
+            <div className="profile-action-tags">
+              <button type="button" className="profile-tag-btn" onClick={onExportBackup} disabled={backupBusy}>
+                {backupBusy ? "Exporting..." : "Export"}
+              </button>
+              <FilePicker
+                id="import-backup-file"
+                ariaLabel="Import backup file"
+                accept="application/json,.json"
+                onFileChange={(file) => void onImportBackupFile(file)}
+                disabled={restoreBusy}
+              />
+            </div>
+          </div>
+          {restoreConfirmOpen && (
+            <div className="panel stack profile-action-confirm">
+              <p>Loaded: {restoreFileName || "unknown"}</p>
               <label>
-                LLM provider
-                <select
-                  value={llmProviderDraft}
-                  onChange={(e) => setLlmProviderDraft(e.target.value as "openai" | "local")}
-                  disabled={providerBusy}
-                >
-                  <option value="openai">OpenAI</option>
-                  <option value="local">Local</option>
-                </select>
-              </label>
-              <label>
-                ASR provider
-                <select
-                  value={asrProviderDraft}
-                  onChange={(e) => setAsrProviderDraft(e.target.value as "openai" | "local")}
-                  disabled={providerBusy}
-                >
-                  <option value="openai">OpenAI</option>
-                  <option value="local">Local</option>
-                </select>
-              </label>
-              <label>
-                TTS provider
-                <select
-                  value={ttsProviderDraft}
-                  onChange={(e) => setTtsProviderDraft(e.target.value as "openai" | "local")}
-                  disabled={providerBusy}
-                >
-                  <option value="openai">OpenAI</option>
-                  <option value="local">Local</option>
-                </select>
+                Type RESTORE to confirm
+                <input value={restoreToken} onChange={(e) => setRestoreToken(e.target.value)} />
               </label>
               <div className="row">
-                <button type="button" onClick={onSaveRuntimeProviders} disabled={providerBusy}>
-                  {providerBusy ? "Saving providers..." : "Save provider settings"}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRestoreConfirmOpen(false);
+                    setRestoreToken("");
+                    setRestoreError("");
+                  }}
+                  disabled={restoreBusy}
+                >
+                  Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={() => aiRuntimeStatus.refetch()}
-                  disabled={aiRuntimeStatus.isFetching || providerBusy}
+                  onClick={onRestoreBackup}
+                  disabled={restoreBusy || restoreToken.trim().toUpperCase() !== "RESTORE"}
                 >
-                  {aiRuntimeStatus.isFetching ? "Refreshing..." : "Refresh status"}
+                  {restoreBusy ? "Restoring..." : "Restore"}
                 </button>
               </div>
             </div>
-            <article className="panel stack">
-              <h4>Local diagnostics</h4>
-              <p>
-                LLM: {aiRuntimeStatus.data.llm.status} | {aiRuntimeStatus.data.llm.message}
-              </p>
-              <p>
-                Model: {aiRuntimeStatus.data.llm.model_path ?? "not set"} | Device:{" "}
-                {aiRuntimeStatus.data.llm.device ?? "n/a"} | Load:{" "}
-                {aiRuntimeStatus.data.llm.load_ms ?? "n/a"} ms | Probe: {aiRuntimeStatus.data.llm.probe_ms ?? "n/a"} ms
-              </p>
-              <p>
-                ASR: {aiRuntimeStatus.data.asr.status} | {aiRuntimeStatus.data.asr.message}
-              </p>
-              <p>
-                Model: {aiRuntimeStatus.data.asr.model_path ?? "not set"} | Device:{" "}
-                {aiRuntimeStatus.data.asr.device ?? "n/a"} | Load: {aiRuntimeStatus.data.asr.load_ms ?? "n/a"} ms |
-                Probe: {aiRuntimeStatus.data.asr.probe_ms ?? "n/a"} ms
-              </p>
-              <p>
-                TTS: {aiRuntimeStatus.data.tts.status} | {aiRuntimeStatus.data.tts.message}
-              </p>
-              <p>
-                Model: {aiRuntimeStatus.data.tts.model_path ?? "not set"} | Device:{" "}
-                {aiRuntimeStatus.data.tts.device ?? "n/a"} | Load: {aiRuntimeStatus.data.tts.load_ms ?? "n/a"} ms |
-                Probe: {aiRuntimeStatus.data.tts.probe_ms ?? "n/a"} ms
-              </p>
-            </article>
-          </>
-        )}
-        {providerError && <ErrorState text={providerError} />}
-      </article>
-      <article className="panel stack">
-        <h3>AI Usage Budget</h3>
-        {usageBudget.isPending && <LoadingState text="Loading usage budget..." />}
-        {usageBudget.isError && <ErrorState text="Failed to load usage budget." />}
-        {usageBudget.isSuccess && (
-          <>
-            <p>
-              Today: {usageBudget.data.daily_used_tokens} / {usageBudget.data.daily_token_cap} tokens
-            </p>
-            <p>
-              This week: {usageBudget.data.weekly_used_tokens} / {usageBudget.data.weekly_token_cap} tokens
-            </p>
-            {(usageBudget.data.daily_warning || usageBudget.data.weekly_warning) && (
-              <p>Warning: usage is near your configured cap.</p>
-            )}
-            {usageBudget.data.blocked && (
-              <p>Budget cap reached. App stays in lightweight fallback mode until the period resets.</p>
-            )}
-            <form className="stack" onSubmit={onSaveBudget}>
-              <label>
-                Daily token cap
-                <input
-                  aria-label="Daily token cap"
-                  type="number"
-                  min={0}
-                  value={dailyTokenCap}
-                  onChange={(e) => setDailyTokenCap(e.target.value)}
-                />
-              </label>
-              <label>
-                Weekly token cap
-                <input
-                  aria-label="Weekly token cap"
-                  type="number"
-                  min={0}
-                  value={weeklyTokenCap}
-                  onChange={(e) => setWeeklyTokenCap(e.target.value)}
-                />
-              </label>
-              <label>
-                Warning threshold
-                <input
-                  aria-label="Warning threshold"
-                  type="number"
-                  min={0.5}
-                  max={0.95}
-                  step={0.05}
-                  value={warningThreshold}
-                  onChange={(e) => setWarningThreshold(e.target.value)}
-                />
-              </label>
-              <button type="submit" disabled={budgetSaving}>
-                {budgetSaving ? "Saving..." : "Save usage limits"}
-              </button>
-            </form>
-          </>
-        )}
-        {budgetError && <ErrorState text={budgetError} />}
-      </article>
-      <article className="panel stack">
-        <h3>Backup & Restore</h3>
-        <p>Export all local learning data to JSON or restore from a previously exported backup file.</p>
-        <div className="row">
-          <button type="button" onClick={onExportBackup} disabled={backupBusy}>
-            {backupBusy ? "Exporting..." : "Export backup (JSON)"}
-          </button>
-          <label>
-            Import backup file
-            <FilePicker
-              id="import-backup-file"
-              ariaLabel="Import backup file"
-              accept="application/json,.json"
-              onFileChange={(file) => void onImportBackupFile(file)}
-              disabled={restoreBusy}
-            />
-          </label>
-        </div>
-        {restoreConfirmOpen && (
-          <div className="panel stack">
-            <p>Restore will replace current local data with backup contents.</p>
-            <p>Loaded file: {restoreFileName || "unknown"}</p>
-            <label>
-              Type RESTORE to confirm
-              <input value={restoreToken} onChange={(e) => setRestoreToken(e.target.value)} />
-            </label>
-            <div className="row">
-              <button
-                type="button"
-                onClick={() => {
-                  setRestoreConfirmOpen(false);
-                  setRestoreToken("");
-                  setRestoreError("");
-                }}
-                disabled={restoreBusy}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={onRestoreBackup}
-                disabled={restoreBusy || restoreToken.trim().toUpperCase() !== "RESTORE"}
-              >
-                {restoreBusy ? "Restoring..." : "Restore from backup"}
-              </button>
+          )}
+          {backupError && <ErrorState text={backupError} />}
+          {restoreError && <ErrorState text={restoreError} />}
+        </section>
+        <section className="profile-action-col profile-action-danger">
+          <div className="profile-action-head">
+            <div>
+              <h3>Start Over</h3>
+              <p>Delete all spaces, progress, sessions, and profile data.</p>
             </div>
+            {!resetConfirmOpen && (
+              <div className="profile-action-tags">
+                <button type="button" className="profile-tag-btn danger" onClick={() => setResetConfirmOpen(true)} disabled={resetBusy}>
+                  Start over
+                </button>
+              </div>
+            )}
           </div>
-        )}
-        {backupError && <ErrorState text={backupError} />}
-        {restoreError && <ErrorState text={restoreError} />}
-      </article>
-      <article id="openai-key" className="panel stack">
-        <h3>OpenAI API Key</h3>
-        {openaiKeyStatus.isPending && <LoadingState text="Checking key status..." />}
-        {openaiKeyStatus.isError && <ErrorState text="Failed to read OpenAI key status." />}
-        {openaiKeyStatus.isSuccess && (
-          <>
-            <p>
-              Status: {openaiKeyStatus.data.configured ? "configured" : "not configured"}
-              {openaiKeyStatus.data.masked ? ` (${openaiKeyStatus.data.masked})` : ""}
-            </p>
-            <p>
-              Storage:{" "}
-              {openaiKeyStatus.data.persistent
-                ? openaiKeyStatus.data.secure_storage
-                  ? "persistent (secure local storage)"
-                  : "persistent (local storage)"
-                : "session only"}
-            </p>
-          </>
-        )}
-        <label>
-          OpenAI API key
-          <input
-            id="openai-key-input"
-            aria-label="OpenAI API key (Profile)"
-            type="password"
-            placeholder="sk-..."
-            value={apiKeyDraft}
-            onChange={(e) => setApiKeyDraft(e.target.value)}
-            ref={openaiInputRef}
-          />
-        </label>
-        <div className="row">
-          <button type="button" onClick={onSaveApiKey} disabled={apiKeyBusy || !apiKeyDraft.trim()}>
-            {apiKeyBusy ? "Saving key..." : "Save API key"}
-          </button>
-          <button type="button" onClick={() => openaiKeyStatus.refetch()} disabled={openaiKeyStatus.isPending}>
-            Refresh key status
-          </button>
-        </div>
-        {apiKeyError && <ErrorState text={apiKeyError} />}
-      </article>
-      <article className="panel stack">
-        <h3>Start Over</h3>
-        <p>
-          Delete all learning spaces, progress, sessions, vocabulary, and profile data. This action cannot be undone.
-        </p>
-        {!resetConfirmOpen && (
-          <button type="button" onClick={() => setResetConfirmOpen(true)} disabled={resetBusy}>
-            Start over (delete all data)
-          </button>
-        )}
-        {resetConfirmOpen && (
-          <div className="panel stack">
-            <p>Warning: all saved learning data will be permanently deleted.</p>
-            <label>
-              Type RESET to confirm
-              <input value={resetToken} onChange={(e) => setResetToken(e.target.value)} />
-            </label>
-            <div className="row">
-              <button
-                type="button"
-                onClick={() => {
-                  setResetConfirmOpen(false);
-                  setResetToken("");
-                  setResetError("");
-                }}
-                disabled={resetBusy}
-              >
-                Cancel
-              </button>
-              <button type="button" onClick={onResetAllData} disabled={resetBusy || resetToken.trim().toUpperCase() !== "RESET"}>
-                {resetBusy ? "Deleting..." : "Delete all my data"}
-              </button>
+          {resetConfirmOpen && (
+            <div className="panel stack profile-action-confirm">
+              <p>Type RESET to confirm permanent deletion.</p>
+              <label>
+                Confirmation
+                <input value={resetToken} onChange={(e) => setResetToken(e.target.value)} />
+              </label>
+              <div className="row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetConfirmOpen(false);
+                    setResetToken("");
+                    setResetError("");
+                  }}
+                  disabled={resetBusy}
+                >
+                  Cancel
+                </button>
+                <button type="button" onClick={onResetAllData} disabled={resetBusy || resetToken.trim().toUpperCase() !== "RESET"}>
+                  {resetBusy ? "Deleting..." : "Delete all data"}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-        {resetError && <ErrorState text={resetError} />}
+          )}
+          {resetError && <ErrorState text={resetError} />}
+        </section>
       </article>
     </section>
   );
