@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 import os
 
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
@@ -20,20 +20,23 @@ class AsrTranscribeResponse(BaseModel):
 
 def default_transcribe(file: UploadFile, language_hint: str) -> AsrTranscribeResponse:
     api_key = os.getenv("OPENAI_API_KEY")
-    if api_key:
-        client = OpenAI(api_key=api_key)
-        audio_bytes = file.file.read()
-        transcript = client.audio.transcriptions.create(
-            model=os.getenv("OPENAI_ASR_MODEL", "whisper-1"),
-            file=(file.filename or "audio.webm", io.BytesIO(audio_bytes), file.content_type or "audio/webm"),
-            language=None if language_hint == "auto" else language_hint,
-        )
-        text = getattr(transcript, "text", "").strip()
-        return AsrTranscribeResponse(transcript=text, language=language_hint if language_hint != "auto" else "unknown")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured for ASR")
 
+    client = OpenAI(api_key=api_key)
+    audio_bytes = file.file.read()
+    transcript = client.audio.transcriptions.create(
+        model=os.getenv("OPENAI_ASR_MODEL", "whisper-1"),
+        file=(file.filename or "audio.webm", io.BytesIO(audio_bytes), file.content_type or "audio/webm"),
+        language=None if language_hint == "auto" else language_hint,
+    )
+    text = getattr(transcript, "text", "").strip()
+    if not text:
+        raise HTTPException(status_code=502, detail="ASR provider returned empty transcript")
+    detected_language = getattr(transcript, "language", None)
     return AsrTranscribeResponse(
-        transcript=f"stub transcript from {file.filename or 'audio'}",
-        language=language_hint if language_hint != "auto" else "unknown",
+        transcript=text,
+        language=(detected_language or language_hint) if language_hint != "auto" else (detected_language or "unknown"),
     )
 
 
