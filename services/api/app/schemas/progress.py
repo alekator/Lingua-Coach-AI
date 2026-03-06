@@ -167,3 +167,22 @@ class ProgressReportResponse(BaseModel):
     summary: dict[str, str | int | float]
     highlights: list[str]
     export_markdown: str
+
+
+class ProgressTimelineItem(BaseModel):
+    id: str
+    workspace_id: int | None = None
+    workspace_label: str | None = None
+    activity_type: str
+    skill_tags: list[str]
+    title: str
+    detail: str
+    happened_at: str
+
+
+class ProgressTimelineResponse(BaseModel):
+    user_id: int
+    workspace_id: int | None = None
+    skill_filter: str | None = None
+    activity_type_filter: str | None = None
+    items: list[ProgressTimelineItem]

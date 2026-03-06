@@ -209,3 +209,74 @@ def test_progress_profile_defaults_for_owner_follow_active_workspace(client: Tes
     profile_body = profile.json()
     assert profile_body["native_lang"] == "de"
     assert profile_body["target_lang"] == "it"
+
+
+def test_progress_timeline_with_filters_and_workspace_scope(client: TestClient) -> None:
+    setup = client.post(
+        "/profile/setup",
+        json={
+            "user_id": 1,
+            "native_lang": "ru",
+            "target_lang": "en",
+            "level": "A2",
+            "goal": "travel",
+            "preferences": {},
+        },
+    )
+    assert setup.status_code == 200
+    workspace_user_id = setup.json()["user_id"]
+
+    vocab = client.post("/vocab/add", json={"user_id": workspace_user_id, "word": "airport", "translation": "airport"})
+    assert vocab.status_code == 200
+    next_item = client.post("/vocab/review/next", json={"user_id": workspace_user_id})
+    assert next_item.status_code == 200
+    item_id = next_item.json()["item"]["id"]
+    submit = client.post(
+        "/vocab/review/submit",
+        json={"user_id": workspace_user_id, "vocab_item_id": item_id, "rating": "good"},
+    )
+    assert submit.status_code == 200
+
+    started = client.post("/chat/start", json={"user_id": workspace_user_id, "mode": "chat"})
+    assert started.status_code == 200
+    session_id = started.json()["session_id"]
+    message = client.post("/chat/message", json={"session_id": session_id, "text": "I goed to airport"})
+    assert message.status_code == 200
+    client.post("/chat/end", json={"session_id": session_id})
+
+    homework = client.post(
+        "/homework/create",
+        json={"user_id": workspace_user_id, "title": "Quick grammar", "tasks": [{"id": "t1", "prompt": "Fix sentence"}]},
+    )
+    assert homework.status_code == 200
+    hw_submit = client.post("/homework/submit", json={"homework_id": homework.json()["id"], "answers": {"t1": "fixed"}})
+    assert hw_submit.status_code == 200
+
+    timeline = client.get("/progress/timeline", params={"user_id": workspace_user_id})
+    assert timeline.status_code == 200
+    body = timeline.json()
+    assert len(body["items"]) >= 3
+
+    vocab_only = client.get(
+        "/progress/timeline",
+        params={"user_id": workspace_user_id, "activity_type": "vocab_review"},
+    )
+    assert vocab_only.status_code == 200
+    assert all(item["activity_type"] == "vocab_review" for item in vocab_only.json()["items"])
+
+    grammar_only = client.get(
+        "/progress/timeline",
+        params={"user_id": workspace_user_id, "skill": "grammar"},
+    )
+    assert grammar_only.status_code == 200
+    assert all("grammar" in [tag.lower() for tag in item["skill_tags"]] for item in grammar_only.json()["items"])
+
+    workspaces = client.get("/workspaces")
+    assert workspaces.status_code == 200
+    workspace_id = workspaces.json()["active_workspace_id"]
+    scoped = client.get(
+        "/progress/timeline",
+        params={"user_id": workspace_user_id, "workspace_id": workspace_id},
+    )
+    assert scoped.status_code == 200
+    assert all(item["workspace_id"] == workspace_id for item in scoped.json()["items"])

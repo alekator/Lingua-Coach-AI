@@ -46,6 +46,9 @@ export function ProfilePage() {
   const [warningThreshold, setWarningThreshold] = useState("0.8");
   const [budgetSaving, setBudgetSaving] = useState(false);
   const [budgetError, setBudgetError] = useState("");
+  const [timelineWorkspaceId, setTimelineWorkspaceId] = useState<number | "all">("all");
+  const [timelineSkill, setTimelineSkill] = useState("all");
+  const [timelineActivityType, setTimelineActivityType] = useState("all");
   const pushToast = useToastStore((s) => s.push);
   const profile = useQuery({
     queryKey: ["profile", userId],
@@ -70,6 +73,17 @@ export function ProfilePage() {
   const workspaces = useQuery({
     queryKey: ["workspaces"],
     queryFn: api.workspacesList,
+  });
+  const timeline = useQuery({
+    queryKey: ["progress-timeline", userId, timelineWorkspaceId, timelineSkill, timelineActivityType],
+    queryFn: () =>
+      api.progressTimeline({
+        user_id: userId,
+        workspace_id: typeof timelineWorkspaceId === "number" ? timelineWorkspaceId : undefined,
+        skill: timelineSkill === "all" ? undefined : timelineSkill,
+        activity_type: timelineActivityType === "all" ? undefined : timelineActivityType,
+        limit: 40,
+      }),
   });
   const usageBudget = useQuery({
     queryKey: ["usage-budget", userId],
@@ -542,6 +556,75 @@ export function ProfilePage() {
           ))}
         </article>
       )}
+      <article className="panel stack">
+        <h3>Learning Timeline</h3>
+        <p>Filter by learning space, skill, and activity type.</p>
+        <label>
+          Workspace filter
+          <select
+            aria-label="Timeline workspace filter"
+            value={timelineWorkspaceId}
+            onChange={(e) =>
+              setTimelineWorkspaceId(e.target.value === "all" ? "all" : Number(e.target.value))
+            }
+          >
+            <option value="all">All spaces</option>
+            {(workspaces.data?.items ?? []).map((item) => (
+              <option key={`tl-ws-${item.id}`} value={item.id}>
+                {languageLabelByCode(item.native_lang)} {"->"} {languageLabelByCode(item.target_lang)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Skill filter
+          <select
+            aria-label="Timeline skill filter"
+            value={timelineSkill}
+            onChange={(e) => setTimelineSkill(e.target.value)}
+          >
+            <option value="all">All skills</option>
+            <option value="grammar">Grammar</option>
+            <option value="vocab">Vocab</option>
+            <option value="pronunciation">Pronunciation</option>
+            <option value="speaking">Speaking</option>
+            <option value="writing">Writing</option>
+          </select>
+        </label>
+        <label>
+          Activity filter
+          <select
+            aria-label="Timeline activity filter"
+            value={timelineActivityType}
+            onChange={(e) => setTimelineActivityType(e.target.value)}
+          >
+            <option value="all">All activities</option>
+            <option value="chat">Chat</option>
+            <option value="scenario">Scenario</option>
+            <option value="correction">Correction</option>
+            <option value="vocab_review">Vocab review</option>
+            <option value="homework">Homework</option>
+          </select>
+        </label>
+        {timeline.isPending && <LoadingState text="Loading timeline..." />}
+        {timeline.isError && <ErrorState text="Failed to load learning timeline." />}
+        {timeline.isSuccess && timeline.data.items.length === 0 && (
+          <EmptyState text="No timeline items for selected filters yet." />
+        )}
+        {timeline.isSuccess &&
+          timeline.data.items.map((item) => (
+            <div key={item.id} className="panel stack">
+              <p>
+                <strong>{item.title}</strong>
+              </p>
+              <p>{item.detail}</p>
+              <p>
+                {item.activity_type} | {item.skill_tags.join(", ")} | {item.workspace_label ?? "current space"} |{" "}
+                {item.happened_at}
+              </p>
+            </div>
+          ))}
+      </article>
       <article className="panel stack">
         <h3>AI Usage Budget</h3>
         {usageBudget.isPending && <LoadingState text="Loading usage budget..." />}

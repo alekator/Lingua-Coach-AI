@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import (
     ChatSession,
+    Homework,
+    HomeworkSubmission,
     LearnerProfile,
     LearningWorkspace,
     Message,
@@ -29,6 +31,8 @@ from app.schemas.progress import (
     ProgressSkillMapResponse,
     ProgressStreakResponse,
     ProgressSummaryResponse,
+    ProgressTimelineItem,
+    ProgressTimelineResponse,
     ProgressWeeklyReviewResponse,
     ProgressWeeklyCheckpointResponse,
     ProgressSkillTreeResponse,
@@ -190,6 +194,12 @@ def _score_to_cefr_from_skills(score: float) -> str:
     if score < 85:
         return "C1"
     return "C2"
+
+
+def _workspace_label(workspace: LearningWorkspace | None) -> str | None:
+    if workspace is None:
+        return None
+    return f"{workspace.native_lang}->{workspace.target_lang}"
 
 
 def _next_level(level: str) -> str | None:
@@ -630,6 +640,150 @@ def progress_report(user_id: int, period_days: int = 30, db: Session = Depends(g
         summary=summary_block,
         highlights=highlights,
         export_markdown=markdown,
+    )
+
+
+@router.get("/timeline", response_model=ProgressTimelineResponse)
+def progress_timeline(
+    user_id: int,
+    workspace_id: int | None = None,
+    skill: str | None = None,
+    activity_type: str | None = None,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+) -> ProgressTimelineResponse:
+    safe_limit = max(10, min(200, limit))
+    skill_filter = (skill or "").strip().lower() or None
+    activity_filter = (activity_type or "").strip().lower() or None
+
+    target_user_id = user_id
+    workspace = None
+    if workspace_id is not None:
+        workspace = db.scalar(select(LearningWorkspace).where(LearningWorkspace.id == workspace_id))
+        if workspace is None:
+            return ProgressTimelineResponse(
+                user_id=user_id,
+                workspace_id=workspace_id,
+                skill_filter=skill_filter,
+                activity_type_filter=activity_filter,
+                items=[],
+            )
+        target_user_id = workspace.learner_user_id
+    else:
+        workspace = db.scalar(select(LearningWorkspace).where(LearningWorkspace.learner_user_id == user_id))
+
+    ws_label = _workspace_label(workspace)
+    ws_id = workspace.id if workspace else None
+    items: list[ProgressTimelineItem] = []
+
+    sessions = db.scalars(
+        select(ChatSession).where(ChatSession.user_id == target_user_id).order_by(ChatSession.started_at.desc()).limit(80)
+    ).all()
+    message_counts = dict(
+        db.execute(
+            select(Message.session_id, func.count(Message.id))
+            .join(ChatSession, ChatSession.id == Message.session_id)
+            .where(ChatSession.user_id == target_user_id)
+            .group_by(Message.session_id)
+        ).all()
+    )
+    for session in sessions:
+        is_scenario = session.mode.startswith("scenario:")
+        item_type = "scenario" if is_scenario else "chat"
+        skill_tags = ["speaking", "fluency"] if is_scenario else ["grammar", "speaking"]
+        title = "Scenario session completed" if (is_scenario and session.ended_at) else (
+            "Scenario session started" if is_scenario else "Coach chat session"
+        )
+        detail = f"Mode: {session.mode}. Messages: {int(message_counts.get(session.id, 0))}."
+        happened = _to_utc_datetime(session.started_at).isoformat() if session.started_at else datetime.now(UTC).isoformat()
+        items.append(
+            ProgressTimelineItem(
+                id=f"session-{session.id}",
+                workspace_id=ws_id,
+                workspace_label=ws_label,
+                activity_type=item_type,
+                skill_tags=skill_tags,
+                title=title,
+                detail=detail,
+                happened_at=happened,
+            )
+        )
+
+    mistakes = db.scalars(
+        select(Mistake).where(Mistake.user_id == target_user_id).order_by(Mistake.created_at.desc()).limit(100)
+    ).all()
+    for mistake in mistakes:
+        category = (mistake.category or "general").lower()
+        mapped_skill = "pronunciation" if category == "pronunciation" else ("vocab" if category == "vocab" else "grammar")
+        items.append(
+            ProgressTimelineItem(
+                id=f"mistake-{mistake.id}",
+                workspace_id=ws_id,
+                workspace_label=ws_label,
+                activity_type="correction",
+                skill_tags=[mapped_skill],
+                title=f"Correction captured: {category}",
+                detail=f"{mistake.bad} -> {mistake.good}",
+                happened_at=_to_utc_datetime(mistake.created_at).isoformat() if mistake.created_at else datetime.now(UTC).isoformat(),
+            )
+        )
+
+    states = db.execute(
+        select(SrsState, VocabItem)
+        .join(VocabItem, VocabItem.id == SrsState.vocab_item_id)
+        .where(VocabItem.user_id == target_user_id, SrsState.last_reviewed_at.is_not(None))
+        .order_by(SrsState.last_reviewed_at.desc())
+        .limit(80)
+    ).all()
+    for state, vocab in states:
+        items.append(
+            ProgressTimelineItem(
+                id=f"vocab-review-{vocab.id}-{int(_to_utc_datetime(state.last_reviewed_at).timestamp())}",
+                workspace_id=ws_id,
+                workspace_label=ws_label,
+                activity_type="vocab_review",
+                skill_tags=["vocab"],
+                title=f"Reviewed vocab: {vocab.word}",
+                detail=f"Interval {state.interval_days}d, ease {round(float(state.ease), 2)}",
+                happened_at=_to_utc_datetime(state.last_reviewed_at).isoformat(),
+            )
+        )
+
+    submissions = db.execute(
+        select(HomeworkSubmission, Homework)
+        .join(Homework, Homework.id == HomeworkSubmission.homework_id)
+        .where(Homework.user_id == target_user_id)
+        .order_by(HomeworkSubmission.created_at.desc())
+        .limit(80)
+    ).all()
+    for submission, homework in submissions:
+        grade = submission.grade if isinstance(submission.grade, dict) else {}
+        score = grade.get("score", 0)
+        max_score = grade.get("max_score", 0)
+        items.append(
+            ProgressTimelineItem(
+                id=f"homework-submission-{submission.id}",
+                workspace_id=ws_id,
+                workspace_label=ws_label,
+                activity_type="homework",
+                skill_tags=["grammar", "writing"],
+                title=f"Homework submitted: {homework.title}",
+                detail=f"Score: {score}/{max_score}",
+                happened_at=_to_utc_datetime(submission.created_at).isoformat() if submission.created_at else datetime.now(UTC).isoformat(),
+            )
+        )
+
+    if skill_filter:
+        items = [item for item in items if skill_filter in {tag.lower() for tag in item.skill_tags}]
+    if activity_filter:
+        items = [item for item in items if item.activity_type.lower() == activity_filter]
+    items.sort(key=lambda item: item.happened_at, reverse=True)
+    return ProgressTimelineResponse(
+        user_id=user_id,
+        workspace_id=workspace_id,
+        skill_filter=skill_filter,
+        activity_type_filter=activity_filter,
+        items=items[:safe_limit],
     )
 
 

@@ -30,6 +30,7 @@ import type {
   ProgressSkillMap,
   ProgressSkillTree,
   ProgressJournal,
+  ProgressTimeline,
   WeeklyGoal,
   ProgressStreak,
   ProgressSummary,
@@ -374,6 +375,21 @@ export const api = {
     request<ProgressStreak>(`/progress/streak?user_id=${encodeURIComponent(userId)}`),
   progressJournal: (userId: number) =>
     request<ProgressJournal>(`/progress/journal?user_id=${encodeURIComponent(userId)}`),
+  progressTimeline: (payload: {
+    user_id: number;
+    workspace_id?: number;
+    skill?: string;
+    activity_type?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    params.set("user_id", String(payload.user_id));
+    if (typeof payload.workspace_id === "number") params.set("workspace_id", String(payload.workspace_id));
+    if (payload.skill) params.set("skill", payload.skill);
+    if (payload.activity_type) params.set("activity_type", payload.activity_type);
+    if (typeof payload.limit === "number") params.set("limit", String(payload.limit));
+    return request<ProgressTimeline>(`/progress/timeline?${params.toString()}`);
+  },
   progressWeeklyGoal: (userId: number) =>
     request<WeeklyGoal>(`/progress/weekly-goal?user_id=${encodeURIComponent(userId)}`),
   progressWeeklyGoalSet: (payload: { user_id: number; target_minutes: number }) =>

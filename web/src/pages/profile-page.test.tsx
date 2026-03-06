@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   progressStreak: vi.fn(),
   progressSkillTree: vi.fn(),
   progressJournal: vi.fn(),
+  progressTimeline: vi.fn(),
   usageBudgetStatus: vi.fn(),
   usageBudgetSet: vi.fn(),
   pushToast: vi.fn(),
@@ -55,6 +56,7 @@ vi.mock("../api/client", async () => {
       progressStreak: mocks.progressStreak,
       progressSkillTree: mocks.progressSkillTree,
       progressJournal: mocks.progressJournal,
+      progressTimeline: mocks.progressTimeline,
       usageBudgetStatus: mocks.usageBudgetStatus,
       usageBudgetSet: mocks.usageBudgetSet,
     },
@@ -123,6 +125,24 @@ describe("ProfilePage", () => {
           mode: "chat",
           messages_count: 4,
           completed: true,
+        },
+      ],
+    });
+    mocks.progressTimeline.mockResolvedValue({
+      user_id: 1,
+      workspace_id: null,
+      skill_filter: null,
+      activity_type_filter: null,
+      items: [
+        {
+          id: "session-1",
+          workspace_id: 1,
+          workspace_label: "ru->en",
+          activity_type: "chat",
+          skill_tags: ["grammar", "speaking"],
+          title: "Coach chat session",
+          detail: "Mode: chat. Messages: 4.",
+          happened_at: "2026-03-06T12:00:00+00:00",
         },
       ],
     });
@@ -249,6 +269,8 @@ describe("ProfilePage", () => {
       expect(screen.getByDisplayValue("ru")).toBeInTheDocument();
       expect(screen.getByText("Weekly Journal")).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "CEFR Skill Tree" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Learning Timeline" })).toBeInTheDocument();
+      expect(screen.getByText("Coach chat session")).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByLabelText("Profile goal"), { target: { value: "travel" } });
@@ -454,6 +476,29 @@ describe("ProfilePage", () => {
         warning_threshold: 0.85,
       });
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Usage limits updated");
+    });
+  });
+
+  it("applies timeline filters", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Timeline skill filter")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("Timeline skill filter"), { target: { value: "grammar" } });
+    fireEvent.change(screen.getByLabelText("Timeline activity filter"), { target: { value: "chat" } });
+    fireEvent.change(screen.getByLabelText("Timeline workspace filter"), { target: { value: "2" } });
+
+    await waitFor(() => {
+      expect(mocks.progressTimeline).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: 1,
+          workspace_id: 2,
+          skill: "grammar",
+          activity_type: "chat",
+        }),
+      );
     });
   });
 });

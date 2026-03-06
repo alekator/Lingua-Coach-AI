@@ -121,6 +121,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `GET /progress/skill-tree`
   - `GET /progress/streak`
   - `GET /progress/journal`
+  - `GET /progress/timeline`
   - `GET /progress/weekly-goal`
   - `GET /progress/weekly-review`
   - `GET /progress/weekly-checkpoint`
@@ -257,6 +258,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - `weak_areas[]`
     - `next_actions[]`
     - `entries[]` (recent sessions with mode, message count, completion)
+
+- `GET /progress/timeline`
+  - chronological history feed with filters:
+    - `workspace_id`
+    - `skill`
+    - `activity_type` (`chat|scenario|correction|vocab_review|homework`)
 
 - `GET /progress/outcomes`
   - learning-outcome snapshot (not only activity):

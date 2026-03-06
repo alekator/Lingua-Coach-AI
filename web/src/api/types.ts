@@ -530,6 +530,23 @@ export type ProgressJournal = {
   }>;
 };
 
+export type ProgressTimeline = {
+  user_id: number;
+  workspace_id?: number | null;
+  skill_filter?: string | null;
+  activity_type_filter?: string | null;
+  items: Array<{
+    id: string;
+    workspace_id?: number | null;
+    workspace_label?: string | null;
+    activity_type: string;
+    skill_tags: string[];
+    title: string;
+    detail: string;
+    happened_at: string;
+  }>;
+};
+
 export type WeeklyGoal = {
   user_id: number;
   target_minutes: number;
