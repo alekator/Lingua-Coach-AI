@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   placementFinish: vi.fn(),
   progressSkillMap: vi.fn(),
   progressStreak: vi.fn(),
+  progressSkillTree: vi.fn(),
   progressJournal: vi.fn(),
   usageBudgetStatus: vi.fn(),
   usageBudgetSet: vi.fn(),
@@ -52,6 +53,7 @@ vi.mock("../api/client", async () => {
       placementFinish: mocks.placementFinish,
       progressSkillMap: mocks.progressSkillMap,
       progressStreak: mocks.progressStreak,
+      progressSkillTree: mocks.progressSkillTree,
       progressJournal: mocks.progressJournal,
       usageBudgetStatus: mocks.usageBudgetStatus,
       usageBudgetSet: mocks.usageBudgetSet,
@@ -121,6 +123,29 @@ describe("ProfilePage", () => {
           mode: "chat",
           messages_count: 4,
           completed: true,
+        },
+      ],
+    });
+    mocks.progressSkillTree.mockResolvedValue({
+      user_id: 1,
+      current_level: "B1",
+      estimated_level_from_skills: "B1",
+      avg_skill_score: 52,
+      next_target_level: "B2",
+      items: [
+        {
+          level: "A1",
+          status: "completed",
+          progress_percent: 100,
+          closed_criteria: ["Avg skill >= 20"],
+          remaining_criteria: [],
+        },
+        {
+          level: "B2",
+          status: "in_progress",
+          progress_percent: 50,
+          closed_criteria: ["Complete 16 sessions"],
+          remaining_criteria: ["Avg skill >= 62"],
         },
       ],
     });
@@ -223,6 +248,7 @@ describe("ProfilePage", () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue("ru")).toBeInTheDocument();
       expect(screen.getByText("Weekly Journal")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "CEFR Skill Tree" })).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByLabelText("Profile goal"), { target: { value: "travel" } });

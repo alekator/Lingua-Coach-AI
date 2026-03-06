@@ -59,6 +59,10 @@ export function ProfilePage() {
     queryKey: ["streak", userId],
     queryFn: () => api.progressStreak(userId),
   });
+  const skillTree = useQuery({
+    queryKey: ["skill-tree", userId],
+    queryFn: () => api.progressSkillTree(userId),
+  });
   const journal = useQuery({
     queryKey: ["progress-journal", userId],
     queryFn: () => api.progressJournal(userId),
@@ -493,6 +497,27 @@ export function ProfilePage() {
           <p>Vocab: {skillMap.data.vocab}</p>
           <p>Reading: {skillMap.data.reading}</p>
           <p>Writing: {skillMap.data.writing}</p>
+        </article>
+      )}
+      {skillTree.isPending && <LoadingState text="Loading CEFR skill tree..." />}
+      {skillTree.isError && <ErrorState text="Failed to load CEFR skill tree." />}
+      {skillTree.isSuccess && (
+        <article className="panel stack">
+          <h3>CEFR Skill Tree</h3>
+          <p>
+            Current: {skillTree.data.current_level} | Estimated: {skillTree.data.estimated_level_from_skills} | Avg:{" "}
+            {skillTree.data.avg_skill_score}
+          </p>
+          <p>Next target: {skillTree.data.next_target_level ?? "C2 (max)"}</p>
+          {skillTree.data.items.map((item) => (
+            <div key={item.level} className="panel stack">
+              <p>
+                <strong>{item.level}</strong> | {item.status} | {item.progress_percent}%
+              </p>
+              <p>Closed: {item.closed_criteria.length > 0 ? item.closed_criteria.join("; ") : "none"}</p>
+              <p>Remaining: {item.remaining_criteria.length > 0 ? item.remaining_criteria.join("; ") : "none"}</p>
+            </div>
+          ))}
         </article>
       )}
       {journal.isSuccess && (

@@ -454,6 +454,21 @@ export type ProgressSkillMap = {
   writing: number;
 };
 
+export type ProgressSkillTree = {
+  user_id: number;
+  current_level: string;
+  estimated_level_from_skills: string;
+  avg_skill_score: number;
+  next_target_level?: string | null;
+  items: Array<{
+    level: string;
+    status: "completed" | "in_progress" | "locked";
+    progress_percent: number;
+    closed_criteria: string[];
+    remaining_criteria: string[];
+  }>;
+};
+
 export type ProgressStreak = {
   streak_days: number;
   active_dates: string[];

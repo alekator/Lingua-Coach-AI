@@ -31,6 +31,8 @@ from app.schemas.progress import (
     ProgressSummaryResponse,
     ProgressWeeklyReviewResponse,
     ProgressWeeklyCheckpointResponse,
+    ProgressSkillTreeResponse,
+    SkillTreeLevelNode,
     ProgressOutcomesResponse,
     RewardClaimRequest,
     RewardItem,
@@ -42,6 +44,9 @@ from app.services.workspaces import LOCAL_OWNER_USER_ID, get_active_workspace
 
 router = APIRouter(prefix="/progress", tags=["progress"])
 DEFAULT_WEEKLY_GOAL_MINUTES = 90
+CEFR_LEVELS = ("A1", "A2", "B1", "B2", "C1", "C2")
+CEFR_RANK = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
+LEVEL_SKILL_MIN_AVG = {"A1": 20.0, "A2": 35.0, "B1": 50.0, "B2": 62.0, "C1": 75.0, "C2": 86.0}
 REWARD_DEFINITIONS = (
     {
         "id": "streak_3",
@@ -185,6 +190,14 @@ def _score_to_cefr_from_skills(score: float) -> str:
     if score < 85:
         return "C1"
     return "C2"
+
+
+def _next_level(level: str) -> str | None:
+    rank = CEFR_RANK.get(level.upper(), 1)
+    for candidate, value in CEFR_RANK.items():
+        if value == rank + 1:
+            return candidate
+    return None
 
 
 def _snapshot_avg(snapshot: SkillSnapshot) -> float:
@@ -373,6 +386,75 @@ def progress_outcomes(user_id: int, db: Session = Depends(get_db)) -> ProgressOu
         streak_days=streak.streak_days,
         confidence=confidence,
         recommendations=recommendations[:3],
+    )
+
+
+@router.get("/skill-tree", response_model=ProgressSkillTreeResponse)
+def progress_skill_tree(user_id: int, db: Session = Depends(get_db)) -> ProgressSkillTreeResponse:
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    current_level = (profile.level if profile else "A1").upper()
+    snapshots = db.scalars(
+        select(SkillSnapshot).where(SkillSnapshot.user_id == user_id).order_by(SkillSnapshot.created_at.asc())
+    ).all()
+    latest = snapshots[-1] if snapshots else None
+    avg_skill = _snapshot_avg(latest) if latest else 0.0
+    estimated_level = _score_to_cefr_from_skills(avg_skill)
+    effective_level = estimated_level if CEFR_RANK.get(estimated_level, 1) >= CEFR_RANK.get(current_level, 1) else current_level
+
+    total_sessions = int(db.scalar(select(func.count(ChatSession.id)).where(ChatSession.user_id == user_id)) or 0)
+    scenario_sessions = int(
+        db.scalar(
+            select(func.count(ChatSession.id)).where(
+                ChatSession.user_id == user_id,
+                ChatSession.mode.like("scenario:%"),
+                ChatSession.ended_at.is_not(None),
+            )
+        )
+        or 0
+    )
+    weekly_sessions = len(_get_weekly_sessions(user_id, db))
+
+    nodes: list[SkillTreeLevelNode] = []
+    for level in CEFR_LEVELS:
+        rank = CEFR_RANK[level]
+        min_avg = LEVEL_SKILL_MIN_AVG[level]
+        required_sessions = rank * 4
+        required_scenarios = max(0, rank - 1)
+        required_weekly_sessions = max(2, min(5, rank + 1))
+        checks = [
+            (avg_skill >= min_avg, f"Avg skill >= {int(min_avg)}"),
+            (total_sessions >= required_sessions, f"Complete {required_sessions} sessions"),
+            (scenario_sessions >= required_scenarios, f"Finish {required_scenarios} scenario sessions"),
+            (weekly_sessions >= required_weekly_sessions, f"Reach {required_weekly_sessions} sessions this week"),
+        ]
+        closed = [label for ok, label in checks if ok]
+        remaining = [label for ok, label in checks if not ok]
+        progress_percent = int(round((len(closed) / len(checks)) * 100))
+        if not remaining and CEFR_RANK.get(effective_level, 1) >= rank:
+            status = "completed"
+        elif CEFR_RANK.get(effective_level, 1) + 1 == rank or (rank == 1 and len(closed) > 0):
+            status = "in_progress"
+        elif rank <= CEFR_RANK.get(effective_level, 1):
+            status = "in_progress"
+        else:
+            status = "locked"
+        nodes.append(
+            SkillTreeLevelNode(
+                level=level,
+                status=status,
+                progress_percent=progress_percent,
+                closed_criteria=closed,
+                remaining_criteria=remaining,
+            )
+        )
+
+    return ProgressSkillTreeResponse(
+        user_id=user_id,
+        current_level=current_level,
+        estimated_level_from_skills=estimated_level,
+        avg_skill_score=avg_skill,
+        next_target_level=_next_level(effective_level),
+        items=nodes,
     )
 
 

@@ -61,6 +61,15 @@ def test_progress_endpoints(client: TestClient) -> None:
     skill_body = skill_map.json()
     assert set(skill_body.keys()) == {"speaking", "listening", "grammar", "vocab", "reading", "writing"}
 
+    skill_tree = client.get("/progress/skill-tree", params={"user_id": 901})
+    assert skill_tree.status_code == 200
+    tree_body = skill_tree.json()
+    assert tree_body["current_level"] in {"A1", "A2", "B1", "B2", "C1", "C2"}
+    assert tree_body["estimated_level_from_skills"] in {"A1", "A2", "B1", "B2", "C1", "C2"}
+    assert len(tree_body["items"]) == 6
+    assert "closed_criteria" in tree_body["items"][0]
+    assert "remaining_criteria" in tree_body["items"][0]
+
     streak = client.get("/progress/streak", params={"user_id": 901})
     assert streak.status_code == 200
     assert streak.json()["streak_days"] >= 1

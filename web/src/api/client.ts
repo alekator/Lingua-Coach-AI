@@ -27,6 +27,7 @@ import type {
   HomeworkSubmitResponse,
   PlanTodayResponse,
   ProgressSkillMap,
+  ProgressSkillTree,
   ProgressJournal,
   WeeklyGoal,
   ProgressStreak,
@@ -355,6 +356,8 @@ export const api = {
     }),
   progressSkillMap: (userId: number) =>
     request<ProgressSkillMap>(`/progress/skill-map?user_id=${encodeURIComponent(userId)}`),
+  progressSkillTree: (userId: number) =>
+    request<ProgressSkillTree>(`/progress/skill-tree?user_id=${encodeURIComponent(userId)}`),
   progressStreak: (userId: number) =>
     request<ProgressStreak>(`/progress/streak?user_id=${encodeURIComponent(userId)}`),
   progressJournal: (userId: number) =>

@@ -131,6 +131,23 @@ class ProgressWeeklyCheckpointResponse(BaseModel):
     summary: str
 
 
+class SkillTreeLevelNode(BaseModel):
+    level: str
+    status: str
+    progress_percent: int
+    closed_criteria: list[str]
+    remaining_criteria: list[str]
+
+
+class ProgressSkillTreeResponse(BaseModel):
+    user_id: int
+    current_level: str
+    estimated_level_from_skills: str
+    avg_skill_score: float
+    next_target_level: str | None = None
+    items: list[SkillTreeLevelNode]
+
+
 class AchievementItem(BaseModel):
     id: str
     title: str

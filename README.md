@@ -116,6 +116,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `GET /homework`
   - `GET /progress/summary`
   - `GET /progress/skill-map`
+  - `GET /progress/skill-tree`
   - `GET /progress/streak`
   - `GET /progress/journal`
   - `GET /progress/weekly-goal`
@@ -249,6 +250,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - `delta_points`, `delta_percent`, `measurable_growth`
     - `top_gain_skill`, `top_gain_points`
     - per-skill deltas in `skills[]`
+
+- `GET /progress/skill-tree`
+  - CEFR ladder with transparent completion criteria and progress:
+    - `items[].level`, `items[].status`, `items[].progress_percent`
+    - `items[].closed_criteria[]`
+    - `items[].remaining_criteria[]`
 
 ## Quality / Platform Features
 
