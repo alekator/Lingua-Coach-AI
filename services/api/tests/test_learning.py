@@ -265,6 +265,45 @@ def test_mastery_gate_blocks_locked_scenario_selection(client: TestClient) -> No
     assert "Unlock at" in selected.json()["detail"]
 
 
+def test_scenario_turn_supports_non_english_target_without_keyword_lock(client: TestClient) -> None:
+    setup = client.post(
+        "/profile/setup",
+        json={
+            "user_id": 1,
+            "native_lang": "de",
+            "target_lang": "ru",
+            "level": "B1",
+            "goal": "job",
+            "preferences": {},
+        },
+    )
+    assert setup.status_code == 200
+    workspace_user_id = setup.json()["user_id"]
+
+    script = client.get(
+        "/scenarios/script",
+        params={"scenario_id": "job-interview", "user_id": workspace_user_id},
+    )
+    assert script.status_code == 200
+    first_step = script.json()["steps"][0]
+
+    turn = client.post(
+        "/scenarios/turn",
+        json={
+            "user_id": workspace_user_id,
+            "scenario_id": "job-interview",
+            "step_id": first_step["id"],
+            "user_text": "У меня есть опыт в этой роли и сильные коммуникативные навыки.",
+        },
+    )
+    assert turn.status_code == 200
+    body = turn.json()
+    assert body["max_score"] >= 1
+    assert body["score"] >= 1
+    if body["suggested_reply"]:
+        assert "answers the prompt" in body["suggested_reply"]
+
+
 def test_coach_reactivation_uses_vocab_cta_when_due_cards_exist(client: TestClient) -> None:
     setup = client.post(
         "/profile/setup",

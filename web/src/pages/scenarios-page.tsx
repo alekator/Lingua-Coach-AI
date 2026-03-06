@@ -3,11 +3,13 @@ import { useMemo, useState } from "react";
 import { api } from "../api/client";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { getErrorMessage } from "../lib/errors";
+import { t, uiLocaleFromNativeLang } from "../lib/i18n";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
 export function ScenariosPage() {
   const userId = useAppStore((s) => s.userId) ?? 1;
+  const locale = uiLocaleFromNativeLang(useAppStore((s) => s.activeWorkspaceNativeLang));
   const dailyMinutes = useAppStore((s) => s.dailyMinutes);
   const [selectionResult, setSelectionResult] = useState("");
   const [actionError, setActionError] = useState("");
@@ -116,7 +118,7 @@ export function ScenariosPage() {
 
   return (
     <section className="panel stack">
-      <h2>Roleplay Scenarios</h2>
+      <h2>{t(locale, "scenarios_title")}</h2>
       <p>Choose one realistic situation and run a short coached roleplay.</p>
       {coachSession.isSuccess && (
         <p>Coach cue: today focus is {coachSession.data.focus.join(", ")}. Start with the recommended scenario.</p>
@@ -136,7 +138,7 @@ export function ScenariosPage() {
               <p>{item.description}</p>
               {!item.unlocked && <p>Locked: {item.gate_reason ?? "Improve mastery to unlock."}</p>}
               <button onClick={() => onSelect(item.id)} type="button" disabled={!item.unlocked}>
-                {item.unlocked ? "Start coached roleplay" : "Locked by mastery"}
+                {item.unlocked ? t(locale, "scenarios_start") : t(locale, "scenarios_locked")}
               </button>
             </article>
           ))}

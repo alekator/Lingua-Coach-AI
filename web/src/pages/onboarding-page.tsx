@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import { ErrorState } from "../components/feedback";
 import { LanguagePairSelector } from "../components/language-pair-selector";
 import { getErrorMessage } from "../lib/errors";
+import { t, uiLocaleFromNativeLang } from "../lib/i18n";
 import { normalizeLanguageCode } from "../lib/languages";
 import type { PlanTodayResponse } from "../api/types";
 import { useAppStore } from "../store/app-store";
@@ -53,6 +54,7 @@ export function OnboardingPage() {
   const [showWowResult, setShowWowResult] = useState(false);
   const [error, setError] = useState("");
   const pushToast = useToastStore((s) => s.push);
+  const locale = uiLocaleFromNativeLang(activeWorkspaceNativeLang);
   const firstTimeInCurrentSpace = Boolean(activeWorkspaceNativeLang && activeWorkspaceTargetLang);
 
   useEffect(() => {
@@ -189,7 +191,7 @@ export function OnboardingPage() {
 
   return (
     <section className="panel">
-      <h2>First Launch Setup</h2>
+      <h2>{t(locale, "onboarding_title")}</h2>
       {showWowResult && (
         <article className="panel stack">
           <h3>Your quick coach result</h3>
@@ -211,8 +213,8 @@ export function OnboardingPage() {
         <form className="stack" onSubmit={(event) => event.preventDefault()}>
           {firstTimeInCurrentSpace && (
             <article className="panel stack">
-              <h3>New learning space detected</h3>
-              <p>This language pair is new for you. Complete the short placement to unlock this space.</p>
+              <h3>{t(locale, "onboarding_new_space_title")}</h3>
+              <p>{t(locale, "onboarding_new_space_note")}</p>
             </article>
           )}
           <p>Let your coach calibrate your starting point. Set languages and complete a quick placement test.</p>
@@ -256,10 +258,10 @@ export function OnboardingPage() {
           </label>
           <p>{keyStatus === "checking" ? "Checking key status..." : keyHint}</p>
           <button disabled={submitting || !apiKey.trim()} type="button" onClick={onSaveApiKey}>
-            {submitting ? "Saving key..." : "Save and verify key"}
+            {submitting ? "Saving key..." : t(locale, "onboarding_save_key")}
           </button>
           <button disabled={submitting} type="button" onClick={onStart}>
-            {submitting ? "Starting..." : "Start coaching placement"}
+            {submitting ? "Starting..." : t(locale, "onboarding_start")}
           </button>
         </form>
       )}

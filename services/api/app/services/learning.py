@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import re
 
 from app.schemas.learning import CoachSessionStep, ExerciseItem, ScenarioItem, ScenarioScriptStep
 
@@ -295,14 +296,26 @@ def evaluate_scenario_turn(
     *,
     expected_keywords: list[str],
     user_text: str,
+    target_lang: str | None = None,
 ) -> tuple[float, float, str]:
-    tokens = {w.strip(".,!?;:").lower() for w in user_text.split() if w.strip()}
+    # Unicode-aware tokenization so scenario scoring is not biased to whitespace-based latin text only.
+    tokens = set(re.findall(r"\w+", user_text.lower(), flags=re.UNICODE))
+    non_en_mode = bool(target_lang and target_lang.lower() != "en")
     if not expected_keywords:
-        return 1.0, 1.0, "Good response. Continue to next roleplay step."
+        ratio = min(1.0, len(tokens) / 8.0)
+        if ratio < 0.35:
+            return 0.35, 1.0, "You are close. Add one clearer complete sentence."
+        return ratio, 1.0, "Good response. Continue to next roleplay step."
+
     matched = sum(1 for kw in expected_keywords if kw.lower() in tokens)
     max_score = float(len(expected_keywords))
-    score = float(matched)
-    ratio = score / max_score
+    keyword_ratio = float(matched) / max_score
+    fullness_ratio = min(1.0, len(tokens) / 10.0)
+    ratio = max(keyword_ratio, 0.55 * keyword_ratio + 0.45 * fullness_ratio)
+    if non_en_mode and len(tokens) >= 7:
+        ratio = max(ratio, 0.6)
+    score = round(max_score * min(1.0, ratio), 3)
+
     if ratio >= 0.8:
         feedback = "Strong response. It sounds natural and complete for this step."
     elif ratio >= 0.5:
@@ -312,7 +325,9 @@ def evaluate_scenario_turn(
     return score, max_score, feedback
 
 
-def build_suggested_reply(expected_keywords: list[str]) -> str:
+def build_suggested_reply(expected_keywords: list[str], target_lang: str | None = None) -> str:
+    if target_lang and target_lang.lower() != "en":
+        return "Try one short sentence that answers the prompt, then add one practical detail."
     if not expected_keywords:
         return "Try one short, clear sentence with one practical detail."
     lead = expected_keywords[0]

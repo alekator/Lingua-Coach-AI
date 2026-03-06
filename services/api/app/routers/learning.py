@@ -1193,7 +1193,7 @@ def scenarios_select(
 
 
 @router.post("/scenarios/turn", response_model=ScenarioTurnResponse)
-def scenarios_turn(payload: ScenarioTurnRequest) -> ScenarioTurnResponse:
+def scenarios_turn(payload: ScenarioTurnRequest, db: Session = Depends(get_db)) -> ScenarioTurnResponse:
     scripts = scenario_scripts()
     steps = scripts.get(payload.scenario_id)
     if not steps:
@@ -1203,13 +1203,16 @@ def scenarios_turn(payload: ScenarioTurnRequest) -> ScenarioTurnResponse:
         raise HTTPException(status_code=404, detail="Scenario step not found")
 
     current = steps[step_index]
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == payload.user_id))
+    target_lang = profile.target_lang if profile is not None else None
     score, max_score, feedback = evaluate_scenario_turn(
         expected_keywords=current.expected_keywords,
         user_text=payload.user_text,
+        target_lang=target_lang,
     )
     next_step = steps[step_index + 1] if step_index + 1 < len(steps) else None
     done = next_step is None
-    suggested_reply = None if score >= max_score else build_suggested_reply(current.expected_keywords)
+    suggested_reply = None if score >= max_score else build_suggested_reply(current.expected_keywords, target_lang)
 
     return ScenarioTurnResponse(
         scenario_id=payload.scenario_id,
