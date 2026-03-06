@@ -10,20 +10,69 @@ import type { PlanTodayResponse } from "../api/types";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
 
-function inferLikelyErrors(skillMap: Record<string, number>): string[] {
+type StarterFocusItem = {
+  skill: string;
+  title: string;
+  why: string;
+  action: string;
+};
+
+function inferLikelyErrors(skillMap: Record<string, number>): StarterFocusItem[] {
   const ranked = Object.entries(skillMap)
     .sort((a, b) => a[1] - b[1])
-    .slice(0, 3)
-    .map(([skill]) => skill);
-  const templates: Record<string, string> = {
-    grammar: "Verb tense and sentence structure slips in longer answers.",
-    vocab: "Limited active vocabulary for specific real-life situations.",
-    speaking: "Short hesitant phrasing without enough detail.",
-    listening: "Missing key details in fast natural speech.",
-    writing: "Inconsistent clarity and connector usage in written replies.",
-    reading: "Difficulty with complex sentence meaning and intent.",
+    .slice(0, 3);
+  const templates: Record<string, Omit<StarterFocusItem, "skill">> = {
+    grammar: {
+      title: "Grammar precision",
+      why: "Verb tense and sentence structure slips in longer answers.",
+      action: "Do one short correction drill and rewrite your line once.",
+    },
+    vocab: {
+      title: "Active vocabulary",
+      why: "Limited active vocabulary for specific real-life situations.",
+      action: "Learn 3 practical words and use each in one sentence today.",
+    },
+    speaking: {
+      title: "Speaking flow",
+      why: "Short hesitant phrasing without enough detail.",
+      action: "Record one 30-second answer and retry with one improvement.",
+    },
+    listening: {
+      title: "Listening detail",
+      why: "Missing key details in fast natural speech.",
+      action: "Run one short listening/voice task and summarize in 1-2 lines.",
+    },
+    writing: {
+      title: "Writing clarity",
+      why: "Inconsistent clarity and connector usage in written replies.",
+      action: "Write a compact paragraph with 2 connectors and self-correct.",
+    },
+    reading: {
+      title: "Reading comprehension",
+      why: "Difficulty with complex sentence meaning and intent.",
+      action: "Read one short text and extract 3 key points.",
+    },
   };
-  return ranked.map((skill) => templates[skill] ?? "Inconsistent language control under pressure.");
+  return ranked.map(([skill]) => {
+    const preset = templates[skill] ?? {
+      title: "Language control",
+      why: "Inconsistent language control under pressure.",
+      action: "Do one compact drill and apply the feedback in your next reply.",
+    };
+    return { skill, ...preset };
+  });
+}
+
+function levelMessage(level: string): string {
+  const copy: Record<string, string> = {
+    A1: "You can handle basic phrases. We will build confidence and useful daily patterns.",
+    A2: "You already communicate in simple situations. Next step is smoother accuracy.",
+    B1: "You can hold practical conversations. We will sharpen precision and fluency.",
+    B2: "You express ideas well. Focus now is nuance, speed, and consistency.",
+    C1: "You are advanced. We target polish, style, and domain-specific confidence.",
+    C2: "You are near-native in many contexts. We optimize mastery and edge cases.",
+  };
+  return copy[level] ?? "You have a solid base. We will personalize the next high-impact steps.";
 }
 
 export function OnboardingPage() {
@@ -49,7 +98,8 @@ export function OnboardingPage() {
   const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [recommendedLevel, setRecommendedLevel] = useState<string | null>(null);
-  const [starterErrors, setStarterErrors] = useState<string[]>([]);
+  const [starterErrors, setStarterErrors] = useState<StarterFocusItem[]>([]);
+  const [placementAvgScore, setPlacementAvgScore] = useState<number | null>(null);
   const [starterPlan, setStarterPlan] = useState<PlanTodayResponse | null>(null);
   const [showWowResult, setShowWowResult] = useState(false);
   const [capabilityHint, setCapabilityHint] = useState("");
@@ -199,6 +249,7 @@ export function OnboardingPage() {
         const plan = await api.planToday(resolvedUserId, dailyMinutes);
         setCoachPrefs({ strictness, dailyMinutes });
         setRecommendedLevel(finished.level);
+        setPlacementAvgScore(finished.avg_score);
         setStarterErrors(inferLikelyErrors(finished.skill_map));
         setStarterPlan(plan);
         setShowWowResult(true);
@@ -229,18 +280,40 @@ export function OnboardingPage() {
       <h2>{t(locale, "onboarding_title")}</h2>
       {showWowResult && (
         <article className="panel stack">
-          <h3>Your quick coach result</h3>
-          <p>Your detected level: {recommendedLevel}</p>
-          <h4>Top 3 focus errors</h4>
+          <h3>You're in. First result is ready.</h3>
+          <p>
+            <strong>Your level:</strong> {recommendedLevel}
+            {typeof placementAvgScore === "number" && ` (${Math.round(placementAvgScore * 100)}% confidence)`}
+          </p>
+          {recommendedLevel && <p>{levelMessage(recommendedLevel)}</p>}
+          <h4>3 personal focus areas</h4>
           {starterErrors.map((item) => (
-            <p key={item}>- {item}</p>
+            <div key={item.skill} className="panel stack">
+              <p>
+                <strong>{item.title}</strong>
+              </p>
+              <p>Why: {item.why}</p>
+              <p>Today action: {item.action}</p>
+            </div>
           ))}
-          <h4>Your personal plan for today</h4>
+          <h4>Personal plan for today</h4>
+          {starterPlan && (
+            <p>
+              Mode: {starterPlan.time_budget_minutes} min | Focus: {starterPlan.focus.join(", ")}
+            </p>
+          )}
           {starterPlan?.tasks.map((task) => (
             <p key={task}>- {task}</p>
           ))}
-          <button type="button" onClick={() => navigate("/app")}>
-            Start my first session
+          <button
+            type="button"
+            className="cta-primary"
+            onClick={() => navigate("/app/session")}
+          >
+            Start my personalized session
+          </button>
+          <button type="button" className="cta-secondary" onClick={() => navigate("/app")}>
+            Open dashboard
           </button>
         </article>
       )}

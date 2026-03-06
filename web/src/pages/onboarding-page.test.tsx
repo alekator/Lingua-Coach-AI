@@ -129,7 +129,12 @@ describe("OnboardingPage", () => {
       session_id: 77,
       level: "B1",
       avg_score: 0.61,
-      skill_map: {},
+      skill_map: {
+        grammar: 42,
+        vocab: 48,
+        speaking: 50,
+        listening: 57,
+      },
     });
     mocks.profileSetup.mockResolvedValue({
       user_id: 101,
@@ -178,14 +183,15 @@ describe("OnboardingPage", () => {
       expect(mocks.setBootstrapState).toHaveBeenCalledWith(
         expect.objectContaining({ userId: 101, hasProfile: true }),
       );
-      expect(screen.getByText("Your quick coach result")).toBeInTheDocument();
-      expect(screen.getByText("Your detected level: B1")).toBeInTheDocument();
-      expect(screen.getByText("Top 3 focus errors")).toBeInTheDocument();
-      expect(screen.getByText("Your personal plan for today")).toBeInTheDocument();
+      expect(screen.getByText("You're in. First result is ready.")).toBeInTheDocument();
+      expect(screen.getByText("Your level:")).toBeInTheDocument();
+      expect(screen.getByText("3 personal focus areas")).toBeInTheDocument();
+      expect(screen.getByText("Personal plan for today")).toBeInTheDocument();
+      expect(screen.getByText("Grammar precision")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Start my first session" }));
-    expect(mocks.navigate).toHaveBeenCalledWith("/app");
+    fireEvent.click(screen.getByRole("button", { name: "Start my personalized session" }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/app/session");
   });
 
   it("blocks start when native and target language are equal", async () => {
