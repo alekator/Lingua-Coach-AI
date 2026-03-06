@@ -1,26 +1,41 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, Outlet } from "react-router-dom";
+import { useState } from "react";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { api } from "../api/client";
 import { t, uiLocaleFromNativeLang } from "../lib/i18n";
 import { useAppStore } from "../store/app-store";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
-const links = [
-  ["/app", "nav_dashboard"],
-  ["/app/session", "nav_session"],
-  ["/app/chat", "nav_chat"],
-  ["/app/voice", "nav_voice"],
-  ["/app/translate", "nav_translate"],
-  ["/app/vocab", "nav_vocab"],
-  ["/app/exercises", "nav_exercises"],
-  ["/app/scenarios", "nav_scenarios"],
-  ["/app/grammar", "nav_grammar"],
-  ["/app/homework", "nav_homework"],
-  ["/app/profile", "nav_profile"],
+const navSections = [
+  {
+    title: "Today",
+    links: [
+      ["/app", "nav_dashboard"],
+      ["/app/session", "nav_session"],
+    ],
+  },
+  {
+    title: "Practice",
+    links: [
+      ["/app/chat", "nav_chat"],
+      ["/app/voice", "nav_voice"],
+      ["/app/translate", "nav_translate"],
+      ["/app/vocab", "nav_vocab"],
+      ["/app/exercises", "nav_exercises"],
+      ["/app/scenarios", "nav_scenarios"],
+      ["/app/grammar", "nav_grammar"],
+      ["/app/homework", "nav_homework"],
+    ],
+  },
+  {
+    title: "Manage",
+    links: [["/app/profile", "nav_profile"]],
+  },
 ] as const;
 
 export function AppLayout() {
   const locale = uiLocaleFromNativeLang(useAppStore((s) => s.activeWorkspaceNativeLang));
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const keyStatus = useQuery({
     queryKey: ["openai-key-status-banner"],
     queryFn: api.openaiKeyStatus,
@@ -40,44 +55,71 @@ export function AppLayout() {
   const showStatusUnknown = keyStatus.isError;
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <h1>{t(locale, "app_title")}</h1>
-        <p>{t(locale, "app_tagline")}</p>
-        {showMissingKey && (
-          <article className="panel stack" aria-live="polite">
-            <strong>OpenAI key is not configured.</strong>
-            <p>App continues in lightweight mode. Add your key in profile to unlock full AI coaching quality.</p>
-            <Link to="/app/profile">Open profile settings</Link>
-          </article>
-        )}
-        {showInvalidKey && (
-          <article className="panel stack" aria-live="polite">
-            <strong>OpenAI check failed.</strong>
-            <p>
-              Your key may be invalid, expired, or quota-limited. App remains usable in lightweight mode until fixed.
-            </p>
-            <Link to="/app/profile">Review API key settings</Link>
-          </article>
-        )}
-        {showStatusUnknown && (
-          <article className="panel stack" aria-live="polite">
-            <strong>Unable to check OpenAI key status.</strong>
-            <p>App may run in lightweight mode while connection checks are unavailable.</p>
-          </article>
-        )}
+    <div className="app-layout">
+      <button
+        type="button"
+        className="mobile-nav-toggle"
+        onClick={() => setMobileNavOpen((prev) => !prev)}
+        aria-expanded={mobileNavOpen}
+        aria-controls="app-sidebar"
+      >
+        {mobileNavOpen ? "Close menu" : "Open menu"}
+      </button>
+      <aside id="app-sidebar" className={`app-sidebar ${mobileNavOpen ? "open" : ""}`}>
+        <div className="sidebar-brand">
+          <h1>{t(locale, "app_title")}</h1>
+          <p>{t(locale, "app_tagline")}</p>
+        </div>
         <WorkspaceSwitcher />
-        <nav className="app-nav" aria-label="Primary">
-          {links.map(([to, labelKey]) => (
-            <Link key={to} to={to}>
-              {t(locale, labelKey)}
-            </Link>
+        <nav className="sidebar-nav" aria-label="Primary">
+          {navSections.map((section) => (
+            <section key={section.title} className="sidebar-section">
+              <h2>{section.title}</h2>
+              {section.links.map(([to, labelKey]) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === "/app"}
+                  className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
+                  onClick={() => setMobileNavOpen(false)}
+                >
+                  {t(locale, labelKey)}
+                </NavLink>
+              ))}
+            </section>
           ))}
         </nav>
-      </header>
-      <main>
-        <Outlet />
-      </main>
+      </aside>
+      <div className={`mobile-backdrop ${mobileNavOpen ? "show" : ""}`} onClick={() => setMobileNavOpen(false)} />
+      <div className="app-main">
+        <header className="topbar">
+          {showMissingKey && (
+            <article className="panel stack" aria-live="polite">
+              <strong>OpenAI key is not configured.</strong>
+              <p>App continues in lightweight mode. Add your key in profile to unlock full AI coaching quality.</p>
+              <Link to="/app/profile">Open profile settings</Link>
+            </article>
+          )}
+          {showInvalidKey && (
+            <article className="panel stack" aria-live="polite">
+              <strong>OpenAI check failed.</strong>
+              <p>
+                Your key may be invalid, expired, or quota-limited. App remains usable in lightweight mode until fixed.
+              </p>
+              <Link to="/app/profile">Review API key settings</Link>
+            </article>
+          )}
+          {showStatusUnknown && (
+            <article className="panel stack" aria-live="polite">
+              <strong>Unable to check OpenAI key status.</strong>
+              <p>App may run in lightweight mode while connection checks are unavailable.</p>
+            </article>
+          )}
+        </header>
+        <main>
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
