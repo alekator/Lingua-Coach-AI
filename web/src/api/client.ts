@@ -7,6 +7,7 @@ import type {
   PlacementFinishResponse,
   PlacementStartResponse,
   OpenAIDebugResponse,
+  AIRuntimeStatus,
   OpenAIKeyStatus,
   UsageBudgetStatus,
   LanguageCapabilities,
@@ -167,6 +168,16 @@ export const api = {
       )}`,
     ),
   debugOpenai: () => request<OpenAIDebugResponse>("/debug/openai"),
+  aiRuntimeStatus: (probe = false) => request<AIRuntimeStatus>(`/settings/ai-runtime?probe=${probe ? "true" : "false"}`),
+  aiRuntimeSet: (payload: {
+    llm_provider: "openai" | "local";
+    asr_provider: "openai" | "local";
+    tts_provider: "openai" | "local";
+  }) =>
+    request<AIRuntimeStatus>("/settings/ai-runtime", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   profileSetup: (payload: {
     user_id: number;
     native_lang: string;

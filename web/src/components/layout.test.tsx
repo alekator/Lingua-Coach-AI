@@ -6,6 +6,7 @@ import { AppLayout } from "./layout";
 const mocks = vi.hoisted(() => ({
   openaiKeyStatus: vi.fn(),
   debugOpenai: vi.fn(),
+  aiRuntimeStatus: vi.fn(),
   setTheme: vi.fn(),
 }));
 
@@ -13,6 +14,7 @@ vi.mock("../api/client", () => ({
   api: {
     openaiKeyStatus: mocks.openaiKeyStatus,
     debugOpenai: mocks.debugOpenai,
+    aiRuntimeStatus: mocks.aiRuntimeStatus,
   },
 }));
 
@@ -60,6 +62,14 @@ describe("AppLayout", () => {
     vi.clearAllMocks();
     mocks.openaiKeyStatus.mockResolvedValue({ configured: false });
     mocks.debugOpenai.mockResolvedValue({ status: "ok" });
+    mocks.aiRuntimeStatus.mockResolvedValue({
+      llm_provider: "openai",
+      asr_provider: "openai",
+      tts_provider: "openai",
+      llm: { provider: "openai", status: "disabled", message: "LLM provider is OpenAI", model_exists: false, dependency_available: true },
+      asr: { provider: "openai", status: "disabled", message: "ASR provider is OpenAI", model_exists: false, dependency_available: true },
+      tts: { provider: "openai", status: "disabled", message: "TTS provider is OpenAI", model_exists: false, dependency_available: true },
+    });
   });
 
   it("renders grouped sidebar navigation", async () => {

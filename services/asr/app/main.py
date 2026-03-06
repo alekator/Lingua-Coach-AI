@@ -19,6 +19,26 @@ class AsrTranscribeResponse(BaseModel):
     language: str = Field(default="unknown")
 
 
+class ProviderSetRequest(BaseModel):
+    provider: str = Field(pattern="^(openai|local)$")
+
+
+class ProviderStatusResponse(BaseModel):
+    provider: str
+
+
+class AsrDiagnosticsResponse(BaseModel):
+    provider: str
+    status: str
+    message: str
+    model_path: str | None = None
+    model_exists: bool = False
+    dependency_available: bool = True
+    device: str | None = None
+    load_ms: float | None = None
+    probe_ms: float | None = None
+
+
 _LOCAL_ASR_MODEL = None
 _LOCAL_ASR_MODEL_PATH = None
 
@@ -28,6 +48,70 @@ def _resolve_asr_provider() -> str:
     if raw in {"openai", "local"}:
         return raw
     return "openai"
+
+
+def _asr_diagnostics(run_probe: bool = False) -> AsrDiagnosticsResponse:
+    provider = _resolve_asr_provider()
+    model_path = os.getenv("LOCAL_ASR_MODEL_PATH", "").strip() or "openai/whisper-small"
+    device = os.getenv("LOCAL_ASR_DEVICE", "auto")
+    if provider != "local":
+        return AsrDiagnosticsResponse(
+            provider=provider,
+            status="disabled",
+            message="ASR provider is OpenAI",
+            model_path=model_path,
+            model_exists=bool(model_path),
+            dependency_available=True,
+            device=device,
+            load_ms=None,
+            probe_ms=None,
+        )
+
+    load_ms = None
+    probe_ms = None
+    try:
+        import time
+
+        started = time.perf_counter()
+        _get_local_asr_model()
+        load_ms = round((time.perf_counter() - started) * 1000, 2)
+    except HTTPException as exc:
+        dep_ok = "faster-whisper" not in exc.detail.lower()
+        return AsrDiagnosticsResponse(
+            provider=provider,
+            status="error",
+            message=exc.detail,
+            model_path=model_path,
+            model_exists=bool(model_path),
+            dependency_available=dep_ok,
+            device=device,
+            load_ms=load_ms,
+            probe_ms=probe_ms,
+        )
+
+    if run_probe:
+        try:
+            import time
+            from io import BytesIO
+
+            started = time.perf_counter()
+            fake = UploadFile(file=BytesIO(b"fake"), filename="probe.wav")
+            local_transcribe(fake, language_hint="auto")
+            probe_ms = round((time.perf_counter() - started) * 1000, 2)
+        except Exception:
+            probe_ms = None
+
+    return AsrDiagnosticsResponse(
+        provider=provider,
+        status="ok",
+        message="ready",
+        model_path=model_path,
+        model_exists=bool(model_path),
+        dependency_available=True,
+        device=device,
+        load_ms=load_ms,
+        probe_ms=probe_ms,
+    )
 
 
 def _get_local_asr_model():
@@ -112,6 +196,19 @@ def create_app() -> FastAPI:
     @app.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
         return HealthResponse(service="asr", status="ok")
+
+    @app.get("/asr/provider", response_model=ProviderStatusResponse)
+    def asr_provider_status() -> ProviderStatusResponse:
+        return ProviderStatusResponse(provider=_resolve_asr_provider())
+
+    @app.post("/asr/provider", response_model=ProviderStatusResponse)
+    def asr_provider_set(payload: ProviderSetRequest) -> ProviderStatusResponse:
+        os.environ["ASR_PROVIDER"] = payload.provider
+        return ProviderStatusResponse(provider=_resolve_asr_provider())
+
+    @app.get("/asr/diagnostics", response_model=AsrDiagnosticsResponse)
+    def asr_diagnostics(probe: bool = False) -> AsrDiagnosticsResponse:
+        return _asr_diagnostics(run_probe=probe)
 
     @app.post("/asr/transcribe", response_model=AsrTranscribeResponse)
     def asr_transcribe(

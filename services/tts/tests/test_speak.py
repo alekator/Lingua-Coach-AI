@@ -80,3 +80,24 @@ def test_tts_speak_local_provider_returns_wav(monkeypatch, tmp_path) -> None:
 
     download = client.get(body["audio_url"])
     assert download.status_code == 200
+
+
+def test_tts_provider_endpoints() -> None:
+    client = TestClient(create_app())
+    set_resp = client.post("/tts/provider", json={"provider": "local"})
+    assert set_resp.status_code == 200
+    assert set_resp.json()["provider"] == "local"
+
+    get_resp = client.get("/tts/provider")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["provider"] == "local"
+
+
+def test_tts_diagnostics_endpoint(monkeypatch) -> None:
+    monkeypatch.setenv("TTS_PROVIDER", "openai")
+    client = TestClient(create_app())
+    response = client.get("/tts/diagnostics")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["provider"] == "openai"
+    assert body["status"] == "disabled"

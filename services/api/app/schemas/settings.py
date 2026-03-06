@@ -44,3 +44,30 @@ class LanguageCapabilitiesResponse(BaseModel):
     tts_supported: bool
     voice_supported: bool
     recommendation: str
+
+
+class AIRuntimeSetRequest(BaseModel):
+    llm_provider: str = Field(default="openai", pattern="^(openai|local)$")
+    asr_provider: str = Field(default="openai", pattern="^(openai|local)$")
+    tts_provider: str = Field(default="openai", pattern="^(openai|local)$")
+
+
+class AIModuleDiagnostics(BaseModel):
+    provider: str
+    status: str
+    message: str
+    model_path: str | None = None
+    model_exists: bool = False
+    dependency_available: bool = True
+    device: str | None = None
+    load_ms: float | None = None
+    probe_ms: float | None = None
+
+
+class AIRuntimeStatusResponse(BaseModel):
+    llm_provider: str
+    asr_provider: str
+    tts_provider: str
+    llm: AIModuleDiagnostics
+    asr: AIModuleDiagnostics
+    tts: AIModuleDiagnostics

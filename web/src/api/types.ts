@@ -141,6 +141,27 @@ export type OpenAIDebugResponse = {
   detail: string;
 };
 
+export type AIModuleDiagnostics = {
+  provider: "openai" | "local";
+  status: string;
+  message: string;
+  model_path?: string | null;
+  model_exists: boolean;
+  dependency_available: boolean;
+  device?: string | null;
+  load_ms?: number | null;
+  probe_ms?: number | null;
+};
+
+export type AIRuntimeStatus = {
+  llm_provider: "openai" | "local";
+  asr_provider: "openai" | "local";
+  tts_provider: "openai" | "local";
+  llm: AIModuleDiagnostics;
+  asr: AIModuleDiagnostics;
+  tts: AIModuleDiagnostics;
+};
+
 export type ProgressSummary = {
   streak_days: number;
   minutes_practiced: number;

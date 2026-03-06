@@ -55,6 +55,12 @@ Dev mode with live reload for Python services:
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
+Local-model mode (LLM + ASR + TTS from mounted model volume):
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d --build
+```
+
 Prod-like mode:
 
 ```powershell
@@ -97,6 +103,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `POST /profile/placement-test/finish`
   - `GET /settings/usage-budget`
   - `POST /settings/usage-budget`
+  - `GET /settings/ai-runtime`
+  - `POST /settings/ai-runtime`
 - Workspaces (multi-language spaces):
   - `GET /workspaces`
   - `POST /workspaces`
@@ -131,6 +139,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `POST /voice/transcribe`
   - `POST /voice/message`
   - `GET /voice/progress`
+  - `GET /asr/provider` (ASR service)
+  - `POST /asr/provider` (ASR service)
+  - `GET /asr/diagnostics` (ASR service)
+  - `GET /tts/provider` (TTS service)
+  - `POST /tts/provider` (TTS service)
+  - `GET /tts/diagnostics` (TTS service)
 - Vocabulary + SRS:
   - `GET /vocab`
   - `POST /vocab/add`
@@ -274,6 +288,22 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
 - `POST /settings/usage-budget`
   - updates per-user budget caps and warning threshold.
   - stored in learner profile preferences for desktop-local persistence.
+
+- `GET /settings/ai-runtime`
+  - returns currently active providers and diagnostics for all modules:
+    - `llm_provider`, `asr_provider`, `tts_provider`
+    - `llm`, `asr`, `tts` diagnostic blocks with:
+      - `status`, `message`
+      - `model_path`, `model_exists`
+      - `dependency_available`, `device`
+      - `load_ms`, `probe_ms`
+
+- `POST /settings/ai-runtime`
+  - switches runtime providers (`openai|local`) for:
+    - LLM in API
+    - ASR service
+    - TTS service
+  - persists selection for next app start in secure/local store.
 
 - `GET /progress/journal`
   - response includes weekly view and actionable recommendations:
@@ -495,6 +525,20 @@ Dry run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\e2e-key-paths.ps1 -DryRun
+```
+
+## E2E Local Runtime (Latency + Stability)
+
+Runs a local-mode smoke and prints request latency summary:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-local-runtime.ps1 -BaseUrl http://localhost:8000 -UserId 1
+```
+
+Optional voice step with real sample:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\e2e-local-runtime.ps1 -BaseUrl http://localhost:8000 -UserId 1 -AudioSamplePath C:\path\sample.wav
 ```
 
 ## E2E Workspace Journey (Script)

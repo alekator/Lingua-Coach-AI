@@ -85,3 +85,52 @@ def test_language_capabilities_endpoint(client: TestClient) -> None:
     )
     assert bad.status_code == 400
     assert bad.json()["detail"] == "Native and target language must be different"
+
+
+def test_ai_runtime_get_and_set(client: TestClient, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("API_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("ASR_PROVIDER", "openai")
+    monkeypatch.setenv("TTS_PROVIDER", "openai")
+
+    def fake_remote_diag(url: str, provider: str, fallback_message: str, run_probe: bool):
+        return {
+            "provider": provider,
+            "status": "ok",
+            "message": "ready",
+            "model_path": None,
+            "model_exists": False,
+            "dependency_available": True,
+            "device": "cpu",
+            "load_ms": None,
+            "probe_ms": 10.0 if run_probe else None,
+        }
+
+    def fake_llm_diag(run_probe: bool = False):
+        return {
+            "provider": "openai",
+            "status": "disabled",
+            "message": "LLM provider is OpenAI",
+            "model_path": None,
+            "model_exists": False,
+            "dependency_available": True,
+            "device": "cpu",
+            "load_ms": None,
+            "probe_ms": None,
+        }
+
+    monkeypatch.setattr("app.routers.settings._fetch_remote_diag", fake_remote_diag)
+    monkeypatch.setattr("app.routers.settings.get_local_llm_diagnostics", fake_llm_diag)
+
+    status_before = client.get("/settings/ai-runtime")
+    assert status_before.status_code == 200
+    assert status_before.json()["llm_provider"] == "openai"
+
+    updated = client.post(
+        "/settings/ai-runtime",
+        json={"llm_provider": "local", "asr_provider": "local", "tts_provider": "local"},
+    )
+    assert updated.status_code == 200
+    body = updated.json()
+    assert body["llm_provider"] == "local"
+    assert body["asr_provider"] == "local"
+    assert body["tts_provider"] == "local"

@@ -16,7 +16,6 @@ from fastapi.responses import JSONResponse
 from openai import OpenAI
 from pydantic import BaseModel
 
-from app.config import settings
 from app.db import init_db
 from app.routers.app_state import router as app_state_router
 from app.routers.chat import router as chat_router
@@ -30,6 +29,8 @@ from app.routers.voice import router as voice_router
 from app.routers.settings import router as settings_router
 from app.routers.workspaces import router as workspaces_router
 from app.services.teacher import TeacherResponder, default_teacher_responder
+from app.services.local_llm import get_local_llm_diagnostics
+from app.services.provider_config import get_llm_provider
 from app.services.translate import (
     TranslatorFn,
     TtsSynthesizerFn,
@@ -60,10 +61,11 @@ if not logger.handlers:
 
 
 def default_openai_probe() -> tuple[str, str]:
-    if settings.api_llm_provider.strip().lower() == "local":
-        if settings.local_llm_model_path.strip():
+    if get_llm_provider() == "local":
+        diag = get_local_llm_diagnostics(run_probe=False)
+        if diag["status"] == "ok":
             return ("ok", "Local LLM provider is enabled")
-        return ("error", "API_LLM_PROVIDER=local but LOCAL_LLM_MODEL_PATH is empty")
+        return ("error", str(diag["message"]))
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:

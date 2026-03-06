@@ -69,3 +69,24 @@ def test_asr_transcribe_local_provider_path(monkeypatch) -> None:
     body = response.json()
     assert body["language"] == "en"
     assert body["transcript"] == "hello from local asr"
+
+
+def test_asr_provider_endpoints() -> None:
+    client = TestClient(create_app())
+    set_resp = client.post("/asr/provider", json={"provider": "local"})
+    assert set_resp.status_code == 200
+    assert set_resp.json()["provider"] == "local"
+
+    get_resp = client.get("/asr/provider")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["provider"] == "local"
+
+
+def test_asr_diagnostics_endpoint(monkeypatch) -> None:
+    monkeypatch.setenv("ASR_PROVIDER", "openai")
+    client = TestClient(create_app())
+    response = client.get("/asr/diagnostics")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["provider"] == "openai"
+    assert body["status"] == "disabled"

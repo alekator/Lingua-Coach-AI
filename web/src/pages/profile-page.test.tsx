@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => ({
   usageBudgetSet: vi.fn(),
   openaiKeyStatus: vi.fn(),
   openaiKeySet: vi.fn(),
+  aiRuntimeStatus: vi.fn(),
+  aiRuntimeSet: vi.fn(),
   debugOpenai: vi.fn(),
   pushToast: vi.fn(),
   navigate: vi.fn(),
@@ -70,6 +72,8 @@ vi.mock("../api/client", async () => {
       usageBudgetSet: mocks.usageBudgetSet,
       openaiKeyStatus: mocks.openaiKeyStatus,
       openaiKeySet: mocks.openaiKeySet,
+      aiRuntimeStatus: mocks.aiRuntimeStatus,
+      aiRuntimeSet: mocks.aiRuntimeSet,
       debugOpenai: mocks.debugOpenai,
     },
   };
@@ -238,6 +242,82 @@ describe("ProfilePage", () => {
       masked: "sk-...1234",
       persistent: true,
       secure_storage: true,
+    });
+    mocks.aiRuntimeStatus.mockResolvedValue({
+      llm_provider: "openai",
+      asr_provider: "openai",
+      tts_provider: "openai",
+      llm: {
+        provider: "openai",
+        status: "disabled",
+        message: "LLM provider is OpenAI",
+        model_path: null,
+        model_exists: false,
+        dependency_available: true,
+        device: "cpu",
+        load_ms: null,
+        probe_ms: null,
+      },
+      asr: {
+        provider: "openai",
+        status: "disabled",
+        message: "ASR provider is OpenAI",
+        model_path: null,
+        model_exists: false,
+        dependency_available: true,
+        device: "cpu",
+        load_ms: null,
+        probe_ms: null,
+      },
+      tts: {
+        provider: "openai",
+        status: "disabled",
+        message: "TTS provider is OpenAI",
+        model_path: null,
+        model_exists: false,
+        dependency_available: true,
+        device: "cpu",
+        load_ms: null,
+        probe_ms: null,
+      },
+    });
+    mocks.aiRuntimeSet.mockResolvedValue({
+      llm_provider: "local",
+      asr_provider: "local",
+      tts_provider: "local",
+      llm: {
+        provider: "local",
+        status: "ok",
+        message: "ready",
+        model_path: "F:/models/qwen.gguf",
+        model_exists: true,
+        dependency_available: true,
+        device: "cpu",
+        load_ms: 100,
+        probe_ms: 150,
+      },
+      asr: {
+        provider: "local",
+        status: "ok",
+        message: "ready",
+        model_path: "F:/models/whisper-small",
+        model_exists: true,
+        dependency_available: true,
+        device: "cpu",
+        load_ms: 120,
+        probe_ms: 180,
+      },
+      tts: {
+        provider: "local",
+        status: "ok",
+        message: "ready",
+        model_path: "F:/models/qwen3-tts",
+        model_exists: true,
+        dependency_available: true,
+        device: "cpu",
+        load_ms: 220,
+        probe_ms: 260,
+      },
     });
     mocks.debugOpenai.mockResolvedValue({
       status: "ok",
@@ -549,6 +629,27 @@ describe("ProfilePage", () => {
         warning_threshold: 0.85,
       });
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Usage limits updated");
+    });
+  });
+
+  it("updates ai runtime providers", async () => {
+    renderPage();
+
+    await screen.findByRole("heading", { name: "AI Runtime Providers" });
+    await screen.findByLabelText("LLM provider");
+
+    fireEvent.change(screen.getByLabelText("LLM provider"), { target: { value: "local" } });
+    fireEvent.change(screen.getByLabelText("ASR provider"), { target: { value: "local" } });
+    fireEvent.change(screen.getByLabelText("TTS provider"), { target: { value: "local" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save provider settings" }));
+
+    await waitFor(() => {
+      expect(mocks.aiRuntimeSet).toHaveBeenCalledWith({
+        llm_provider: "local",
+        asr_provider: "local",
+        tts_provider: "local",
+      });
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "AI runtime providers updated");
     });
   });
 

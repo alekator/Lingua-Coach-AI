@@ -27,6 +27,26 @@ class TtsSpeakResponse(BaseModel):
     mime_type: str = "audio/mpeg"
 
 
+class ProviderSetRequest(BaseModel):
+    provider: str = Field(pattern="^(openai|local)$")
+
+
+class ProviderStatusResponse(BaseModel):
+    provider: str
+
+
+class TtsDiagnosticsResponse(BaseModel):
+    provider: str
+    status: str
+    message: str
+    model_path: str | None = None
+    model_exists: bool = False
+    dependency_available: bool = True
+    device: str | None = None
+    load_ms: float | None = None
+    probe_ms: float | None = None
+
+
 def _audio_dir() -> Path:
     root = Path(os.getenv("TTS_AUDIO_DIR", "./generated_audio")).resolve()
     root.mkdir(parents=True, exist_ok=True)
@@ -38,6 +58,94 @@ def _resolve_tts_provider() -> str:
     if raw in {"openai", "local"}:
         return raw
     return "openai"
+
+
+def _tts_diagnostics(run_probe: bool = False) -> TtsDiagnosticsResponse:
+    provider = _resolve_tts_provider()
+    model_path = os.getenv("LOCAL_TTS_MODEL_PATH", "").strip()
+    model_exists = bool(model_path and Path(model_path).exists())
+    device = "cpu"
+
+    if provider != "local":
+        return TtsDiagnosticsResponse(
+            provider=provider,
+            status="disabled",
+            message="TTS provider is OpenAI",
+            model_path=model_path or None,
+            model_exists=model_exists,
+            dependency_available=True,
+            device=device,
+            load_ms=None,
+            probe_ms=None,
+        )
+
+    if not model_path:
+        return TtsDiagnosticsResponse(
+            provider=provider,
+            status="error",
+            message="LOCAL_TTS_MODEL_PATH is not configured for local TTS",
+            model_path=None,
+            model_exists=False,
+            dependency_available=True,
+            device=device,
+            load_ms=None,
+            probe_ms=None,
+        )
+
+    try:
+        import time
+        import numpy as np  # type: ignore[import-not-found]
+        from transformers import pipeline  # type: ignore[import-not-found]
+    except Exception as exc:  # pragma: no cover - optional dependency
+        return TtsDiagnosticsResponse(
+            provider=provider,
+            status="error",
+            message=f"Local TTS dependency issue: {exc}",
+            model_path=model_path,
+            model_exists=model_exists,
+            dependency_available=False,
+            device=device,
+            load_ms=None,
+            probe_ms=None,
+        )
+
+    load_ms = None
+    probe_ms = None
+    if run_probe:
+        try:
+            import time
+
+            started = time.perf_counter()
+            text_to_audio = pipeline("text-to-audio", model=model_path, trust_remote_code=True)
+            load_ms = round((time.perf_counter() - started) * 1000, 2)
+            started = time.perf_counter()
+            audio = text_to_audio("hello", forward_params={"language": "en", "speaker": "alloy"})
+            _ = np.asarray(audio.get("audio"), dtype=np.float32)
+            probe_ms = round((time.perf_counter() - started) * 1000, 2)
+        except Exception as exc:
+            return TtsDiagnosticsResponse(
+                provider=provider,
+                status="error",
+                message=f"Local TTS probe failed: {exc}",
+                model_path=model_path,
+                model_exists=model_exists,
+                dependency_available=True,
+                device=device,
+                load_ms=load_ms,
+                probe_ms=probe_ms,
+            )
+
+    return TtsDiagnosticsResponse(
+        provider=provider,
+        status="ok",
+        message="ready",
+        model_path=model_path,
+        model_exists=model_exists,
+        dependency_available=True,
+        device=device,
+        load_ms=load_ms,
+        probe_ms=probe_ms,
+    )
 
 
 def _synthesize_openai_speech(text: str, voice: str) -> bytes:
@@ -112,6 +220,19 @@ def create_app() -> FastAPI:
     @app.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
         return HealthResponse(service="tts", status="ok")
+
+    @app.get("/tts/provider", response_model=ProviderStatusResponse)
+    def tts_provider_status() -> ProviderStatusResponse:
+        return ProviderStatusResponse(provider=_resolve_tts_provider())
+
+    @app.post("/tts/provider", response_model=ProviderStatusResponse)
+    def tts_provider_set(payload: ProviderSetRequest) -> ProviderStatusResponse:
+        os.environ["TTS_PROVIDER"] = payload.provider
+        return ProviderStatusResponse(provider=_resolve_tts_provider())
+
+    @app.get("/tts/diagnostics", response_model=TtsDiagnosticsResponse)
+    def tts_diagnostics(probe: bool = False) -> TtsDiagnosticsResponse:
+        return _tts_diagnostics(run_probe=probe)
 
     @app.post("/tts/speak", response_model=TtsSpeakResponse)
     def tts_speak(payload: TtsSpeakRequest) -> TtsSpeakResponse:

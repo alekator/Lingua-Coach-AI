@@ -49,6 +49,11 @@ export function ProfilePage() {
   const [apiKeyDraft, setApiKeyDraft] = useState("");
   const [apiKeyBusy, setApiKeyBusy] = useState(false);
   const [apiKeyError, setApiKeyError] = useState("");
+  const [llmProviderDraft, setLlmProviderDraft] = useState<"openai" | "local">("openai");
+  const [asrProviderDraft, setAsrProviderDraft] = useState<"openai" | "local">("openai");
+  const [ttsProviderDraft, setTtsProviderDraft] = useState<"openai" | "local">("openai");
+  const [providerBusy, setProviderBusy] = useState(false);
+  const [providerError, setProviderError] = useState("");
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
   const [restoreToken, setRestoreToken] = useState("");
   const [restoreBusy, setRestoreBusy] = useState(false);
@@ -108,6 +113,11 @@ export function ProfilePage() {
     queryFn: api.openaiKeyStatus,
     retry: false,
   });
+  const aiRuntimeStatus = useQuery({
+    queryKey: ["ai-runtime-status"],
+    queryFn: () => api.aiRuntimeStatus(false),
+    retry: false,
+  });
 
   useEffect(() => {
     if (!profile.data) return;
@@ -140,6 +150,13 @@ export function ProfilePage() {
     element.scrollIntoView({ behavior: "smooth", block: "center" });
     element.focus();
   }, [location.hash]);
+
+  useEffect(() => {
+    if (!aiRuntimeStatus.data) return;
+    setLlmProviderDraft(aiRuntimeStatus.data.llm_provider);
+    setAsrProviderDraft(aiRuntimeStatus.data.asr_provider);
+    setTtsProviderDraft(aiRuntimeStatus.data.tts_provider);
+  }, [aiRuntimeStatus.data]);
 
   async function syncBootstrapContext() {
     const bootstrap = await syncWorkspaceContext(queryClient, setBootstrapState);
@@ -500,6 +517,26 @@ export function ProfilePage() {
     }
   }
 
+  async function onSaveRuntimeProviders() {
+    setProviderBusy(true);
+    try {
+      await api.aiRuntimeSet({
+        llm_provider: llmProviderDraft,
+        asr_provider: asrProviderDraft,
+        tts_provider: ttsProviderDraft,
+      });
+      await aiRuntimeStatus.refetch();
+      setProviderError("");
+      pushToast("success", "AI runtime providers updated");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setProviderError(msg);
+      pushToast("error", msg);
+    } finally {
+      setProviderBusy(false);
+    }
+  }
+
   return (
     <section className="panel stack">
       <h2>Coach Profile</h2>
@@ -778,6 +815,91 @@ export function ProfilePage() {
               </p>
             </div>
           ))}
+      </article>
+      <article className="panel stack">
+        <h3>AI Runtime Providers</h3>
+        <p>Choose which provider to use for LLM coaching, speech-to-text, and text-to-speech.</p>
+        {aiRuntimeStatus.isPending && <LoadingState text="Loading AI runtime status..." />}
+        {aiRuntimeStatus.isError && <ErrorState text="Failed to load AI runtime status." />}
+        {aiRuntimeStatus.isSuccess && (
+          <>
+            <div className="stack">
+              <label>
+                LLM provider
+                <select
+                  value={llmProviderDraft}
+                  onChange={(e) => setLlmProviderDraft(e.target.value as "openai" | "local")}
+                  disabled={providerBusy}
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="local">Local</option>
+                </select>
+              </label>
+              <label>
+                ASR provider
+                <select
+                  value={asrProviderDraft}
+                  onChange={(e) => setAsrProviderDraft(e.target.value as "openai" | "local")}
+                  disabled={providerBusy}
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="local">Local</option>
+                </select>
+              </label>
+              <label>
+                TTS provider
+                <select
+                  value={ttsProviderDraft}
+                  onChange={(e) => setTtsProviderDraft(e.target.value as "openai" | "local")}
+                  disabled={providerBusy}
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="local">Local</option>
+                </select>
+              </label>
+              <div className="row">
+                <button type="button" onClick={onSaveRuntimeProviders} disabled={providerBusy}>
+                  {providerBusy ? "Saving providers..." : "Save provider settings"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => aiRuntimeStatus.refetch()}
+                  disabled={aiRuntimeStatus.isFetching || providerBusy}
+                >
+                  {aiRuntimeStatus.isFetching ? "Refreshing..." : "Refresh status"}
+                </button>
+              </div>
+            </div>
+            <article className="panel stack">
+              <h4>Local diagnostics</h4>
+              <p>
+                LLM: {aiRuntimeStatus.data.llm.status} | {aiRuntimeStatus.data.llm.message}
+              </p>
+              <p>
+                Model: {aiRuntimeStatus.data.llm.model_path ?? "not set"} | Device:{" "}
+                {aiRuntimeStatus.data.llm.device ?? "n/a"} | Load:{" "}
+                {aiRuntimeStatus.data.llm.load_ms ?? "n/a"} ms | Probe: {aiRuntimeStatus.data.llm.probe_ms ?? "n/a"} ms
+              </p>
+              <p>
+                ASR: {aiRuntimeStatus.data.asr.status} | {aiRuntimeStatus.data.asr.message}
+              </p>
+              <p>
+                Model: {aiRuntimeStatus.data.asr.model_path ?? "not set"} | Device:{" "}
+                {aiRuntimeStatus.data.asr.device ?? "n/a"} | Load: {aiRuntimeStatus.data.asr.load_ms ?? "n/a"} ms |
+                Probe: {aiRuntimeStatus.data.asr.probe_ms ?? "n/a"} ms
+              </p>
+              <p>
+                TTS: {aiRuntimeStatus.data.tts.status} | {aiRuntimeStatus.data.tts.message}
+              </p>
+              <p>
+                Model: {aiRuntimeStatus.data.tts.model_path ?? "not set"} | Device:{" "}
+                {aiRuntimeStatus.data.tts.device ?? "n/a"} | Load: {aiRuntimeStatus.data.tts.load_ms ?? "n/a"} ms |
+                Probe: {aiRuntimeStatus.data.tts.probe_ms ?? "n/a"} ms
+              </p>
+            </article>
+          </>
+        )}
+        {providerError && <ErrorState text={providerError} />}
       </article>
       <article className="panel stack">
         <h3>AI Usage Budget</h3>

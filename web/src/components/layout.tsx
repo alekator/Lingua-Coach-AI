@@ -120,10 +120,22 @@ export function AppLayout() {
     retry: false,
     staleTime: 5 * 60_000,
   });
-  const showMissingKey = keyStatus.isSuccess && !keyStatus.data.configured;
-  const keyIssue = keyStatus.data?.configured && keyProbe.isError ? classifyOpenAIProbeError(keyProbe.error) : null;
+  const aiRuntime = useQuery({
+    queryKey: ["ai-runtime-status-banner"],
+    queryFn: () => api.aiRuntimeStatus(false),
+    retry: false,
+    staleTime: 60_000,
+  });
+  const llmIsLocal = aiRuntime.data?.llm_provider === "local";
+  const showMissingKey = keyStatus.isSuccess && !keyStatus.data.configured && !llmIsLocal;
+  const keyIssue =
+    keyStatus.data?.configured && keyProbe.isError && !llmIsLocal ? classifyOpenAIProbeError(keyProbe.error) : null;
   const showInvalidKey = Boolean(keyIssue);
   const showStatusUnknown = keyStatus.isError;
+  const showLocalRuntimeIssue =
+    llmIsLocal &&
+    aiRuntime.isSuccess &&
+    (aiRuntime.data.llm.status !== "ok" || aiRuntime.data.asr.status === "error" || aiRuntime.data.tts.status === "error");
   const activeNavLabel = resolveActiveNavLabel(location.pathname);
 
   return (
@@ -220,6 +232,13 @@ export function AppLayout() {
             <article className="panel stack" aria-live="polite">
               <strong>Unable to check OpenAI key status.</strong>
               <p>App may run in lightweight mode while connection checks are unavailable.</p>
+            </article>
+          )}
+          {showLocalRuntimeIssue && (
+            <article className="panel stack" aria-live="polite">
+              <strong>Local runtime needs attention.</strong>
+              <p>One or more local modules are not ready. Open profile and review AI Runtime Providers diagnostics.</p>
+              <Link to="/app/profile">Open runtime diagnostics</Link>
             </article>
           )}
           </div>
