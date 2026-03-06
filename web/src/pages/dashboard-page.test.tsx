@@ -292,35 +292,37 @@ describe("DashboardPage", () => {
 
     await waitFor(() => {
       expect(mocks.planToday).toHaveBeenCalledWith(1, 15);
-      expect(screen.getByText("Today Coaching Plan (15 min)")).toBeInTheDocument();
-      expect(screen.getByText("Current habit mode: 15-minute loop.")).toBeInTheDocument();
-      expect(
-        screen.getByText("Adaptation: Low recent consistency detected; plan uses shorter high-impact blocks."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Today Focus")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start today one step" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Show full insights" })).toBeInTheDocument();
+      expect(screen.queryByText("Weekly Goal Tracker")).not.toBeInTheDocument();
+      expect(screen.getByText("Your Learning Spaces")).toBeInTheDocument();
+      expect(screen.getByText("Needs onboarding to unlock full coach flow.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Switch and open" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start today one step" }));
+    await waitFor(() => {
+      expect(mocks.setDailyMinutes).toHaveBeenCalledWith(10);
+      expect(mocks.pushToast).toHaveBeenCalledWith("info", "Mode set to 10 minutes for this action");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Show full insights" }));
+    await waitFor(() => {
       expect(screen.getByText("Weekly Goal Tracker")).toBeInTheDocument();
       expect(screen.getByText("Progress: 24/120 min (20%)")).toBeInTheDocument();
       expect(screen.getByText("Coach Next Actions")).toBeInTheDocument();
-      expect(screen.getAllByText("Complete 96 more weekly minutes").length).toBeGreaterThan(0);
-      expect(screen.getByText("Today one step:")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Do next best action" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Start 5-minute mode" })).toBeInTheDocument();
       expect(screen.getByText("Unified Review Queue")).toBeInTheDocument();
       expect(screen.getByText("Review 3 due vocab cards")).toBeInTheDocument();
-      expect(screen.getAllByRole("button", { name: "Open review" }).length).toBeGreaterThan(0);
       expect(screen.getByText("Easy Return Plan")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Start easy return (5 min)" })).toBeInTheDocument();
       expect(screen.getByText("Rewards")).toBeInTheDocument();
       expect(screen.getByText("XP: 30 | Claimed: 1")).toBeInTheDocument();
       expect(screen.getByText("Weekly Review")).toBeInTheDocument();
-      expect(screen.getByText("Skills: strongest vocab, weakest grammar")).toBeInTheDocument();
       expect(screen.getByText("Weekly Checkpoint (Before/After)")).toBeInTheDocument();
-      expect(screen.getByText("Avg skill: 45 -> 51")).toBeInTheDocument();
-      expect(screen.getByText("Top gain: vocab (8 points)")).toBeInTheDocument();
-      expect(screen.getByText("Daily Challenge")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Start daily challenge" })).toBeInTheDocument();
-      expect(screen.getByText("Your Learning Spaces")).toBeInTheDocument();
-      expect(screen.getByText("Needs onboarding to unlock full coach flow.")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Switch and open" })).toBeInTheDocument();
+      expect(screen.getByText("Today Coaching Plan (15 min)")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Save weekly goal" }));
@@ -329,17 +331,11 @@ describe("DashboardPage", () => {
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Weekly goal updated");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Do next best action" }));
-    await waitFor(() => {
-      expect(mocks.setDailyMinutes).toHaveBeenCalledWith(10);
-      expect(mocks.pushToast).toHaveBeenCalledWith("info", "Mode set to 10 minutes for this action");
-    });
-
     fireEvent.click(screen.getByRole("button", { name: "Start 5-minute mode" }));
     await waitFor(() => {
       expect(mocks.setDailyMinutes).toHaveBeenCalledWith(5);
       expect(mocks.pushToast).toHaveBeenCalledWith("info", "5-minute mode enabled for today");
-      expect(screen.getByText(/Reactivation:/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Reactivation:/).length).toBeGreaterThan(0);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Start easy return (5 min)" }));

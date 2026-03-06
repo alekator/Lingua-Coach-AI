@@ -20,6 +20,7 @@ export function DashboardPage() {
   const pushToast = useToastStore((s) => s.push);
   const [goalMinutes, setGoalMinutes] = useState(120);
   const [goalError, setGoalError] = useState("");
+  const [showInsights, setShowInsights] = useState(false);
   const summary = useQuery({
     queryKey: ["summary", userId],
     queryFn: () => api.progressSummary(userId),
@@ -126,6 +127,15 @@ export function DashboardPage() {
   }
 
   const nextBestAction = nextActions.data?.items?.[0] ?? null;
+  const todayOneStepTitle = nextBestAction?.title ?? plan.data?.tasks?.[0] ?? "Start your guided daily session";
+  const todayOneStepReason =
+    nextBestAction?.reason ??
+    (plan.data ? `Focus today: ${plan.data.focus.join(", ")}.` : "One clear action to keep momentum.");
+  const todayOneStepMinutes =
+    (typeof nextBestAction?.quick_mode_minutes === "number" ? nextBestAction.quick_mode_minutes : null) ??
+    plan.data?.time_budget_minutes ??
+    dailyMinutes;
+  const todayOneStepRoute = nextBestAction?.route ?? "/app/session";
   const reactivationMsg =
     reactivation.data && reactivation.data.eligible
       ? `You had a ${reactivation.data.gap_days}-day pause. ${reactivation.data.note}`
@@ -136,6 +146,31 @@ export function DashboardPage() {
     <section className="panel">
       <h2>Dashboard</h2>
       <p>Your coaching loop for today. Follow the plan, then track improvement in Profile.</p>
+      <article className="panel stack">
+        <h3>Today Focus</h3>
+        <p>
+          <strong>One next step:</strong> {todayOneStepTitle}
+        </p>
+        <p>{todayOneStepReason}</p>
+        <p>Recommended mode: {Math.max(5, Math.min(60, todayOneStepMinutes))} min</p>
+        {reactivationMsg && <p>Reactivation: {reactivationMsg}</p>}
+        <button
+          type="button"
+          className="cta-primary"
+          onClick={() => {
+            if (nextBestAction) {
+              runNextBestAction();
+              return;
+            }
+            startQuickMode(todayOneStepRoute, todayOneStepMinutes);
+          }}
+        >
+          Start today one step
+        </button>
+        <button type="button" className="cta-secondary" onClick={() => setShowInsights((prev) => !prev)}>
+          {showInsights ? "Hide full insights" : "Show full insights"}
+        </button>
+      </article>
       {summary.isPending && <LoadingState text="Loading progress..." />}
       {summary.isError && <ErrorState text="Failed to load progress summary." />}
       {summary.isSuccess && summary.data.minutes_practiced === 0 && (
@@ -185,9 +220,9 @@ export function DashboardPage() {
           ))}
         </article>
       )}
-      {weeklyGoal.isPending && <LoadingState text="Loading weekly goal..." />}
-      {weeklyGoal.isError && <ErrorState text="Failed to load weekly goal." />}
-      {weeklyGoal.isSuccess && (
+      {showInsights && weeklyGoal.isPending && <LoadingState text="Loading weekly goal..." />}
+      {showInsights && weeklyGoal.isError && <ErrorState text="Failed to load weekly goal." />}
+      {showInsights && weeklyGoal.isSuccess && (
         <article className="panel stack">
           <h3>Weekly Goal Tracker</h3>
           <p>
@@ -215,9 +250,9 @@ export function DashboardPage() {
           {goalError && <ErrorState text={goalError} />}
         </article>
       )}
-      {nextActions.isPending && <LoadingState text="Loading coach next actions..." />}
-      {nextActions.isError && <ErrorState text="Failed to load coach next actions." />}
-      {nextActions.isSuccess && (
+      {showInsights && nextActions.isPending && <LoadingState text="Loading coach next actions..." />}
+      {showInsights && nextActions.isError && <ErrorState text="Failed to load coach next actions." />}
+      {showInsights && nextActions.isSuccess && (
         <article className="panel stack">
           <h3>Coach Next Actions</h3>
           {nextBestAction && (
@@ -248,9 +283,9 @@ export function DashboardPage() {
           ))}
         </article>
       )}
-      {reviewQueue.isPending && <LoadingState text="Loading review queue..." />}
-      {reviewQueue.isError && <ErrorState text="Failed to load review queue." />}
-      {reviewQueue.isSuccess && (
+      {showInsights && reviewQueue.isPending && <LoadingState text="Loading review queue..." />}
+      {showInsights && reviewQueue.isError && <ErrorState text="Failed to load review queue." />}
+      {showInsights && reviewQueue.isSuccess && (
         <article className="panel stack">
           <h3>Unified Review Queue</h3>
           <p>One place for spaced review of vocabulary, recurring errors, grammar and pronunciation.</p>
@@ -267,7 +302,7 @@ export function DashboardPage() {
           ))}
         </article>
       )}
-      {reactivation.isSuccess && reactivation.data.eligible && (
+      {showInsights && reactivation.isSuccess && reactivation.data.eligible && (
         <article className="panel stack">
           <h3>Easy Return Plan</h3>
           <p>{reactivation.data.title}</p>
@@ -288,9 +323,9 @@ export function DashboardPage() {
           </button>
         </article>
       )}
-      {dailyChallenge.isPending && <LoadingState text="Loading daily challenge..." />}
-      {dailyChallenge.isError && <ErrorState text="Failed to load daily challenge." />}
-      {dailyChallenge.isSuccess && (
+      {showInsights && dailyChallenge.isPending && <LoadingState text="Loading daily challenge..." />}
+      {showInsights && dailyChallenge.isError && <ErrorState text="Failed to load daily challenge." />}
+      {showInsights && dailyChallenge.isSuccess && (
         <article className="panel stack">
           <h3>Daily Challenge</h3>
           <p>
@@ -303,9 +338,9 @@ export function DashboardPage() {
           </Link>
         </article>
       )}
-      {rewards.isPending && <LoadingState text="Loading rewards..." />}
-      {rewards.isError && <ErrorState text="Failed to load rewards." />}
-      {rewards.isSuccess && (
+      {showInsights && rewards.isPending && <LoadingState text="Loading rewards..." />}
+      {showInsights && rewards.isError && <ErrorState text="Failed to load rewards." />}
+      {showInsights && rewards.isSuccess && (
         <article className="panel stack">
           <h3>Rewards</h3>
           <p>
@@ -329,9 +364,9 @@ export function DashboardPage() {
           ))}
         </article>
       )}
-      {weeklyReview.isPending && <LoadingState text="Loading weekly review..." />}
-      {weeklyReview.isError && <ErrorState text="Failed to load weekly review." />}
-      {weeklyReview.isSuccess && (
+      {showInsights && weeklyReview.isPending && <LoadingState text="Loading weekly review..." />}
+      {showInsights && weeklyReview.isError && <ErrorState text="Failed to load weekly review." />}
+      {showInsights && weeklyReview.isSuccess && (
         <article className="panel stack">
           <h3>Weekly Review</h3>
           <p>
@@ -351,9 +386,9 @@ export function DashboardPage() {
           <p>Next focus: {weeklyReview.data.next_focus}</p>
         </article>
       )}
-      {weeklyCheckpoint.isPending && <LoadingState text="Loading weekly checkpoint..." />}
-      {weeklyCheckpoint.isError && <ErrorState text="Failed to load weekly checkpoint." />}
-      {weeklyCheckpoint.isSuccess && (
+      {showInsights && weeklyCheckpoint.isPending && <LoadingState text="Loading weekly checkpoint..." />}
+      {showInsights && weeklyCheckpoint.isError && <ErrorState text="Failed to load weekly checkpoint." />}
+      {showInsights && weeklyCheckpoint.isSuccess && (
         <article className="panel stack">
           <h3>Weekly Checkpoint (Before/After)</h3>
           <p>
@@ -369,9 +404,9 @@ export function DashboardPage() {
           <p>{weeklyCheckpoint.data.summary}</p>
         </article>
       )}
-      {plan.isPending && <LoadingState text="Generating today plan..." />}
-      {plan.isError && <ErrorState text="Failed to load daily plan." />}
-      {plan.isSuccess && (
+      {showInsights && plan.isPending && <LoadingState text="Generating today plan..." />}
+      {showInsights && plan.isError && <ErrorState text="Failed to load daily plan." />}
+      {showInsights && plan.isSuccess && (
         <article className="panel">
           <h3>Today Coaching Plan ({plan.data.time_budget_minutes} min)</h3>
           <p>Current habit mode: {dailyMinutes}-minute loop.</p>

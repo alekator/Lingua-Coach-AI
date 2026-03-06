@@ -394,6 +394,17 @@ button {
   color: var(--button-fg);
 }
 
+.cta-primary {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: var(--shadow);
+}
+
+.cta-secondary {
+  background: var(--chip-bg);
+  color: var(--fg);
+}
+
 .grid {
   display: grid;
   gap: 12px;
