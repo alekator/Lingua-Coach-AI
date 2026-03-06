@@ -150,6 +150,23 @@ export function DashboardPage() {
   const streakProgress = summary.data ? Math.min(100, Math.round((summary.data.streak_days / streakTarget) * 100)) : 0;
   const weeklyProgress = weeklyGoal.data?.completion_percent ?? 0;
   const topMilestones = (achievements.data?.items ?? []).slice(0, 3);
+  const checkpointDelta = weeklyCheckpoint.data?.delta_points ?? 0;
+  const checkpointDirection = checkpointDelta > 0 ? "up" : checkpointDelta < 0 ? "down" : "flat";
+  const checkpointHeadline =
+    checkpointDirection === "up"
+      ? `This week: +${checkpointDelta.toFixed(1)} pts`
+      : checkpointDirection === "down"
+        ? `This week: ${checkpointDelta.toFixed(1)} pts`
+        : "This week: stable";
+  const checkpointTone =
+    checkpointDirection === "up"
+      ? "Measured growth"
+      : checkpointDirection === "down"
+        ? "Needs recovery"
+        : "Keep momentum";
+  const checkpointSkills = [...(weeklyCheckpoint.data?.skills ?? [])]
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+    .slice(0, 4);
 
   return (
     <section className="panel">
@@ -259,6 +276,64 @@ export function DashboardPage() {
               </button>
             </div>
           )}
+        </article>
+      )}
+      {weeklyCheckpoint.isPending && <LoadingState text="Loading weekly checkpoint..." />}
+      {weeklyCheckpoint.isError && <ErrorState text="Failed to load weekly checkpoint." />}
+      {weeklyCheckpoint.isSuccess && (
+        <article className="panel stack checkpoint-hero">
+          <h3>Before/After This Week</h3>
+          <div className="checkpoint-headline">
+            <p className={`checkpoint-delta checkpoint-${checkpointDirection}`}>{checkpointHeadline}</p>
+            <span className="badge">{checkpointTone}</span>
+          </div>
+          <div className="grid">
+            <article className="progress-card">
+              <p>
+                <strong>Average skill</strong>
+              </p>
+              <p>
+                {weeklyCheckpoint.data.baseline_avg_skill} {"->"} {weeklyCheckpoint.data.current_avg_skill}
+              </p>
+            </article>
+            <article className="progress-card">
+              <p>
+                <strong>Top gain</strong>
+              </p>
+              <p>
+                {weeklyCheckpoint.data.top_gain_skill} ({weeklyCheckpoint.data.top_gain_points} pts)
+              </p>
+            </article>
+            <article className="progress-card">
+              <p>
+                <strong>Window</strong>
+              </p>
+              <p>{weeklyCheckpoint.data.window_days} days</p>
+            </article>
+          </div>
+          {checkpointSkills.length > 0 && (
+            <div className="stack">
+              <p>
+                <strong>Skill shifts</strong>
+              </p>
+              {checkpointSkills.map((skill) => {
+                const normalized = Math.max(0, Math.min(100, Math.round((skill.after / 100) * 100)));
+                const marker = skill.delta > 0 ? "+" : "";
+                return (
+                  <div key={skill.skill} className="checkpoint-skill-row">
+                    <p>
+                      <strong>{skill.skill}</strong> {skill.before} {"->"} {skill.after} ({marker}
+                      {skill.delta})
+                    </p>
+                    <div className="progress-meter" role="img" aria-label={`${skill.skill} current level`}>
+                      <span style={{ width: `${normalized}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p>{weeklyCheckpoint.data.summary}</p>
         </article>
       )}
       {spacesOverview.isPending && <LoadingState text="Loading learning spaces overview..." />}
@@ -455,8 +530,6 @@ export function DashboardPage() {
           <p>Next focus: {weeklyReview.data.next_focus}</p>
         </article>
       )}
-      {showInsights && weeklyCheckpoint.isPending && <LoadingState text="Loading weekly checkpoint..." />}
-      {showInsights && weeklyCheckpoint.isError && <ErrorState text="Failed to load weekly checkpoint." />}
       {showInsights && weeklyCheckpoint.isSuccess && (
         <article className="panel stack">
           <h3>Weekly Checkpoint (Before/After)</h3>

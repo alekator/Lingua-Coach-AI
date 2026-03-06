@@ -243,7 +243,11 @@ describe("DashboardPage", () => {
       measurable_growth: true,
       top_gain_skill: "vocab",
       top_gain_points: 8,
-      skills: [],
+      skills: [
+        { skill: "vocab", before: 47, after: 55, delta: 8 },
+        { skill: "grammar", before: 44, after: 48, delta: 4 },
+        { skill: "speaking", before: 50, after: 52, delta: 2 },
+      ],
       summary: "Measured growth: +6 points over 7 days.",
     });
     mocks.progressAchievements.mockResolvedValue({
@@ -304,6 +308,9 @@ describe("DashboardPage", () => {
       expect(mocks.planToday).toHaveBeenCalledWith(1, 15);
       expect(screen.getByText("Today Focus")).toBeInTheDocument();
       expect(screen.getByText("Momentum & Rewards")).toBeInTheDocument();
+      expect(screen.getByText("Before/After This Week")).toBeInTheDocument();
+      expect(screen.getByText("This week: +6.0 pts")).toBeInTheDocument();
+      expect(screen.getByText("Skill shifts")).toBeInTheDocument();
       expect(screen.getByText("Streak target")).toBeInTheDocument();
       expect(screen.getByText("Weekly goal")).toBeInTheDocument();
       expect(screen.getByText("Milestones")).toBeInTheDocument();

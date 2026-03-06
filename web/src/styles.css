@@ -438,6 +438,39 @@ button {
   border-radius: inherit;
 }
 
+.checkpoint-hero {
+  border-width: 2px;
+}
+
+.checkpoint-headline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.checkpoint-delta {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.checkpoint-up {
+  color: #22c55e;
+}
+
+.checkpoint-down {
+  color: #ef4444;
+}
+
+.checkpoint-flat {
+  color: var(--fg);
+}
+
+.checkpoint-skill-row p {
+  margin: 0 0 6px;
+}
+
 .centered {
   min-height: 100vh;
   display: grid;
