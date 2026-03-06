@@ -300,6 +300,16 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - configurable temperatures (`OPENAI_TEMPERATURE_*`)
   - lightweight in-memory AI cache (`AI_CACHE_MAX_ITEMS`)
 
+## CI / Automated Checks
+
+GitHub Actions workflow: `.github/workflows/ci.yml`
+
+Runs on every `push` / `pull_request` (and manual `workflow_dispatch`):
+- Backend lint (critical Python rules via Ruff) + unit tests (`api`, `asr`, `tts`)
+- Web tests + production build
+- E2E smoke for critical user paths (`scripts/e2e-key-paths.ps1` + `scripts/e2e-workspace-journey.ps1`) against a started local API in CI
+- CI reliability guards: concurrency cancel, job timeouts, dependency caching, API log artifact upload
+
 ## Running Tests
 
 ```powershell
@@ -422,3 +432,4 @@ Runs focused quality guardrails for teacher behavior and scenario content qualit
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\eval-harness.ps1
 ```
+
