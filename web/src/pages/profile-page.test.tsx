@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   profileGet: vi.fn(),
   profileSetup: vi.fn(),
   appReset: vi.fn(),
+  appBackupExport: vi.fn(),
+  appBackupRestore: vi.fn(),
   bootstrap: vi.fn(),
   workspacesList: vi.fn(),
   workspaceCreate: vi.fn(),
@@ -43,6 +45,8 @@ vi.mock("../api/client", async () => {
       profileGet: mocks.profileGet,
       profileSetup: mocks.profileSetup,
       appReset: mocks.appReset,
+      appBackupExport: mocks.appBackupExport,
+      appBackupRestore: mocks.appBackupRestore,
       bootstrap: mocks.bootstrap,
       workspacesList: mocks.workspacesList,
       workspaceCreate: mocks.workspaceCreate,
@@ -93,6 +97,15 @@ function renderPage() {
 describe("ProfilePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(URL, "createObjectURL", {
+      writable: true,
+      value: vi.fn(() => "blob:test-backup"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      writable: true,
+      value: vi.fn(() => undefined),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     mocks.profileGet.mockResolvedValue({
       user_id: 1,
       native_lang: "ru",
@@ -204,6 +217,15 @@ describe("ProfilePage", () => {
       deleted_vocab_items: 3,
       deleted_chat_sessions: 1,
       openai_key_cleared: true,
+    });
+    mocks.appBackupExport.mockResolvedValue({
+      version: 1,
+      exported_at: "2026-03-06T00:00:00Z",
+      snapshot: { users: [{ id: 1 }] },
+    });
+    mocks.appBackupRestore.mockResolvedValue({
+      status: "ok",
+      restored_tables: { users: 1 },
     });
     mocks.bootstrap.mockResolvedValue({
       user_id: 1,
@@ -476,6 +498,75 @@ describe("ProfilePage", () => {
         warning_threshold: 0.85,
       });
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Usage limits updated");
+    });
+  });
+
+  it("exports backup as JSON", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Export backup (JSON)" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Export backup (JSON)" }));
+
+    await waitFor(() => {
+      expect(mocks.appBackupExport).toHaveBeenCalledTimes(1);
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Backup exported");
+    });
+  });
+
+  it("imports backup file and restores after confirmation", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Import backup file")).toBeInTheDocument();
+    });
+
+    const file = new File(
+      [
+        JSON.stringify({
+          version: 1,
+          exported_at: "2026-03-06T00:00:00Z",
+          snapshot: { users: [{ id: 1 }] },
+        }),
+      ],
+      "backup.json",
+      { type: "application/json" },
+    );
+    Object.defineProperty(file, "arrayBuffer", {
+      value: vi.fn().mockResolvedValue(
+        new TextEncoder().encode(
+          JSON.stringify({
+            version: 1,
+            exported_at: "2026-03-06T00:00:00Z",
+            snapshot: { users: [{ id: 1 }] },
+          }),
+        ).buffer,
+      ),
+    });
+
+    const importInput = screen.getByLabelText("Import backup file") as HTMLInputElement;
+    Object.defineProperty(importInput, "files", {
+      value: [file],
+      configurable: true,
+    });
+    fireEvent.change(importInput);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Type RESTORE to confirm")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("Type RESTORE to confirm"), { target: { value: "RESTORE" } });
+    fireEvent.click(screen.getByRole("button", { name: "Restore from backup" }));
+
+    await waitFor(() => {
+      expect(mocks.appBackupRestore).toHaveBeenCalledWith({
+        confirmation: "RESTORE",
+        snapshot: { users: [{ id: 1 }] },
+      });
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Backup restored");
+      expect(mocks.navigate).toHaveBeenCalledWith("/", { replace: true });
     });
   });
 

@@ -1,4 +1,6 @@
 import type {
+  AppBackupExportResponse,
+  AppBackupRestoreResponse,
   AppResetResponse,
   AppBootstrapResponse,
   PlacementAnswerResponse,
@@ -104,6 +106,12 @@ export const api = {
   bootstrap: () => request<AppBootstrapResponse>("/app/bootstrap"),
   appReset: (payload: { confirmation: string }) =>
     request<AppResetResponse>("/app/reset", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  appBackupExport: () => request<AppBackupExportResponse>("/app/backup/export"),
+  appBackupRestore: (payload: { confirmation: string; snapshot: Record<string, unknown> }) =>
+    request<AppBackupRestoreResponse>("/app/backup/restore", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

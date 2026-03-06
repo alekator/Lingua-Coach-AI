@@ -20,6 +20,17 @@ export type AppResetResponse = {
   openai_key_cleared: boolean;
 };
 
+export type AppBackupExportResponse = {
+  version: number;
+  exported_at: string;
+  snapshot: Record<string, unknown>;
+};
+
+export type AppBackupRestoreResponse = {
+  status: string;
+  restored_tables: Record<string, number>;
+};
+
 export type LearningWorkspace = {
   id: number;
   native_lang: string;

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
@@ -41,6 +41,14 @@ export function ProfilePage() {
   const [resetToken, setResetToken] = useState("");
   const [resetBusy, setResetBusy] = useState(false);
   const [resetError, setResetError] = useState("");
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupError, setBackupError] = useState("");
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [restoreToken, setRestoreToken] = useState("");
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [restoreError, setRestoreError] = useState("");
+  const [restoreFileName, setRestoreFileName] = useState("");
+  const [restoreSnapshot, setRestoreSnapshot] = useState<Record<string, unknown> | null>(null);
   const [dailyTokenCap, setDailyTokenCap] = useState("12000");
   const [weeklyTokenCap, setWeeklyTokenCap] = useState("60000");
   const [warningThreshold, setWarningThreshold] = useState("0.8");
@@ -343,6 +351,112 @@ export function ProfilePage() {
       pushToast("error", msg);
     } finally {
       setBudgetSaving(false);
+    }
+  }
+
+  async function onExportBackup() {
+    setBackupBusy(true);
+    try {
+      const payload = await api.appBackupExport();
+      const json = JSON.stringify(payload, null, 2);
+      const nameStamp = new Date().toISOString().replace(/[:]/g, "-").replace("T", "_").slice(0, 19);
+      const fileName = `linguacoach-backup-${nameStamp}.json`;
+      const blob = new Blob([json], { type: "application/json" });
+      if (typeof URL.createObjectURL !== "function") {
+        throw new Error("File export is not supported in this environment.");
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setBackupError("");
+      pushToast("success", "Backup exported");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setBackupError(msg);
+      pushToast("error", msg);
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function onImportBackupFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    try {
+      let raw = "";
+      if (typeof file.arrayBuffer === "function") {
+        const rawBuffer = await file.arrayBuffer();
+        raw = new TextDecoder().decode(rawBuffer);
+      } else if (typeof (file as File & { text?: () => Promise<string> }).text === "function") {
+        raw = await (file as File & { text: () => Promise<string> }).text();
+      } else {
+        throw new Error("Cannot read selected file in this browser.");
+      }
+      const parsed = JSON.parse(raw) as { snapshot?: unknown };
+      const snapshotCandidate =
+        parsed && typeof parsed === "object" && parsed.snapshot && typeof parsed.snapshot === "object"
+          ? (parsed.snapshot as Record<string, unknown>)
+          : null;
+      if (!snapshotCandidate) {
+        throw new Error("Invalid backup file: expected { snapshot: {...} } payload.");
+      }
+      setRestoreSnapshot(snapshotCandidate);
+      setRestoreFileName(file.name);
+      setRestoreToken("");
+      setRestoreError("");
+      setRestoreConfirmOpen(true);
+      pushToast("info", "Backup loaded. Confirm restore to replace current local data.");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setRestoreSnapshot(null);
+      setRestoreFileName("");
+      setRestoreConfirmOpen(false);
+      setRestoreError(msg);
+      pushToast("error", msg);
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  async function onRestoreBackup() {
+    const token = restoreToken.trim().toUpperCase();
+    if (token !== "RESTORE") {
+      setRestoreError("Type RESTORE to confirm backup restore.");
+      return;
+    }
+    if (!restoreSnapshot) {
+      setRestoreError("Load a valid backup file before restoring.");
+      return;
+    }
+
+    setRestoreBusy(true);
+    try {
+      await api.appBackupRestore({ confirmation: token, snapshot: restoreSnapshot });
+      clearWorkspaceRoutes();
+      queryClient.clear();
+      const bootstrap = await api.bootstrap();
+      queryClient.setQueryData(["bootstrap"], bootstrap);
+      setBootstrapState(toBootstrapStorePayload(bootstrap));
+      setRestoreError("");
+      setRestoreConfirmOpen(false);
+      setRestoreToken("");
+      setRestoreFileName("");
+      setRestoreSnapshot(null);
+      pushToast("success", "Backup restored");
+      navigate("/", { replace: true });
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setRestoreError(msg);
+      pushToast("error", msg);
+    } finally {
+      setRestoreBusy(false);
     }
   }
 
@@ -683,6 +797,57 @@ export function ProfilePage() {
           </>
         )}
         {budgetError && <ErrorState text={budgetError} />}
+      </article>
+      <article className="panel stack">
+        <h3>Backup & Restore</h3>
+        <p>Export all local learning data to JSON or restore from a previously exported backup file.</p>
+        <div className="row">
+          <button type="button" onClick={onExportBackup} disabled={backupBusy}>
+            {backupBusy ? "Exporting..." : "Export backup (JSON)"}
+          </button>
+          <label>
+            Import backup file
+            <input
+              aria-label="Import backup file"
+              type="file"
+              accept="application/json,.json"
+              onChange={onImportBackupFile}
+              disabled={restoreBusy}
+            />
+          </label>
+        </div>
+        {restoreConfirmOpen && (
+          <div className="panel stack">
+            <p>Restore will replace current local data with backup contents.</p>
+            <p>Loaded file: {restoreFileName || "unknown"}</p>
+            <label>
+              Type RESTORE to confirm
+              <input value={restoreToken} onChange={(e) => setRestoreToken(e.target.value)} />
+            </label>
+            <div className="row">
+              <button
+                type="button"
+                onClick={() => {
+                  setRestoreConfirmOpen(false);
+                  setRestoreToken("");
+                  setRestoreError("");
+                }}
+                disabled={restoreBusy}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={onRestoreBackup}
+                disabled={restoreBusy || restoreToken.trim().toUpperCase() !== "RESTORE"}
+              >
+                {restoreBusy ? "Restoring..." : "Restore from backup"}
+              </button>
+            </div>
+          </div>
+        )}
+        {backupError && <ErrorState text={backupError} />}
+        {restoreError && <ErrorState text={restoreError} />}
       </article>
       <article className="panel stack">
         <h3>Start Over</h3>
