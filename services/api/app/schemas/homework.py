@@ -20,6 +20,10 @@ class HomeworkItem(BaseModel):
     status: str
     created_at: datetime
     due_at: datetime | None = None
+    submission_count: int = 0
+    latest_score: float | None = None
+    latest_feedback: str | None = None
+    latest_answer_text: str | None = None
 
 
 class HomeworkListResponse(BaseModel):
@@ -29,6 +33,13 @@ class HomeworkListResponse(BaseModel):
 class HomeworkSubmitRequest(BaseModel):
     homework_id: int = Field(ge=1)
     answers: dict = Field(default_factory=dict)
+
+
+class HomeworkUpdateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    tasks: list[dict] = Field(default_factory=list)
+    due_at: datetime | None = None
+    status: str = Field(min_length=1, max_length=32)
 
 
 class HomeworkSubmitResponse(BaseModel):

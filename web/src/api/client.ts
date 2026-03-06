@@ -29,6 +29,7 @@ import type {
   GrammarAnalyzeResponse,
   HomeworkItem,
   HomeworkListResponse,
+  HomeworkDeleteResponse,
   HomeworkSubmitResponse,
   PlanTodayResponse,
   ProgressSkillMap,
@@ -388,6 +389,23 @@ export const api = {
     }),
   homeworkList: (userId: number) =>
     request<HomeworkListResponse>(`/homework?user_id=${encodeURIComponent(userId)}`),
+  homeworkUpdate: (
+    homeworkId: number,
+    payload: {
+      title: string;
+      tasks: Array<Record<string, unknown>>;
+      due_at?: string | null;
+      status: string;
+    },
+  ) =>
+    request<HomeworkItem>(`/homework/${encodeURIComponent(homeworkId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  homeworkDelete: (homeworkId: number) =>
+    request<HomeworkDeleteResponse>(`/homework/${encodeURIComponent(homeworkId)}`, {
+      method: "DELETE",
+    }),
   homeworkSubmit: (payload: { homework_id: number; answers: Record<string, string> }) =>
     request<HomeworkSubmitResponse>("/homework/submit", {
       method: "POST",

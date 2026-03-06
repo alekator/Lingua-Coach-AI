@@ -18,24 +18,70 @@ def test_homework_create_list_submit(client: TestClient) -> None:
     assert created.status_code == 200
     homework_id = created.json()["id"]
     assert created.json()["status"] == "assigned"
+    assert created.json()["submission_count"] == 0
+    assert created.json()["latest_answer_text"] is None
 
     listing = client.get("/homework", params={"user_id": 900})
     assert listing.status_code == 200
     items = listing.json()["items"]
     assert len(items) == 1
     assert items[0]["id"] == homework_id
+    assert items[0]["submission_count"] == 0
 
     submitted = client.post(
         "/homework/submit",
         json={
             "homework_id": homework_id,
-            "answers": {"t1": "Yo fui a casa.", "t2": "I made a mistake."},
+            "answers": {"response": "Yo fui a casa. I made a mistake."},
         },
     )
     assert submitted.status_code == 200
     body = submitted.json()
     assert body["status"] == "submitted"
     assert body["grade"]["score"] > 0
+
+    listing_after_submit = client.get("/homework", params={"user_id": 900})
+    assert listing_after_submit.status_code == 200
+    first_item = listing_after_submit.json()["items"][0]
+    assert first_item["submission_count"] == 1
+    assert first_item["latest_answer_text"] == "Yo fui a casa. I made a mistake."
+    assert first_item["latest_score"] is not None
+
+
+def test_homework_update_and_delete(client: TestClient) -> None:
+    created = client.post(
+        "/homework/create",
+        json={
+            "user_id": 910,
+            "title": "Initial title",
+            "tasks": [{"id": "response", "type": "freeform", "prompt": "Initial prompt"}],
+        },
+    )
+    assert created.status_code == 200
+    homework_id = created.json()["id"]
+
+    updated = client.patch(
+        f"/homework/{homework_id}",
+        json={
+            "title": "Updated title",
+            "tasks": [{"id": "response", "type": "freeform", "prompt": "Updated prompt"}],
+            "due_at": None,
+            "status": "in_review",
+        },
+    )
+    assert updated.status_code == 200
+    updated_body = updated.json()
+    assert updated_body["title"] == "Updated title"
+    assert updated_body["status"] == "in_review"
+    assert updated_body["tasks"][0]["prompt"] == "Updated prompt"
+
+    deleted = client.delete(f"/homework/{homework_id}")
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted_homework_id"] == homework_id
+
+    listing = client.get("/homework", params={"user_id": 910})
+    assert listing.status_code == 200
+    assert listing.json()["items"] == []
 
 
 def test_progress_endpoints(client: TestClient) -> None:

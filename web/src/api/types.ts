@@ -515,10 +515,18 @@ export type HomeworkItem = {
   status: string;
   created_at: string;
   due_at?: string | null;
+  submission_count: number;
+  latest_score?: number | null;
+  latest_feedback?: string | null;
+  latest_answer_text?: string | null;
 };
 
 export type HomeworkListResponse = {
   items: HomeworkItem[];
+};
+
+export type HomeworkDeleteResponse = {
+  deleted_homework_id: number;
 };
 
 export type HomeworkSubmitResponse = {
