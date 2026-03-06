@@ -160,6 +160,7 @@ export type CoachNextActionsResponse = {
     reason: string;
     route: string;
     priority: number;
+    quick_mode_minutes?: number | null;
   }>;
 };
 

@@ -385,3 +385,4 @@ def test_coach_error_bank_and_next_actions(client_factory: Callable[..., TestCli
         actions = next_actions.json()["items"]
         error_action = next(item for item in actions if item["id"] == "error-bank-top")
         assert error_action["route"].startswith("/app/exercises?topic=grammar")
+        assert error_action["quick_mode_minutes"] == 5

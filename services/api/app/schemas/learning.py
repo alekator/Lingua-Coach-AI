@@ -132,6 +132,7 @@ class CoachNextAction(BaseModel):
     reason: str
     route: str
     priority: int
+    quick_mode_minutes: int | None = Field(default=None, ge=5, le=120)
 
 
 class CoachNextActionsResponse(BaseModel):

@@ -106,6 +106,16 @@ export function DashboardPage() {
     navigate(route);
   }
 
+  function runNextBestAction() {
+    if (!nextBestAction) return;
+    const quickMinutes = nextBestAction.quick_mode_minutes;
+    if (typeof quickMinutes === "number" && quickMinutes >= 5) {
+      setDailyMinutes(quickMinutes);
+      pushToast("info", `Mode set to ${quickMinutes} minutes for this action`);
+    }
+    navigate(nextBestAction.route);
+  }
+
   const nextBestAction = nextActions.data?.items?.[0] ?? null;
   const reactivationMsg =
     reactivation.data && reactivation.data.eligible
@@ -207,9 +217,9 @@ export function DashboardPage() {
                 <strong>Today one step:</strong> {nextBestAction.title}
               </p>
               <p>{nextBestAction.reason}</p>
-              <Link to={nextBestAction.route}>
-                <button type="button">Do next best action</button>
-              </Link>
+              <button type="button" onClick={runNextBestAction}>
+                Do next best action
+              </button>
               <button type="button" onClick={() => startFiveMinuteMode()}>
                 Start 5-minute mode
               </button>

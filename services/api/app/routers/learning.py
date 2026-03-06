@@ -482,6 +482,7 @@ def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNext
                 reason="Weekly target not completed yet.",
                 route="/app/session",
                 priority=1,
+                quick_mode_minutes=10,
             )
         )
     if auto_drill_count > 0:
@@ -492,6 +493,7 @@ def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNext
                 reason="These drills come from your latest correction patterns.",
                 route="/app/homework",
                 priority=2,
+                quick_mode_minutes=5,
             )
         )
     if due_vocab_count > 0:
@@ -502,6 +504,7 @@ def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNext
                 reason="Spaced repetition is due now.",
                 route="/app/vocab",
                 priority=3,
+                quick_mode_minutes=5,
             )
         )
     if top_weak:
@@ -513,6 +516,7 @@ def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNext
                 reason="Most frequent recent weak area.",
                 route=f"/app/exercises?topic={encoded_topic}",
                 priority=4,
+                quick_mode_minutes=5,
             )
         )
     error_bank = _build_error_bank_items(db=db, user_id=user_id, limit=1)
@@ -526,6 +530,7 @@ def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNext
                 reason=bank_top.drill_prompt,
                 route=f"{bank_top.suggested_route}?topic={encoded_topic}&source=error-bank",
                 priority=2,
+                quick_mode_minutes=5,
             )
         )
     if not items:
@@ -536,6 +541,7 @@ def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNext
                 reason="No urgent pending actions detected.",
                 route="/app/chat",
                 priority=1,
+                quick_mode_minutes=5,
             )
         )
 

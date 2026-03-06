@@ -163,6 +163,9 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
 - `GET /plan/today`
   - response includes `adaptation_notes: string[]` with short reasoning for plan adaptation.
 
+- `GET /coach/next-actions`
+  - each action may include `quick_mode_minutes` to enable one-click short mode before routing.
+
 - `GET /coach/session/today`
   - returns guided step sequence for the day:
     - `steps[].id`

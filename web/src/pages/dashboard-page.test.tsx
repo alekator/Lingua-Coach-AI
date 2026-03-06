@@ -129,6 +129,7 @@ describe("DashboardPage", () => {
           reason: "Weekly target not completed yet.",
           route: "/app/session",
           priority: 1,
+          quick_mode_minutes: 10,
         },
       ],
     });
@@ -273,6 +274,12 @@ describe("DashboardPage", () => {
     await waitFor(() => {
       expect(mocks.progressWeeklyGoalSet).toHaveBeenCalledWith({ user_id: 1, target_minutes: 120 });
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Weekly goal updated");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Do next best action" }));
+    await waitFor(() => {
+      expect(mocks.setDailyMinutes).toHaveBeenCalledWith(10);
+      expect(mocks.pushToast).toHaveBeenCalledWith("info", "Mode set to 10 minutes for this action");
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Start 5-minute mode" }));
