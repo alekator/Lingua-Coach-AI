@@ -49,7 +49,7 @@ async def voice_message(
     request: Request,
     file: UploadFile = File(...),
     user_id: int | None = Form(default=None),
-    target_lang: str = Form(default="en"),
+    target_lang: str | None = Form(default=None),
     language_hint: str = Form(default="auto"),
     voice_name: str = Form(default="alloy"),
     db: Session = Depends(get_db),
@@ -71,16 +71,21 @@ async def voice_message(
 
     transcript = asr_result["transcript"]
     profile = None if user_id is None else db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    resolved_target_lang = (
+        (target_lang.strip().lower() if target_lang and target_lang.strip() else None)
+        or (profile.target_lang if profile is not None else None)
+        or "en"
+    )
     try:
-        teacher_text = voice_teacher(transcript, profile, target_lang)
+        teacher_text = voice_teacher(transcript, profile, resolved_target_lang)
     except Exception:
         teacher_text = (
-            f"Fallback coach mode in {target_lang}: {transcript}. "
+            f"Fallback coach mode in {resolved_target_lang}: {transcript}. "
             "Try one shorter and cleaner version next."
         )
 
     try:
-        audio_url = tts_synthesizer(teacher_text, target_lang, voice_name)
+        audio_url = tts_synthesizer(teacher_text, resolved_target_lang, voice_name)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"TTS failed: {exc}") from exc
 

@@ -37,6 +37,7 @@ from app.schemas.progress import (
     WeeklyGoalSetRequest,
 )
 from app.services.progress import compute_streak_days
+from app.services.workspaces import LOCAL_OWNER_USER_ID, get_active_workspace
 
 router = APIRouter(prefix="/progress", tags=["progress"])
 DEFAULT_WEEKLY_GOAL_MINUTES = 90
@@ -161,7 +162,14 @@ def _resolve_profile_lang_pair(db: Session, user_id: int) -> tuple[str, str]:
     )
     if workspace is not None:
         return workspace.native_lang, workspace.target_lang
-    return "en", "en"
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    if profile is not None:
+        return profile.native_lang, profile.target_lang
+    if user_id == LOCAL_OWNER_USER_ID:
+        active = get_active_workspace(db, owner_user_id=LOCAL_OWNER_USER_ID)
+        if active is not None:
+            return active.native_lang, active.target_lang
+    return "unknown", "unknown"
 
 
 def _score_to_cefr_from_skills(score: float) -> str:

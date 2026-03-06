@@ -86,6 +86,55 @@ def test_voice_message_pipeline(
         assert "recommendation" in progress_body
 
 
+def test_voice_message_uses_profile_target_lang_when_not_provided(
+    client_factory: Callable[..., TestClient],
+) -> None:
+    chain: list[tuple[str, Any]] = []
+
+    def fake_asr(audio_bytes: bytes, filename: str, content_type: str, language_hint: str) -> dict[str, str]:
+        chain.append(("asr", (len(audio_bytes), filename, content_type, language_hint)))
+        return {"transcript": "Ich lerne jeden Tag", "language": "de"}
+
+    def fake_teacher(transcript: str, profile: Any, target_lang: str) -> str:
+        chain.append(("teacher", (transcript, target_lang, getattr(profile, "target_lang", None))))
+        return "Coach reply in profile target language."
+
+    def fake_tts(text: str, target_lang: str, voice_name: str) -> str:
+        chain.append(("tts", (text, target_lang, voice_name)))
+        return "http://tts.local/audio/profile-target.mp3"
+
+    with client_factory(
+        asr_transcriber=fake_asr,
+        voice_teacher=fake_teacher,
+        tts_synthesizer=fake_tts,
+    ) as client:
+        setup = client.post(
+            "/profile/setup",
+            json={
+                "user_id": 88,
+                "native_lang": "de",
+                "target_lang": "fr",
+                "level": "A2",
+                "goal": "travel",
+                "preferences": {},
+            },
+        )
+        assert setup.status_code == 200
+
+        response = client.post(
+            "/voice/message",
+            files={"file": ("voice.webm", b"voice-bytes", "audio/webm")},
+            data={"user_id": "88", "language_hint": "de", "voice_name": "alloy"},
+        )
+        assert response.status_code == 200
+        assert response.json()["audio_url"] == "http://tts.local/audio/profile-target.mp3"
+
+        teacher_step = next(step for step in chain if step[0] == "teacher")
+        assert teacher_step[1][1] == "fr"
+        tts_step = next(step for step in chain if step[0] == "tts")
+        assert tts_step[1][1] == "fr"
+
+
 def test_default_voice_teacher_fallback_respects_strictness(monkeypatch: Any) -> None:
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     profile = LearnerProfile(

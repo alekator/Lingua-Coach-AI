@@ -171,3 +171,23 @@ def test_progress_profile_defaults_follow_workspace_lang_pair(client: TestClient
     profile_body = profile.json()
     assert profile_body["native_lang"] == "es"
     assert profile_body["target_lang"] == "fr"
+
+
+def test_progress_profile_defaults_for_owner_follow_active_workspace(client: TestClient) -> None:
+    created = client.post(
+        "/workspaces",
+        json={"native_lang": "de", "target_lang": "it", "goal": "relocation", "make_active": True},
+    )
+    assert created.status_code == 200
+
+    weekly_goal_set = client.post(
+        "/progress/weekly-goal",
+        json={"user_id": 1, "target_minutes": 150},
+    )
+    assert weekly_goal_set.status_code == 200
+
+    profile = client.get("/profile", params={"user_id": 1})
+    assert profile.status_code == 200
+    profile_body = profile.json()
+    assert profile_body["native_lang"] == "de"
+    assert profile_body["target_lang"] == "it"
