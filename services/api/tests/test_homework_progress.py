@@ -135,6 +135,15 @@ def test_progress_endpoints(client: TestClient) -> None:
     assert outcomes_body["estimated_level_from_skills"] in {"A1", "A2", "B1", "B2", "C1", "C2"}
     assert "recommendations" in outcomes_body
 
+    checkpoint = client.get("/progress/weekly-checkpoint", params={"user_id": 901})
+    assert checkpoint.status_code == 200
+    checkpoint_body = checkpoint.json()
+    assert checkpoint_body["window_days"] == 7
+    assert "delta_points" in checkpoint_body
+    assert "measurable_growth" in checkpoint_body
+    assert len(checkpoint_body["skills"]) == 6
+    assert "summary" in checkpoint_body
+
     achievements = client.get("/progress/achievements", params={"user_id": 901})
     assert achievements.status_code == 200
     achievements_body = achievements.json()

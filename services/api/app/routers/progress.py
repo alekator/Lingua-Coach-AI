@@ -30,6 +30,7 @@ from app.schemas.progress import (
     ProgressStreakResponse,
     ProgressSummaryResponse,
     ProgressWeeklyReviewResponse,
+    ProgressWeeklyCheckpointResponse,
     ProgressOutcomesResponse,
     RewardClaimRequest,
     RewardItem,
@@ -184,6 +185,14 @@ def _score_to_cefr_from_skills(score: float) -> str:
     if score < 85:
         return "C1"
     return "C2"
+
+
+def _snapshot_avg(snapshot: SkillSnapshot) -> float:
+    return round(
+        (snapshot.speaking + snapshot.listening + snapshot.grammar + snapshot.vocab + snapshot.reading + snapshot.writing)
+        / 6.0,
+        2,
+    )
 
 
 @router.get("/skill-map", response_model=ProgressSkillMapResponse)
@@ -364,6 +373,82 @@ def progress_outcomes(user_id: int, db: Session = Depends(get_db)) -> ProgressOu
         streak_days=streak.streak_days,
         confidence=confidence,
         recommendations=recommendations[:3],
+    )
+
+
+@router.get("/weekly-checkpoint", response_model=ProgressWeeklyCheckpointResponse)
+def progress_weekly_checkpoint(user_id: int, window_days: int = 7, db: Session = Depends(get_db)) -> ProgressWeeklyCheckpointResponse:
+    window = max(7, min(30, window_days))
+    snapshots = db.scalars(
+        select(SkillSnapshot).where(SkillSnapshot.user_id == user_id).order_by(SkillSnapshot.created_at.asc())
+    ).all()
+    if not snapshots:
+        empty_skills = [
+            {"skill": s, "before": 0.0, "after": 0.0, "delta": 0.0}
+            for s in ("speaking", "listening", "grammar", "vocab", "reading", "writing")
+        ]
+        return ProgressWeeklyCheckpointResponse(
+            user_id=user_id,
+            window_days=window,
+            baseline_at=None,
+            current_at=None,
+            baseline_avg_skill=0.0,
+            current_avg_skill=0.0,
+            delta_points=0.0,
+            delta_percent=0.0,
+            measurable_growth=False,
+            top_gain_skill="speaking",
+            top_gain_points=0.0,
+            skills=empty_skills,
+            summary="No checkpoint data yet. Complete a short session to establish baseline.",
+        )
+
+    current = snapshots[-1]
+    cutoff = datetime.now(UTC) - timedelta(days=window)
+    baseline_candidates = [s for s in snapshots if s.created_at and _to_utc_datetime(s.created_at) <= cutoff]
+    baseline = baseline_candidates[-1] if baseline_candidates else snapshots[0]
+
+    skill_names = ("speaking", "listening", "grammar", "vocab", "reading", "writing")
+    skill_rows: list[dict[str, float | str]] = []
+    best_skill = "speaking"
+    best_delta = -10_000.0
+    for skill in skill_names:
+        before = round(float(getattr(baseline, skill)), 2)
+        after = round(float(getattr(current, skill)), 2)
+        delta = round(after - before, 2)
+        skill_rows.append({"skill": skill, "before": before, "after": after, "delta": delta})
+        if delta > best_delta:
+            best_delta = delta
+            best_skill = skill
+
+    baseline_avg = _snapshot_avg(baseline)
+    current_avg = _snapshot_avg(current)
+    delta_points = round(current_avg - baseline_avg, 2)
+    delta_percent = round((delta_points / baseline_avg) * 100.0, 2) if baseline_avg > 0 else 0.0
+    measurable_growth = delta_points >= 1.0
+    if measurable_growth:
+        summary = f"Measured growth: +{delta_points} points over {window} days."
+    elif delta_points > 0:
+        summary = f"Small positive move: +{delta_points} points. Keep consistency for measurable growth."
+    elif delta_points == 0:
+        summary = "Flat checkpoint. Keep daily short practice to unlock next gain."
+    else:
+        summary = f"Regression detected: {delta_points} points. Use a lighter recovery loop this week."
+
+    return ProgressWeeklyCheckpointResponse(
+        user_id=user_id,
+        window_days=window,
+        baseline_at=baseline.created_at.isoformat() if baseline.created_at else None,
+        current_at=current.created_at.isoformat() if current.created_at else None,
+        baseline_avg_skill=baseline_avg,
+        current_avg_skill=current_avg,
+        delta_points=delta_points,
+        delta_percent=delta_percent,
+        measurable_growth=measurable_growth,
+        top_gain_skill=best_skill,
+        top_gain_points=round(best_delta if best_delta != -10_000.0 else 0.0, 2),
+        skills=skill_rows,
+        summary=summary,
     )
 
 

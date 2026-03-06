@@ -33,6 +33,7 @@ import type {
   ProgressSummary,
   ProgressRewards,
   ProgressWeeklyReview,
+  ProgressWeeklyCheckpoint,
   ProgressAchievements,
   ProgressReport,
   ScenarioSelectResponse,
@@ -374,6 +375,10 @@ export const api = {
     }),
   progressWeeklyReview: (userId: number) =>
     request<ProgressWeeklyReview>(`/progress/weekly-review?user_id=${encodeURIComponent(userId)}`),
+  progressWeeklyCheckpoint: (userId: number, windowDays = 7) =>
+    request<ProgressWeeklyCheckpoint>(
+      `/progress/weekly-checkpoint?user_id=${encodeURIComponent(userId)}&window_days=${encodeURIComponent(windowDays)}`,
+    ),
   progressAchievements: (userId: number) =>
     request<ProgressAchievements>(`/progress/achievements?user_id=${encodeURIComponent(userId)}`),
   progressReport: (userId: number, periodDays = 30) =>

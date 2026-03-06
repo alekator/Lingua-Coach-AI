@@ -510,6 +510,27 @@ export type ProgressWeeklyReview = {
   next_focus: string;
 };
 
+export type ProgressWeeklyCheckpoint = {
+  user_id: number;
+  window_days: number;
+  baseline_at?: string | null;
+  current_at?: string | null;
+  baseline_avg_skill: number;
+  current_avg_skill: number;
+  delta_points: number;
+  delta_percent: number;
+  measurable_growth: boolean;
+  top_gain_skill: string;
+  top_gain_points: number;
+  skills: Array<{
+    skill: string;
+    before: number;
+    after: number;
+    delta: number;
+  }>;
+  summary: string;
+};
+
 export type ProgressAchievements = {
   user_id: number;
   items: Array<{

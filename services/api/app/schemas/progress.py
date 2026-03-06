@@ -108,6 +108,29 @@ class ProgressOutcomesResponse(BaseModel):
     recommendations: list[str]
 
 
+class CheckpointSkillDelta(BaseModel):
+    skill: str
+    before: float
+    after: float
+    delta: float
+
+
+class ProgressWeeklyCheckpointResponse(BaseModel):
+    user_id: int
+    window_days: int
+    baseline_at: str | None = None
+    current_at: str | None = None
+    baseline_avg_skill: float
+    current_avg_skill: float
+    delta_points: float
+    delta_percent: float
+    measurable_growth: bool
+    top_gain_skill: str
+    top_gain_points: float
+    skills: list[CheckpointSkillDelta]
+    summary: str
+
+
 class AchievementItem(BaseModel):
     id: str
     title: str

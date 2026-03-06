@@ -120,6 +120,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `GET /progress/journal`
   - `GET /progress/weekly-goal`
   - `GET /progress/weekly-review`
+  - `GET /progress/weekly-checkpoint`
   - `GET /progress/outcomes`
   - `GET /progress/rewards`
   - `GET /progress/achievements`
@@ -241,6 +242,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - `improvement_7d_points`
     - `confidence`
     - `recommendations[]`
+
+- `GET /progress/weekly-checkpoint`
+  - explicit before/after checkpoint over a 7-day (configurable) window:
+    - `baseline_avg_skill`, `current_avg_skill`
+    - `delta_points`, `delta_percent`, `measurable_growth`
+    - `top_gain_skill`, `top_gain_points`
+    - per-skill deltas in `skills[]`
 
 ## Quality / Platform Features
 

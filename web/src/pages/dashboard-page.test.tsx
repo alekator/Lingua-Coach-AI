@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   progressRewards: vi.fn(),
   progressRewardsClaim: vi.fn(),
   progressWeeklyReview: vi.fn(),
+  progressWeeklyCheckpoint: vi.fn(),
   workspacesOverview: vi.fn(),
   workspaceSwitch: vi.fn(),
   bootstrap: vi.fn(),
@@ -40,6 +41,7 @@ vi.mock("../api/client", () => ({
     progressRewards: mocks.progressRewards,
     progressRewardsClaim: mocks.progressRewardsClaim,
     progressWeeklyReview: mocks.progressWeeklyReview,
+    progressWeeklyCheckpoint: mocks.progressWeeklyCheckpoint,
     workspacesOverview: mocks.workspacesOverview,
     workspaceSwitch: mocks.workspaceSwitch,
     bootstrap: mocks.bootstrap,
@@ -197,6 +199,21 @@ describe("DashboardPage", () => {
       wins: ["3 sessions completed this week.", "24 active learning minutes logged."],
       next_focus: "Keep momentum with one short drill in grammar and one coach chat turn.",
     });
+    mocks.progressWeeklyCheckpoint.mockResolvedValue({
+      user_id: 1,
+      window_days: 7,
+      baseline_at: "2026-02-28T00:00:00+00:00",
+      current_at: "2026-03-06T00:00:00+00:00",
+      baseline_avg_skill: 45,
+      current_avg_skill: 51,
+      delta_points: 6,
+      delta_percent: 13.33,
+      measurable_growth: true,
+      top_gain_skill: "vocab",
+      top_gain_points: 8,
+      skills: [],
+      summary: "Measured growth: +6 points over 7 days.",
+    });
     mocks.workspacesOverview.mockResolvedValue({
       owner_user_id: 1,
       items: [
@@ -263,6 +280,9 @@ describe("DashboardPage", () => {
       expect(screen.getByText("XP: 30 | Claimed: 1")).toBeInTheDocument();
       expect(screen.getByText("Weekly Review")).toBeInTheDocument();
       expect(screen.getByText("Skills: strongest vocab, weakest grammar")).toBeInTheDocument();
+      expect(screen.getByText("Weekly Checkpoint (Before/After)")).toBeInTheDocument();
+      expect(screen.getByText("Avg skill: 45 -> 51")).toBeInTheDocument();
+      expect(screen.getByText("Top gain: vocab (8 points)")).toBeInTheDocument();
       expect(screen.getByText("Daily Challenge")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Start daily challenge" })).toBeInTheDocument();
       expect(screen.getByText("Your Learning Spaces")).toBeInTheDocument();

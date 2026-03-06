@@ -52,6 +52,10 @@ export function DashboardPage() {
     queryKey: ["progress-weekly-review", userId],
     queryFn: () => api.progressWeeklyReview(userId),
   });
+  const weeklyCheckpoint = useQuery({
+    queryKey: ["progress-weekly-checkpoint", userId],
+    queryFn: () => api.progressWeeklyCheckpoint(userId, 7),
+  });
   const spacesOverview = useQuery({
     queryKey: ["workspaces-overview"],
     queryFn: api.workspacesOverview,
@@ -316,6 +320,24 @@ export function DashboardPage() {
             <p key={win}>- {win}</p>
           ))}
           <p>Next focus: {weeklyReview.data.next_focus}</p>
+        </article>
+      )}
+      {weeklyCheckpoint.isPending && <LoadingState text="Loading weekly checkpoint..." />}
+      {weeklyCheckpoint.isError && <ErrorState text="Failed to load weekly checkpoint." />}
+      {weeklyCheckpoint.isSuccess && (
+        <article className="panel stack">
+          <h3>Weekly Checkpoint (Before/After)</h3>
+          <p>
+            Avg skill: {weeklyCheckpoint.data.baseline_avg_skill} {"->"} {weeklyCheckpoint.data.current_avg_skill}
+          </p>
+          <p>
+            Delta: {weeklyCheckpoint.data.delta_points} points ({weeklyCheckpoint.data.delta_percent}%)
+          </p>
+          <p>
+            Top gain: {weeklyCheckpoint.data.top_gain_skill} ({weeklyCheckpoint.data.top_gain_points} points)
+          </p>
+          <p>Status: {weeklyCheckpoint.data.measurable_growth ? "measurable growth" : "no measurable growth yet"}</p>
+          <p>{weeklyCheckpoint.data.summary}</p>
         </article>
       )}
       {plan.isPending && <LoadingState text="Generating today plan..." />}
