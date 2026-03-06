@@ -15,6 +15,7 @@ export function DashboardPage() {
   const userId = useAppStore((s) => s.userId) ?? 1;
   const setBootstrapState = useAppStore((s) => s.setBootstrapState);
   const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
+  const dailyMinutes = useAppStore((s) => s.dailyMinutes);
   const setDailyMinutes = useAppStore((s) => s.setDailyMinutes);
   const pushToast = useToastStore((s) => s.push);
   const [goalMinutes, setGoalMinutes] = useState(120);
@@ -28,8 +29,8 @@ export function DashboardPage() {
     queryFn: () => api.progressWeeklyGoal(userId),
   });
   const plan = useQuery({
-    queryKey: ["plan-today", userId],
-    queryFn: () => api.planToday(userId, 15),
+    queryKey: ["plan-today", userId, dailyMinutes],
+    queryFn: () => api.planToday(userId, dailyMinutes),
   });
   const nextActions = useQuery({
     queryKey: ["coach-next-actions", userId],
@@ -309,6 +310,7 @@ export function DashboardPage() {
       {plan.isSuccess && (
         <article className="panel">
           <h3>Today Coaching Plan ({plan.data.time_budget_minutes} min)</h3>
+          <p>Current habit mode: {dailyMinutes}-minute loop.</p>
           <p>Focus pillars: {plan.data.focus.join(", ")}</p>
           {plan.data.adaptation_notes.map((note) => (
             <p key={note}>Adaptation: {note}</p>

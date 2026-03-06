@@ -51,6 +51,7 @@ vi.mock("../store/app-store", () => ({
     selector: (state: {
       userId: number;
       activeWorkspaceId: number;
+      dailyMinutes: number;
       setDailyMinutes: (minutes: number) => void;
       setBootstrapState: typeof mocks.setBootstrapState;
     }) => unknown,
@@ -58,6 +59,7 @@ vi.mock("../store/app-store", () => ({
     selector({
       userId: 1,
       activeWorkspaceId: 1,
+      dailyMinutes: 15,
       setDailyMinutes: mocks.setDailyMinutes,
       setBootstrapState: mocks.setBootstrapState,
     }),
@@ -241,7 +243,9 @@ describe("DashboardPage", () => {
     renderPage();
 
     await waitFor(() => {
+      expect(mocks.planToday).toHaveBeenCalledWith(1, 15);
       expect(screen.getByText("Today Coaching Plan (15 min)")).toBeInTheDocument();
+      expect(screen.getByText("Current habit mode: 15-minute loop.")).toBeInTheDocument();
       expect(
         screen.getByText("Adaptation: Low recent consistency detected; plan uses shorter high-impact blocks."),
       ).toBeInTheDocument();
