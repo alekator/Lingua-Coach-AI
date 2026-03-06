@@ -229,3 +229,31 @@ def test_voice_message_budget_cap_blocks_paid_path(
         body = second.json()
         assert body["audio_url"] == "offline://budget-blocked"
         assert "Budget cap reached" in body["teacher_text"]
+
+
+def test_voice_message_tts_failure_keeps_response_in_light_mode(
+    client_factory: Callable[..., TestClient],
+) -> None:
+    def fake_asr(audio_bytes: bytes, filename: str, content_type: str, language_hint: str) -> dict[str, str]:
+        return {"transcript": "I goed to school", "language": "en"}
+
+    def fake_teacher(transcript: str, profile: Any, target_lang: str) -> str:
+        return "You should say: I went to school."
+
+    def broken_tts(text: str, target_lang: str, voice_name: str) -> str:
+        raise RuntimeError("tts unavailable")
+
+    with client_factory(
+        asr_transcriber=fake_asr,
+        voice_teacher=fake_teacher,
+        tts_synthesizer=broken_tts,
+    ) as client:
+        response = client.post(
+            "/voice/message",
+            files={"file": ("voice.webm", b"voice-bytes", "audio/webm")},
+            data={"user_id": "77", "target_lang": "en", "language_hint": "en", "voice_name": "alloy"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["audio_url"] == "offline://tts-unavailable"
+        assert "Audio playback is temporarily unavailable" in body["teacher_text"]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 
 from app.config import settings
 from app.schemas.translate import TranslateRequest, TranslateResponse
@@ -29,15 +29,17 @@ def translate(payload: TranslateRequest, request: Request, db: Session = Depends
 
     try:
         translated = translator(payload.text, payload.source_lang, payload.target_lang)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Translation failed: {exc}") from exc
+    except Exception:
+        # Lightweight fallback for offline/degraded mode.
+        translated = f"[{payload.source_lang}->{payload.target_lang}] {payload.text}"
 
     audio_url: str | None = None
     if payload.voice:
         try:
             audio_url = tts_synthesizer(translated, payload.target_lang, payload.voice_name)
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"TTS failed: {exc}") from exc
+        except Exception:
+            # Keep response successful and omit audio in degraded mode.
+            audio_url = None
 
     if payload.user_id is not None:
         prompt_tokens = estimate_text_tokens(payload.text)

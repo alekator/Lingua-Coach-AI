@@ -211,6 +211,9 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - `next_drill`
   - if usage cap is reached, endpoint returns lightweight local fallback guidance instead of failing.
 
+- `POST /translate` and `POST /voice/message`
+  - provider/TTS failures degrade to lightweight mode (`200 OK`) with text-first fallback instead of hard `502`.
+
 - `GET /settings/usage-budget`
   - returns per-user usage limits and current consumption:
     - `daily_token_cap`, `weekly_token_cap`, `warning_threshold`

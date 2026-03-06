@@ -118,3 +118,49 @@ def test_translate_budget_cap_returns_lightweight_mode(
         )
         assert second.status_code == 200
         assert second.json()["translated_text"] == "Second phrase"
+
+
+def test_translate_provider_failure_uses_lightweight_fallback(
+    client_factory: Callable[..., TestClient],
+) -> None:
+    def broken_translator(text: str, source_lang: str, target_lang: str) -> str:
+        raise RuntimeError("provider down")
+
+    with client_factory(translator=broken_translator) as client:
+        response = client.post(
+            "/translate",
+            json={
+                "text": "Good evening",
+                "source_lang": "en",
+                "target_lang": "de",
+                "voice": False,
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["translated_text"] == "[en->de] Good evening"
+
+
+def test_translate_tts_failure_returns_text_without_audio(
+    client_factory: Callable[..., TestClient],
+) -> None:
+    def fake_translator(text: str, source_lang: str, target_lang: str) -> str:
+        return "Guten Abend"
+
+    def broken_tts(text: str, target_lang: str, voice_name: str) -> str:
+        raise RuntimeError("tts unavailable")
+
+    with client_factory(translator=fake_translator, tts_synthesizer=broken_tts) as client:
+        response = client.post(
+            "/translate",
+            json={
+                "text": "Good evening",
+                "source_lang": "en",
+                "target_lang": "de",
+                "voice": True,
+                "voice_name": "alloy",
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["translated_text"] == "Guten Abend"
+        assert body["audio_url"] is None

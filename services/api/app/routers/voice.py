@@ -102,8 +102,12 @@ async def voice_message(
 
     try:
         audio_url = tts_synthesizer(teacher_text, resolved_target_lang, voice_name)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"TTS failed: {exc}") from exc
+    except Exception:
+        audio_url = "offline://tts-unavailable"
+        teacher_text = (
+            f"{teacher_text}\n\n"
+            "Audio playback is temporarily unavailable. Continue in text mode for this turn."
+        )
 
     if user_id is not None:
         prompt_tokens = estimate_text_tokens(transcript)
