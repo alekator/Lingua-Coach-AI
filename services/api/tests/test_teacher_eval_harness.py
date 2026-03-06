@@ -34,9 +34,9 @@ def test_teacher_fallback_is_not_generic_eval() -> None:
         },
     }
     fallback = build_resilient_teacher_fallback(payload, reason="eval")
-    assert "Goal focus: travel" in fallback.assistant_text
+    assert "goal (travel)" in fallback.assistant_text
     assert "grammar" in fallback.assistant_text
-    assert "Micro-step" in fallback.assistant_text
+    assert "Next step" in fallback.assistant_text
     assert fallback.rubric is not None
 
 
