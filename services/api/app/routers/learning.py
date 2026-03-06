@@ -71,6 +71,32 @@ from app.services.voice import AsrTranscriberFn
 
 router = APIRouter(tags=["learning"])
 CEFR_RANK = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
+SCENARIO_REQUIRED_LEVEL: dict[str, str] = {
+    "travel-hotel": "A1",
+    "coffee-shop": "A1",
+    "daily-shopping": "A1",
+    "daily-directions": "A1",
+    "daily-neighbor": "A2",
+    "daily-phone-call": "A2",
+    "travel-restaurant": "A2",
+    "airport-customs": "A2",
+    "job-interview": "B1",
+    "work-standup": "B1",
+    "work-meeting": "B1",
+    "work-feedback": "B1",
+    "work-email": "B1",
+    "relocation-rental": "B1",
+    "relocation-bank": "B1",
+    "relocation-clinic": "B1",
+    "service-return": "B1",
+    "service-support": "B1",
+    "networking-event": "B2",
+    "study-presentation": "B2",
+    "study-storytelling": "B2",
+    "study-debate": "B2",
+    "travel-emergency": "B2",
+}
+LEVEL_SKILL_MIN_AVG = {"A1": 25.0, "A2": 35.0, "B1": 45.0, "B2": 58.0, "C1": 72.0, "C2": 85.0}
 
 
 def _to_utc_date(dt: datetime) -> datetime.date:
@@ -92,6 +118,67 @@ def _reactivation_gap_days(sessions: list[ChatSession]) -> int:
     last_active = active_dates[-1]
     today = datetime.now(UTC).date()
     return max(0, (today - last_active).days)
+
+
+def _snapshot_avg(snapshot: SkillSnapshot | None) -> float:
+    if snapshot is None:
+        return 0.0
+    return float(
+        (
+            snapshot.speaking
+            + snapshot.listening
+            + snapshot.grammar
+            + snapshot.vocab
+            + snapshot.reading
+            + snapshot.writing
+        )
+        / 6.0
+    )
+
+
+def _score_to_cefr(score: float) -> str:
+    if score < 25:
+        return "A1"
+    if score < 40:
+        return "A2"
+    if score < 55:
+        return "B1"
+    if score < 70:
+        return "B2"
+    if score < 85:
+        return "C1"
+    return "C2"
+
+
+def _mastery_context(user_id: int, db: Session) -> tuple[str, float]:
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    profile_level = (profile.level if profile else "A1").upper()
+    snapshot = db.scalar(
+        select(SkillSnapshot).where(SkillSnapshot.user_id == user_id).order_by(SkillSnapshot.created_at.desc())
+    )
+    avg = _snapshot_avg(snapshot)
+    estimated_level = _score_to_cefr(avg)
+    effective_level = profile_level
+    if CEFR_RANK.get(estimated_level, 1) > CEFR_RANK.get(profile_level, 1):
+        effective_level = estimated_level
+    return effective_level, avg
+
+
+def _scenario_gate(user_id: int | None, scenario_id: str, db: Session) -> tuple[bool, str | None, str]:
+    required = SCENARIO_REQUIRED_LEVEL.get(scenario_id, "A1")
+    if user_id is None:
+        return True, None, required
+    effective_level, avg = _mastery_context(user_id=user_id, db=db)
+    required_rank = CEFR_RANK.get(required, 1)
+    current_rank = CEFR_RANK.get(effective_level, 1)
+    skill_min = LEVEL_SKILL_MIN_AVG.get(required, 25.0)
+    if current_rank >= required_rank and avg >= skill_min:
+        return True, None, required
+    reason = (
+        f"Unlock at {required}+ with avg skill >= {int(skill_min)} "
+        f"(now {effective_level}, avg {int(round(avg))})."
+    )
+    return False, reason, required
 
 
 def _build_error_bank_items(db: Session, user_id: int, limit: int = 5) -> list[CoachErrorBankItem]:
@@ -787,8 +874,21 @@ def coach_reactivation(user_id: int, db: Session = Depends(get_db)) -> CoachReac
 
 
 @router.get("/scenarios", response_model=ScenariosResponse)
-def scenarios() -> ScenariosResponse:
-    return ScenariosResponse(items=default_scenarios())
+def scenarios(user_id: int | None = None, db: Session = Depends(get_db)) -> ScenariosResponse:
+    scenario_items = []
+    for item in default_scenarios():
+        unlocked, reason, required = _scenario_gate(user_id=user_id, scenario_id=item.id, db=db)
+        scenario_items.append(
+            {
+                "id": item.id,
+                "title": item.title,
+                "description": item.description,
+                "required_level": required,
+                "unlocked": unlocked,
+                "gate_reason": reason,
+            }
+        )
+    return ScenariosResponse(items=scenario_items)
 
 
 @router.get("/scenarios/script", response_model=ScenarioScriptResponse)
@@ -820,6 +920,9 @@ def scenarios_select(
     scenario_ids = {item.id for item in default_scenarios()}
     if payload.scenario_id not in scenario_ids:
         raise HTTPException(status_code=404, detail="Scenario not found")
+    unlocked, reason, _required = _scenario_gate(user_id=payload.user_id, scenario_id=payload.scenario_id, db=db)
+    if not unlocked:
+        raise HTTPException(status_code=403, detail=reason or "Scenario is locked by mastery gate")
 
     user = db.get(User, payload.user_id)
     if user is None:

@@ -20,8 +20,8 @@ export function ScenariosPage() {
   const [turnScore, setTurnScore] = useState("");
   const pushToast = useToastStore((s) => s.push);
   const scenarios = useQuery({
-    queryKey: ["scenarios"],
-    queryFn: api.scenarios,
+    queryKey: ["scenarios", userId],
+    queryFn: () => api.scenarios(userId),
   });
   const coachSession = useQuery({
     queryKey: ["coach-session-today", userId, dailyMinutes],
@@ -40,6 +40,13 @@ export function ScenariosPage() {
 
   async function onSelect(scenarioId: string) {
     try {
+      const scenario = scenarios.data?.items.find((item) => item.id === scenarioId);
+      if (scenario && !scenario.unlocked) {
+        const msg = scenario.gate_reason || "Scenario is locked by mastery gate.";
+        setActionError(msg);
+        pushToast("info", msg);
+        return;
+      }
       const [response, script] = await Promise.all([
         api.selectScenario({ user_id: userId, scenario_id: scenarioId }),
         api.scenarioScript(scenarioId, userId),
@@ -110,9 +117,11 @@ export function ScenariosPage() {
             <article key={item.id} className="panel">
               <h3>{item.title}</h3>
               {recommendedScenarioId === item.id && <p className="badge">Recommended for today</p>}
+              <p>Required level: {item.required_level}</p>
               <p>{item.description}</p>
-              <button onClick={() => onSelect(item.id)} type="button">
-                Start coached roleplay
+              {!item.unlocked && <p>Locked: {item.gate_reason ?? "Improve mastery to unlock."}</p>}
+              <button onClick={() => onSelect(item.id)} type="button" disabled={!item.unlocked}>
+                {item.unlocked ? "Start coached roleplay" : "Locked by mastery"}
               </button>
             </article>
           ))}

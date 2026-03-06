@@ -189,6 +189,8 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert scenarios.status_code == 200
         items = scenarios.json()["items"]
         assert len(items) >= 20
+        assert "required_level" in items[0]
+        assert "unlocked" in items[0]
 
         chosen = client.post(
             "/scenarios/select",
@@ -224,6 +226,36 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert "feedback" in turn_body
         if turn_body["suggested_reply"]:
             assert "Example:" in turn_body["suggested_reply"]
+
+
+def test_mastery_gate_blocks_locked_scenario_selection(client: TestClient) -> None:
+    setup = client.post(
+        "/profile/setup",
+        json={
+            "user_id": 1,
+            "native_lang": "ru",
+            "target_lang": "en",
+            "level": "A1",
+            "goal": "job",
+            "preferences": {},
+        },
+    )
+    assert setup.status_code == 200
+    workspace_user_id = setup.json()["user_id"]
+
+    scenarios = client.get("/scenarios", params={"user_id": workspace_user_id})
+    assert scenarios.status_code == 200
+    items = scenarios.json()["items"]
+    interview = next(item for item in items if item["id"] == "job-interview")
+    assert interview["unlocked"] is False
+    assert interview["required_level"] in {"B1", "B2", "C1", "C2"}
+
+    selected = client.post(
+        "/scenarios/select",
+        json={"user_id": workspace_user_id, "scenario_id": "job-interview"},
+    )
+    assert selected.status_code == 403
+    assert "Unlock at" in selected.json()["detail"]
 
 
 def test_coach_reactivation_uses_vocab_cta_when_due_cards_exist(client: TestClient) -> None:

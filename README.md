@@ -182,6 +182,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - `items[].drill_prompt`
     - `items[].suggested_route`
 
+- `GET /scenarios`
+  - supports optional `user_id` for mastery-gated visibility:
+    - `items[].required_level`
+    - `items[].unlocked`
+    - `items[].gate_reason`
+  - locked scenarios are rejected by `POST /scenarios/select` until gate is satisfied.
+
 - `POST /chat/message`
   - response includes coaching rubric in `rubric`:
     - `overall_score` (0..100)

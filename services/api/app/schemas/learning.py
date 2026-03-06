@@ -206,6 +206,9 @@ class ScenarioItem(BaseModel):
     id: str
     title: str
     description: str
+    required_level: str = "A1"
+    unlocked: bool = True
+    gate_reason: str | None = None
 
 
 class ScenariosResponse(BaseModel):

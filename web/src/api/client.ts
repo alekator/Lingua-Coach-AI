@@ -204,7 +204,10 @@ export const api = {
     request<CoachRoadmapResponse>(`/coach/roadmap?user_id=${encodeURIComponent(userId)}`),
   coachOutcomePacks: (userId: number) =>
     request<OutcomePacksResponse>(`/coach/outcome-packs?user_id=${encodeURIComponent(userId)}`),
-  scenarios: () => request<ScenariosResponse>("/scenarios"),
+  scenarios: (userId?: number) =>
+    request<ScenariosResponse>(
+      `/scenarios${typeof userId === "number" ? `?user_id=${encodeURIComponent(userId)}` : ""}`,
+    ),
   selectScenario: (payload: { user_id: number; scenario_id: string }) =>
     request<ScenarioSelectResponse>("/scenarios/select", {
       method: "POST",

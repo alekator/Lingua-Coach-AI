@@ -47,8 +47,22 @@ describe("ScenariosPage", () => {
     vi.clearAllMocks();
     mocks.scenarios.mockResolvedValue({
       items: [
-        { id: "job-interview", title: "Job Interview", description: "Interview practice." },
-        { id: "coffee-shop", title: "Coffee Shop", description: "Daily ordering." },
+        {
+          id: "job-interview",
+          title: "Job Interview",
+          description: "Interview practice.",
+          required_level: "B1",
+          unlocked: true,
+          gate_reason: null,
+        },
+        {
+          id: "coffee-shop",
+          title: "Coffee Shop",
+          description: "Daily ordering.",
+          required_level: "A1",
+          unlocked: false,
+          gate_reason: "Unlock at A1+ with avg skill >= 25 (now A1, avg 10).",
+        },
       ],
     });
     mocks.coachSessionToday.mockResolvedValue({
@@ -91,8 +105,12 @@ describe("ScenariosPage", () => {
     renderPage();
 
     await waitFor(() => {
+      expect(mocks.scenarios).toHaveBeenCalledWith(1);
       expect(screen.getByText("Recommended for today")).toBeInTheDocument();
       expect(screen.getByText(/Coach cue: today focus is interview, grammar, vocab/i)).toBeInTheDocument();
+      expect(screen.getByText("Required level: B1")).toBeInTheDocument();
+      expect(screen.getByText(/Locked:/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Locked by mastery" })).toBeDisabled();
     });
 
     fireEvent.click(screen.getAllByRole("button", { name: "Start coached roleplay" })[0]);

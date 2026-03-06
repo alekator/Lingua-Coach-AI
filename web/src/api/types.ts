@@ -238,6 +238,9 @@ export type ScenarioItem = {
   id: string;
   title: string;
   description: string;
+  required_level: string;
+  unlocked: boolean;
+  gate_reason?: string | null;
 };
 
 export type ScenariosResponse = {
