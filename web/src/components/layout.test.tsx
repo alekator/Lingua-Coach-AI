@@ -78,4 +78,17 @@ describe("AppLayout", () => {
     fireEvent.click(screen.getByRole("button", { name: /close menu/i }));
     expect(container.querySelector(".app-sidebar")?.classList.contains("open")).toBe(false);
   });
+
+  it("shows quota/billing specific banner when key is saved but unavailable", async () => {
+    mocks.openaiKeyStatus.mockResolvedValue({ configured: true });
+    mocks.debugOpenai.mockRejectedValue({ status: 429, message: "insufficient_quota" });
+
+    renderLayout();
+
+    expect(await screen.findByText("OpenAI key saved, but quota/billing is unavailable.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Review API key settings" })).toHaveAttribute(
+      "href",
+      "/app/profile#openai-key-input",
+    );
+  });
 });
