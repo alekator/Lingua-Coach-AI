@@ -333,6 +333,24 @@ npm run build
 cd ..
 ```
 
+## Mobile Web + PWA
+
+Web client is now mobile-ready and can be installed as a Progressive Web App:
+- responsive layout tuned for phone/tablet widths
+- web manifest (`web/public/manifest.webmanifest`)
+- service worker (`web/public/sw.js`) with offline fallback page (`web/public/offline.html`)
+
+Local check:
+
+```powershell
+cd web
+npm install
+npm run build
+npm run preview
+```
+
+Then open from phone browser on the same network (or deployed host) and install via browser "Add to Home Screen".
+
 Desktop shell (`desktop`):
 
 ```powershell

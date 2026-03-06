@@ -67,7 +67,7 @@ export function AppLayout() {
           </article>
         )}
         <WorkspaceSwitcher />
-        <nav>
+        <nav className="app-nav" aria-label="Primary">
           {links.map(([to, labelKey]) => (
             <Link key={to} to={to}>
               {t(locale, labelKey)}

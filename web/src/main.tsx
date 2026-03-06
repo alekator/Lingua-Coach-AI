@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { ToastViewport } from "./components/toast-viewport";
+import { registerPwaServiceWorker } from "./lib/pwa";
 import { AppRouter } from "./router";
 import "./styles.css";
 
@@ -11,6 +12,8 @@ const routerFuture = {
   v7_startTransition: true,
   v7_relativeSplatPath: true,
 } as const;
+
+void registerPwaServiceWorker();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

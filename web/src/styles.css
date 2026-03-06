@@ -3,6 +3,7 @@
   line-height: 1.4;
   color: #0f172a;
   background: radial-gradient(circle at 10% 10%, #fef3c7, #e0f2fe 45%, #f8fafc 80%);
+  color-scheme: light;
 }
 
 * {
@@ -11,6 +12,7 @@
 
 body {
   margin: 0;
+  min-height: 100vh;
 }
 
 a {
@@ -20,19 +22,47 @@ a {
 
 .app-shell {
   min-height: 100vh;
-  padding: 16px;
+  width: min(1120px, 100% - 24px);
+  margin: 0 auto;
+  padding: 16px 0 24px;
 }
 
 .topbar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 20px;
 }
 
-.topbar nav {
+.topbar h1 {
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  margin: 0;
+}
+
+.topbar p {
+  margin: 0;
+}
+
+.app-nav {
   display: flex;
-  flex-wrap: wrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.app-nav a {
+  flex: 0 0 auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 7px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+main {
+  display: grid;
   gap: 12px;
 }
 
@@ -40,7 +70,7 @@ a {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid #dbeafe;
   border-radius: 14px;
-  padding: 16px;
+  padding: clamp(12px, 1.6vw, 18px);
 }
 
 .stack {
@@ -61,7 +91,7 @@ button {
   border: 1px solid #94a3b8;
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 button {
@@ -100,6 +130,13 @@ pre {
   border-radius: 10px;
   border: 1px solid #cbd5e1;
   padding: 10px;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+  height: auto;
 }
 
 .status {
@@ -172,4 +209,21 @@ pre {
 
 .toast-info {
   border-color: #93c5fd;
+}
+
+@media (min-width: 768px) {
+  input,
+  select,
+  button {
+    font-size: 14px;
+  }
+
+  .topbar {
+    gap: 12px;
+  }
+
+  .app-nav {
+    overflow-x: visible;
+    flex-wrap: wrap;
+  }
 }
