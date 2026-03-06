@@ -6,6 +6,8 @@ web/node_modules/
 web/dist/
 web/.vite/
 web/coverage/
+web/playwright-report/
+web/test-results/
 desktop/node_modules/
 desktop/dist/
 desktop/.vite/

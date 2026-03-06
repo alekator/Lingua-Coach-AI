@@ -308,6 +308,7 @@ Runs on every `push` / `pull_request` (and manual `workflow_dispatch`):
 - Backend lint (critical Python rules via Ruff) + unit tests (`api`, `asr`, `tts`)
 - Web tests + production build
 - E2E smoke for critical user paths (`scripts/e2e-key-paths.ps1` + `scripts/e2e-workspace-journey.ps1`) against a started local API in CI
+- Browser UI smoke via Playwright (onboarding -> dashboard critical path)
 - CI reliability guards: concurrency cancel, job timeouts, dependency caching, API log artifact upload
 
 ## Running Tests
@@ -423,6 +424,17 @@ Dry run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\e2e-workspace-journey.ps1 -DryRun
+```
+
+## UI Smoke (Playwright)
+
+Runs browser smoke path for onboarding -> dashboard:
+
+```powershell
+cd web
+npx playwright install chromium
+npm run test:e2e:smoke
+cd ..
 ```
 
 ## Eval Harness (P0 Quality Checks)
