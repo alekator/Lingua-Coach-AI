@@ -2,12 +2,9 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.main import create_app
 
-
-def test_openai_key_set_and_status(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_openai_key_set_and_status(client: TestClient, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    client = TestClient(create_app())
 
     status_before = client.get("/settings/openai-key")
     assert status_before.status_code == 200
@@ -17,11 +14,19 @@ def test_openai_key_set_and_status(monkeypatch) -> None:  # type: ignore[no-unty
     assert set_resp.status_code == 200
     assert set_resp.json()["configured"] is True
     assert set_resp.json()["masked"].startswith("sk-t")
+    assert set_resp.json()["persistent"] is True
 
     status_after = client.get("/settings/openai-key")
     assert status_after.status_code == 200
     assert status_after.json()["configured"] is True
-    assert status_after.json()["source"] == "env"
+    assert status_after.json()["source"] in {"env", "secure_store"}
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    restored = client.get("/settings/openai-key")
+    assert restored.status_code == 200
+    assert restored.json()["configured"] is True
+    assert restored.json()["source"] == "secure_store"
+    assert restored.json()["persistent"] is True
 
 
 def test_usage_budget_get_and_set(client: TestClient) -> None:

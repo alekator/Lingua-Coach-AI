@@ -97,6 +97,8 @@ export type OpenAIKeyStatus = {
   configured: boolean;
   source: string;
   masked?: string | null;
+  persistent?: boolean;
+  secure_storage?: boolean;
 };
 
 export type UsageBudgetStatus = {

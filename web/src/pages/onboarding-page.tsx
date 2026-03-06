@@ -65,7 +65,13 @@ export function OnboardingPage() {
         const status = await api.openaiKeyStatus();
         if (!active) return;
         setKeyStatus(status.configured ? "configured" : "missing");
-        setKeyHint(status.masked ? `Configured: ${status.masked}` : "No API key configured yet.");
+        if (!status.configured) {
+          setKeyHint("No API key configured yet.");
+        } else {
+          const secureLabel = status.secure_storage ? "secure local storage" : "local storage";
+          const persistLabel = status.persistent ? `persisted in ${secureLabel}` : "active for current session";
+          setKeyHint(`Configured: ${status.masked ?? "hidden"} (${persistLabel})`);
+        }
       } catch {
         if (!active) return;
         setKeyStatus("missing");
@@ -123,7 +129,8 @@ export function OnboardingPage() {
       const status = await api.openaiKeySet({ api_key: apiKey.trim() });
       const debug = await api.debugOpenai();
       setKeyStatus(status.configured ? "configured" : "missing");
-      setKeyHint(`${status.masked ?? "Configured"} | Probe: ${debug.status}`);
+      const secureLabel = status.secure_storage ? "secure local storage" : "local storage";
+      setKeyHint(`${status.masked ?? "Configured"} | ${secureLabel} | Probe: ${debug.status}`);
       setApiKey("");
       pushToast("success", "OpenAI key saved and verified");
     } catch (err) {

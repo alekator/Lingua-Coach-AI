@@ -11,6 +11,8 @@ class OpenAIKeyStatusResponse(BaseModel):
     configured: bool
     source: str
     masked: str | None = None
+    persistent: bool = False
+    secure_storage: bool = False
 
 
 class UsageBudgetSetRequest(BaseModel):
