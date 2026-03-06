@@ -7,9 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.config import settings
 from app.models import LearnerProfile, Mistake, SkillSnapshot
 from app.schemas.voice import VoiceMessageResponse, VoiceProgressPoint, VoiceProgressResponse, VoiceTranscribeResponse
 from app.services.translate import TtsSynthesizerFn
+from app.services.usage_budget import estimate_text_tokens, get_usage_budget_snapshot, record_usage_event
 from app.services.voice import (
     AsrTranscriberFn,
     VoiceTeacherFn,
@@ -57,6 +59,20 @@ async def voice_message(
     asr_transcriber: AsrTranscriberFn = request.app.state.asr_transcriber
     voice_teacher: VoiceTeacherFn = request.app.state.voice_teacher
     tts_synthesizer: TtsSynthesizerFn = request.app.state.tts_synthesizer
+    if user_id is not None:
+        budget = get_usage_budget_snapshot(db, user_id)
+        if budget.blocked:
+            blocked_text = (
+                "Budget cap reached for this period. "
+                "Voice AI is paused; continue with text chat or increase limits in Profile."
+            )
+            return VoiceMessageResponse(
+                transcript="",
+                teacher_text=blocked_text,
+                audio_url="offline://budget-blocked",
+                pronunciation_feedback="Voice scoring paused due to budget cap.",
+                pronunciation_rubric=build_pronunciation_rubric(""),
+            )
 
     audio_bytes = await file.read()
     try:
@@ -88,6 +104,19 @@ async def voice_message(
         audio_url = tts_synthesizer(teacher_text, resolved_target_lang, voice_name)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"TTS failed: {exc}") from exc
+
+    if user_id is not None:
+        prompt_tokens = estimate_text_tokens(transcript)
+        output_tokens = estimate_text_tokens(teacher_text)
+        record_usage_event(
+            db,
+            user_id=user_id,
+            scope="voice_teacher",
+            model=settings.openai_voice_model,
+            prompt_tokens=prompt_tokens,
+            output_tokens=output_tokens,
+        )
+        db.commit()
 
     return VoiceMessageResponse(
         transcript=transcript,

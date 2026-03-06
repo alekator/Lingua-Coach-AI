@@ -99,6 +99,20 @@ export type OpenAIKeyStatus = {
   masked?: string | null;
 };
 
+export type UsageBudgetStatus = {
+  user_id: number;
+  daily_token_cap: number;
+  weekly_token_cap: number;
+  warning_threshold: number;
+  daily_used_tokens: number;
+  weekly_used_tokens: number;
+  daily_remaining_tokens: number;
+  weekly_remaining_tokens: number;
+  daily_warning: boolean;
+  weekly_warning: boolean;
+  blocked: boolean;
+};
+
 export type OpenAIDebugResponse = {
   status: string;
   detail: string;

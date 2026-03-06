@@ -176,3 +176,56 @@ def test_voice_message_teacher_failure_uses_router_fallback(
         body = response.json()
         assert body["audio_url"] == "http://tts.local/audio/fallback.mp3"
         assert "Fallback coach mode in en" in body["teacher_text"]
+
+
+def test_voice_message_budget_cap_blocks_paid_path(
+    client_factory: Callable[..., TestClient],
+) -> None:
+    def fake_asr(audio_bytes: bytes, filename: str, content_type: str, language_hint: str) -> dict[str, str]:
+        return {"transcript": "I goed to school", "language": "en"}
+
+    def fake_teacher(transcript: str, profile: Any, target_lang: str) -> str:
+        return "You should say: I went to school."
+
+    def fake_tts(text: str, target_lang: str, voice_name: str) -> str:
+        return "http://tts.local/audio/voice-1.mp3"
+
+    with client_factory(
+        asr_transcriber=fake_asr,
+        voice_teacher=fake_teacher,
+        tts_synthesizer=fake_tts,
+    ) as client:
+        setup = client.post(
+            "/profile/setup",
+            json={
+                "user_id": 79,
+                "native_lang": "ru",
+                "target_lang": "en",
+                "level": "A2",
+                "goal": "travel",
+                "preferences": {},
+            },
+        )
+        assert setup.status_code == 200
+        cap_set = client.post(
+            "/settings/usage-budget",
+            json={"user_id": 79, "daily_token_cap": 1, "weekly_token_cap": 1, "warning_threshold": 0.8},
+        )
+        assert cap_set.status_code == 200
+
+        first = client.post(
+            "/voice/message",
+            files={"file": ("voice.webm", b"voice-bytes", "audio/webm")},
+            data={"user_id": "79", "target_lang": "en", "language_hint": "en", "voice_name": "alloy"},
+        )
+        assert first.status_code == 200
+
+        second = client.post(
+            "/voice/message",
+            files={"file": ("voice.webm", b"voice-bytes", "audio/webm")},
+            data={"user_id": "79", "target_lang": "en", "language_hint": "en", "voice_name": "alloy"},
+        )
+        assert second.status_code == 200
+        body = second.json()
+        assert body["audio_url"] == "offline://budget-blocked"
+        assert "Budget cap reached" in body["teacher_text"]

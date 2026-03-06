@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   progressSkillMap: vi.fn(),
   progressStreak: vi.fn(),
   progressJournal: vi.fn(),
+  usageBudgetStatus: vi.fn(),
+  usageBudgetSet: vi.fn(),
   pushToast: vi.fn(),
   navigate: vi.fn(),
   setBootstrapState: vi.fn(),
@@ -51,6 +53,8 @@ vi.mock("../api/client", async () => {
       progressSkillMap: mocks.progressSkillMap,
       progressStreak: mocks.progressStreak,
       progressJournal: mocks.progressJournal,
+      usageBudgetStatus: mocks.usageBudgetStatus,
+      usageBudgetSet: mocks.usageBudgetSet,
     },
   };
 });
@@ -121,6 +125,32 @@ describe("ProfilePage", () => {
       ],
     });
     mocks.profileSetup.mockResolvedValue({});
+    mocks.usageBudgetStatus.mockResolvedValue({
+      user_id: 1,
+      daily_token_cap: 12000,
+      weekly_token_cap: 60000,
+      warning_threshold: 0.8,
+      daily_used_tokens: 1500,
+      weekly_used_tokens: 6000,
+      daily_remaining_tokens: 10500,
+      weekly_remaining_tokens: 54000,
+      daily_warning: false,
+      weekly_warning: false,
+      blocked: false,
+    });
+    mocks.usageBudgetSet.mockResolvedValue({
+      user_id: 1,
+      daily_token_cap: 10000,
+      weekly_token_cap: 50000,
+      warning_threshold: 0.85,
+      daily_used_tokens: 1500,
+      weekly_used_tokens: 6000,
+      daily_remaining_tokens: 8500,
+      weekly_remaining_tokens: 44000,
+      daily_warning: false,
+      weekly_warning: false,
+      blocked: false,
+    });
     mocks.appReset.mockResolvedValue({
       status: "ok",
       deleted_users: 2,
@@ -374,6 +404,30 @@ describe("ProfilePage", () => {
       expect(mocks.appReset).toHaveBeenCalledWith({ confirmation: "RESET" });
       expect(mocks.navigate).toHaveBeenCalledWith("/", { replace: true });
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "All learning data removed. Starting fresh.");
+    });
+  });
+
+  it("updates usage budget limits", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "AI Usage Budget" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Daily token cap")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("Daily token cap"), { target: { value: "10000" } });
+    fireEvent.change(screen.getByLabelText("Weekly token cap"), { target: { value: "50000" } });
+    fireEvent.change(screen.getByLabelText("Warning threshold"), { target: { value: "0.85" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save usage limits" }));
+
+    await waitFor(() => {
+      expect(mocks.usageBudgetSet).toHaveBeenCalledWith({
+        user_id: 1,
+        daily_token_cap: 10000,
+        weekly_token_cap: 50000,
+        warning_threshold: 0.85,
+      });
+      expect(mocks.pushToast).toHaveBeenCalledWith("success", "Usage limits updated");
     });
   });
 });

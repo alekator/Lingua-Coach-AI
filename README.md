@@ -69,6 +69,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `POST /profile/placement-test/start`
   - `POST /profile/placement-test/answer`
   - `POST /profile/placement-test/finish`
+  - `GET /settings/usage-budget`
+  - `POST /settings/usage-budget`
 - Workspaces (multi-language spaces):
   - `GET /workspaces`
   - `POST /workspaces`
@@ -197,6 +199,18 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - `strengths[]`
     - `priority_fixes[]`
     - `next_drill`
+  - if usage cap is reached, endpoint returns lightweight local fallback guidance instead of failing.
+
+- `GET /settings/usage-budget`
+  - returns per-user usage limits and current consumption:
+    - `daily_token_cap`, `weekly_token_cap`, `warning_threshold`
+    - `daily_used_tokens`, `weekly_used_tokens`
+    - `daily_remaining_tokens`, `weekly_remaining_tokens`
+    - `daily_warning`, `weekly_warning`, `blocked`
+
+- `POST /settings/usage-budget`
+  - updates per-user budget caps and warning threshold.
+  - stored in learner profile preferences for desktop-local persistence.
 
 - `GET /progress/journal`
   - response includes weekly view and actionable recommendations:

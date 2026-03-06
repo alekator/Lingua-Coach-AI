@@ -15,6 +15,7 @@ from app.schemas.chat import (
     ChatStartRequest,
     ChatStartResponse,
 )
+from app.config import settings
 from app.services.placement import utcnow
 from app.services.teacher import (
     TeacherResponder,
@@ -23,6 +24,7 @@ from app.services.teacher import (
     default_teacher_responder,
 )
 from app.services.mastery import next_skill_snapshot_from_chat
+from app.services.usage_budget import estimate_text_tokens, get_usage_budget_snapshot, record_usage_event
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -121,6 +123,21 @@ def chat_message(
 
     db.add(Message(session_id=session.id, role="user", text=payload.text))
 
+    budget = get_usage_budget_snapshot(db, session.user_id)
+    if budget.blocked:
+        teacher_output = build_resilient_teacher_fallback(
+            {"user_input": payload.text, "learner_profile": {"level": profile.level if profile else "A1"}},
+            reason="usage budget exceeded",
+        )
+        teacher_output.assistant_text = (
+            "Budget cap reached for this period. "
+            "Switched to lightweight coach mode: no paid model calls.\n\n"
+            + teacher_output.assistant_text
+        )
+        db.add(Message(session_id=session.id, role="assistant", text=teacher_output.assistant_text))
+        db.commit()
+        return teacher_output
+
     teacher_responder: TeacherResponder = getattr(
         request.app.state, "teacher_responder", default_teacher_responder
     )
@@ -142,6 +159,16 @@ def chat_message(
         )
 
     db.add(Message(session_id=session.id, role="assistant", text=teacher_output.assistant_text))
+    prompt_tokens = estimate_text_tokens(payload.text)
+    output_tokens = estimate_text_tokens(teacher_output.assistant_text)
+    record_usage_event(
+        db,
+        user_id=session.user_id,
+        scope="chat_teacher",
+        model=settings.openai_chat_model,
+        prompt_tokens=prompt_tokens,
+        output_tokens=output_tokens,
+    )
 
     for correction in teacher_output.corrections:
         db.add(

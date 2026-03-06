@@ -77,3 +77,44 @@ def test_translate_same_language_short_circuit(client: TestClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["translated_text"] == "Hello world"
+
+
+def test_translate_budget_cap_returns_lightweight_mode(
+    client_factory: Callable[..., TestClient],
+) -> None:
+    def fake_translator(text: str, source_lang: str, target_lang: str) -> str:
+        return "Hola mundo"
+
+    with client_factory(translator=fake_translator) as client:
+        setup = client.post(
+            "/profile/setup",
+            json={
+                "user_id": 80,
+                "native_lang": "ru",
+                "target_lang": "en",
+                "level": "A2",
+                "goal": "travel",
+                "preferences": {},
+            },
+        )
+        assert setup.status_code == 200
+
+        cap_set = client.post(
+            "/settings/usage-budget",
+            json={"user_id": 80, "daily_token_cap": 1, "weekly_token_cap": 1, "warning_threshold": 0.8},
+        )
+        assert cap_set.status_code == 200
+
+        first = client.post(
+            "/translate",
+            json={"user_id": 80, "text": "Hello world", "source_lang": "en", "target_lang": "es", "voice": False},
+        )
+        assert first.status_code == 200
+        assert first.json()["translated_text"] == "Hola mundo"
+
+        second = client.post(
+            "/translate",
+            json={"user_id": 80, "text": "Second phrase", "source_lang": "en", "target_lang": "es", "voice": False},
+        )
+        assert second.status_code == 200
+        assert second.json()["translated_text"] == "Second phrase"

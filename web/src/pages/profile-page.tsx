@@ -41,6 +41,11 @@ export function ProfilePage() {
   const [resetToken, setResetToken] = useState("");
   const [resetBusy, setResetBusy] = useState(false);
   const [resetError, setResetError] = useState("");
+  const [dailyTokenCap, setDailyTokenCap] = useState("12000");
+  const [weeklyTokenCap, setWeeklyTokenCap] = useState("60000");
+  const [warningThreshold, setWarningThreshold] = useState("0.8");
+  const [budgetSaving, setBudgetSaving] = useState(false);
+  const [budgetError, setBudgetError] = useState("");
   const pushToast = useToastStore((s) => s.push);
   const profile = useQuery({
     queryKey: ["profile", userId],
@@ -62,6 +67,10 @@ export function ProfilePage() {
     queryKey: ["workspaces"],
     queryFn: api.workspacesList,
   });
+  const usageBudget = useQuery({
+    queryKey: ["usage-budget", userId],
+    queryFn: () => api.usageBudgetStatus(userId),
+  });
 
   useEffect(() => {
     if (!profile.data) return;
@@ -79,6 +88,13 @@ export function ProfilePage() {
     }
     setGoalDrafts(next);
   }, [workspaces.data]);
+
+  useEffect(() => {
+    if (!usageBudget.data) return;
+    setDailyTokenCap(String(usageBudget.data.daily_token_cap));
+    setWeeklyTokenCap(String(usageBudget.data.weekly_token_cap));
+    setWarningThreshold(String(usageBudget.data.warning_threshold));
+  }, [usageBudget.data]);
 
   async function syncBootstrapContext() {
     const bootstrap = await syncWorkspaceContext(queryClient, setBootstrapState);
@@ -290,6 +306,28 @@ export function ProfilePage() {
     }
   }
 
+  async function onSaveBudget(event: FormEvent) {
+    event.preventDefault();
+    setBudgetSaving(true);
+    try {
+      await api.usageBudgetSet({
+        user_id: userId,
+        daily_token_cap: Number(dailyTokenCap),
+        weekly_token_cap: Number(weeklyTokenCap),
+        warning_threshold: Number(warningThreshold),
+      });
+      setBudgetError("");
+      await usageBudget.refetch();
+      pushToast("success", "Usage limits updated");
+    } catch (err) {
+      const msg = getErrorMessage(err);
+      setBudgetError(msg);
+      pushToast("error", msg);
+    } finally {
+      setBudgetSaving(false);
+    }
+  }
+
   return (
     <section className="panel stack">
       <h2>Coach Profile</h2>
@@ -479,6 +517,65 @@ export function ProfilePage() {
           ))}
         </article>
       )}
+      <article className="panel stack">
+        <h3>AI Usage Budget</h3>
+        {usageBudget.isPending && <LoadingState text="Loading usage budget..." />}
+        {usageBudget.isError && <ErrorState text="Failed to load usage budget." />}
+        {usageBudget.isSuccess && (
+          <>
+            <p>
+              Today: {usageBudget.data.daily_used_tokens} / {usageBudget.data.daily_token_cap} tokens
+            </p>
+            <p>
+              This week: {usageBudget.data.weekly_used_tokens} / {usageBudget.data.weekly_token_cap} tokens
+            </p>
+            {(usageBudget.data.daily_warning || usageBudget.data.weekly_warning) && (
+              <p>Warning: usage is near your configured cap.</p>
+            )}
+            {usageBudget.data.blocked && (
+              <p>Budget cap reached. App stays in lightweight fallback mode until the period resets.</p>
+            )}
+            <form className="stack" onSubmit={onSaveBudget}>
+              <label>
+                Daily token cap
+                <input
+                  aria-label="Daily token cap"
+                  type="number"
+                  min={0}
+                  value={dailyTokenCap}
+                  onChange={(e) => setDailyTokenCap(e.target.value)}
+                />
+              </label>
+              <label>
+                Weekly token cap
+                <input
+                  aria-label="Weekly token cap"
+                  type="number"
+                  min={0}
+                  value={weeklyTokenCap}
+                  onChange={(e) => setWeeklyTokenCap(e.target.value)}
+                />
+              </label>
+              <label>
+                Warning threshold
+                <input
+                  aria-label="Warning threshold"
+                  type="number"
+                  min={0.5}
+                  max={0.95}
+                  step={0.05}
+                  value={warningThreshold}
+                  onChange={(e) => setWarningThreshold(e.target.value)}
+                />
+              </label>
+              <button type="submit" disabled={budgetSaving}>
+                {budgetSaving ? "Saving..." : "Save usage limits"}
+              </button>
+            </form>
+          </>
+        )}
+        {budgetError && <ErrorState text={budgetError} />}
+      </article>
       <article className="panel stack">
         <h3>Start Over</h3>
         <p>

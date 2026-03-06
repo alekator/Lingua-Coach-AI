@@ -185,3 +185,36 @@ def test_teacher_payload_uses_high_strictness_and_daily_minutes(
         assert payloads[0]["coaching_policy"]["session_intensity"] == "intense"
         assert payloads[0]["coaching_policy"]["tone"] == "direct_coach"
         assert payloads[0]["coaching_policy"]["persona_style"] == "examiner"
+
+
+def test_chat_budget_cap_triggers_lightweight_fallback(
+    client_factory: Callable[[Callable[[dict[str, Any]], ChatMessageResponse]], TestClient],
+) -> None:
+    def fake_teacher(_: dict[str, Any]) -> ChatMessageResponse:
+        return ChatMessageResponse(assistant_text="Paid model response")
+
+    with client_factory(fake_teacher) as client:
+        setup = client.post(
+            "/profile/setup",
+            json={
+                "user_id": 78,
+                "native_lang": "ru",
+                "target_lang": "en",
+                "level": "A2",
+                "goal": "travel",
+                "preferences": {},
+            },
+        )
+        assert setup.status_code == 200
+        cap_set = client.post(
+            "/settings/usage-budget",
+            json={"user_id": 78, "daily_token_cap": 1, "weekly_token_cap": 1, "warning_threshold": 0.8},
+        )
+        assert cap_set.status_code == 200
+        started = client.post("/chat/start", json={"user_id": 78, "mode": "chat"})
+        session_id = started.json()["session_id"]
+        first = client.post("/chat/message", json={"session_id": session_id, "text": "hello"})
+        assert first.status_code == 200
+        second = client.post("/chat/message", json={"session_id": session_id, "text": "second try"})
+        assert second.status_code == 200
+        assert "Budget cap reached" in second.json()["assistant_text"]

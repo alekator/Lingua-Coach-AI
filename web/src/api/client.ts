@@ -6,6 +6,7 @@ import type {
   PlacementStartResponse,
   OpenAIDebugResponse,
   OpenAIKeyStatus,
+  UsageBudgetStatus,
   ProfileResponse,
   ChatMessageResponse,
   CoachErrorBankResponse,
@@ -133,6 +134,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  usageBudgetStatus: (userId: number) =>
+    request<UsageBudgetStatus>(`/settings/usage-budget?user_id=${encodeURIComponent(userId)}`),
+  usageBudgetSet: (payload: {
+    user_id: number;
+    daily_token_cap: number;
+    weekly_token_cap: number;
+    warning_threshold: number;
+  }) =>
+    request<UsageBudgetStatus>("/settings/usage-budget", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   debugOpenai: () => request<OpenAIDebugResponse>("/debug/openai"),
   profileSetup: (payload: {
     user_id: number;
@@ -224,7 +237,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  translate: (payload: { text: string; source_lang: string; target_lang: string; voice?: boolean }) =>
+  translate: (payload: {
+    user_id?: number;
+    text: string;
+    source_lang: string;
+    target_lang: string;
+    voice?: boolean;
+  }) =>
     request<TranslateResponse>("/translate", {
       method: "POST",
       body: JSON.stringify(payload),
