@@ -65,6 +65,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
 - Profile/onboarding:
   - `GET /app/bootstrap`
   - `POST /app/reset`
+  - `GET /app/backup/export`
+  - `POST /app/backup/restore`
   - `POST /profile/setup`
   - `POST /profile/placement-test/start`
   - `POST /profile/placement-test/answer`
@@ -138,6 +140,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - full local reset for single-user desktop mode.
   - requires payload confirmation token: `"RESET"`.
   - clears users, workspaces, profiles, progress data, and in-process OpenAI key.
+
+- `GET /app/backup/export`
+  - returns a full JSON snapshot of local desktop data for backup:
+    - workspaces, profiles, sessions/messages, vocab/srs, homework, progress snapshots, usage events.
+
+- `POST /app/backup/restore`
+  - requires confirmation token `"RESTORE"`.
+  - replaces current local data with the provided JSON snapshot and restores table rows with IDs.
 
 - `GET /workspaces`
   - returns owner scope workspace list:

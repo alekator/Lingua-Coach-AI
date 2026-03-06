@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -27,3 +29,19 @@ class AppResetResponse(BaseModel):
     deleted_vocab_items: int
     deleted_chat_sessions: int
     openai_key_cleared: bool
+
+
+class AppBackupExportResponse(BaseModel):
+    version: int
+    exported_at: str
+    snapshot: dict[str, Any]
+
+
+class AppBackupRestoreRequest(BaseModel):
+    confirmation: str = Field(min_length=1)
+    snapshot: dict[str, Any]
+
+
+class AppBackupRestoreResponse(BaseModel):
+    status: str
+    restored_tables: dict[str, int]
