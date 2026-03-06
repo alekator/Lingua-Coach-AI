@@ -90,6 +90,8 @@ a {
   min-height: 100vh;
   position: sticky;
   top: 0;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
 .sidebar-brand h1 {
@@ -129,11 +131,15 @@ a {
   background: var(--chip-bg);
   padding: 10px 12px;
   font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
 }
 
 .sidebar-link:hover {
   border-color: var(--input-border);
+  transform: translateX(1px);
 }
 
 .sidebar-link.active {
@@ -142,11 +148,16 @@ a {
   border-color: #0f172a;
 }
 
+.sidebar-link-icon {
+  width: 18px;
+  text-align: center;
+}
+
 .app-main {
   min-width: 0;
-  width: min(1260px, 100% - 32px);
-  margin: 0 auto;
-  padding: 18px 0 28px;
+  width: 100%;
+  margin: 0;
+  padding: 14px 24px 28px;
 }
 
 .topbar {
@@ -154,6 +165,48 @@ a {
   flex-direction: column;
   gap: 12px;
   margin-bottom: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 12;
+}
+
+.shell-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  backdrop-filter: blur(8px);
+}
+
+.shell-header h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.2vw, 1.55rem);
+}
+
+.shell-header p {
+  margin: 2px 0 0;
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+}
+
+.shell-header-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.shell-header-cta {
+  border: 1px solid var(--chip-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  white-space: nowrap;
+  background: var(--chip-bg);
+}
+
+.topbar-alerts {
+  display: grid;
+  gap: 10px;
 }
 
 main {
@@ -340,16 +393,13 @@ video {
 
   .mobile-nav-toggle {
     display: inline-flex;
-    position: fixed;
-    left: 12px;
-    top: 12px;
-    z-index: 35;
     border-radius: 9px;
     border: 1px solid var(--input-border);
     background: var(--panel-bg);
     color: var(--fg);
     padding: 8px 10px;
     font-size: 13px;
+    white-space: nowrap;
   }
 
   .mobile-backdrop.show {
@@ -361,8 +411,22 @@ video {
   }
 
   .app-main {
-    width: min(1260px, 100% - 20px);
-    padding-top: 54px;
+    width: 100%;
+    padding: 12px 10px 22px;
+  }
+
+  .shell-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .shell-header-main {
+    width: 100%;
+  }
+
+  .shell-header-cta {
+    width: 100%;
+    text-align: center;
   }
 }
 
