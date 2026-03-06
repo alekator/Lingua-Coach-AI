@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, UTC
+from app.services.text_metrics import text_units
 
 
 def build_placement_questions(target_lang: str) -> list[str]:
@@ -17,12 +18,12 @@ def score_answer(answer: str) -> float:
     text = answer.strip()
     if not text:
         return 0.0
-    word_count = len(text.split())
-    if word_count <= 3:
+    unit_count = text_units(text)
+    if unit_count <= 3:
         return 0.25
-    if word_count <= 8:
+    if unit_count <= 8:
         return 0.5
-    if word_count <= 20:
+    if unit_count <= 20:
         return 0.75
     return 1.0
 

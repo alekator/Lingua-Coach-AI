@@ -12,6 +12,7 @@ from app.config import settings
 from app.models import LearnerProfile
 from app.services.ai_runtime import SmallLRUCache, log_usage, usage_from_response
 from app.services.teacher import build_learner_profile_block
+from app.services.text_metrics import lexical_diversity, text_units
 
 AsrTranscriberFn = Callable[[bytes, str, str, str], dict[str, str]]
 VoiceTeacherFn = Callable[[str, LearnerProfile | None, str], str]
@@ -120,10 +121,9 @@ def build_pronunciation_feedback(transcript: str) -> str:
 
 
 def build_pronunciation_rubric(transcript: str) -> dict[str, float | str | list[str]]:
-    words = [w for w in transcript.split() if w.strip()]
-    length = len(words)
-    unique_ratio = len({w.lower() for w in words}) / max(1, length)
-    has_contractions = any("'" in w for w in words)
+    length = text_units(transcript)
+    unique_ratio = lexical_diversity(transcript)
+    has_contractions = "'" in transcript
 
     fluency = 35.0 + min(45.0, length * 2.5)
     clarity = 50.0 + (10.0 if has_contractions else 0.0)

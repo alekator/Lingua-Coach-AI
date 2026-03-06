@@ -4,6 +4,7 @@ from collections import Counter
 import re
 
 from app.schemas.learning import CoachSessionStep, ExerciseItem, ScenarioItem, ScenarioScriptStep
+from app.services.text_metrics import text_units
 
 
 def default_scenarios() -> list[ScenarioItem]:
@@ -368,8 +369,8 @@ def grade_exercises(
             correct += 1
 
         # Lightweight rubric for MVP scoring transparency.
-        answer_len = len(answer.split())
-        expected_len = max(1, len(expected_clean.split()))
+        answer_len = text_units(answer)
+        expected_len = max(1, text_units(expected_clean))
         completeness = min(1.0, answer_len / expected_len)
         grammar_quality = 1.0 if ok else 0.6 if answer else 0.2
         lexical_quality = 1.0 if answer else 0.0

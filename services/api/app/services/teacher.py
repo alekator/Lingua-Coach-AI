@@ -9,6 +9,7 @@ from openai import OpenAI
 from app.config import settings
 from app.models import LearnerProfile, Message, Mistake, VocabItem
 from app.services.ai_runtime import log_usage, usage_from_response
+from app.services.text_metrics import text_units
 from app.schemas.chat import ChatMessageResponse, ChatRubric, ChatRubricDimension
 
 
@@ -24,7 +25,7 @@ def _rubric_band(score: int) -> str:
 
 
 def build_fallback_rubric(user_text: str, response: ChatMessageResponse) -> ChatRubric:
-    words = max(1, len(user_text.split()))
+    words = max(1, text_units(user_text))
     corrections_count = len(response.corrections)
     base_score = 78 if words >= 6 else 68
     penalty = min(18, corrections_count * 7)
