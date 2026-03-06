@@ -272,3 +272,34 @@ class ScenarioTurnResponse(BaseModel):
     next_prompt: str | None = None
     done: bool
     suggested_reply: str | None = None
+
+
+class CoachScenarioTrackStepItem(BaseModel):
+    order: int
+    scenario_id: str
+    title: str
+    status: str
+
+
+class CoachScenarioTrackMilestone(BaseModel):
+    id: str
+    title: str
+    required_completed: int
+    is_reached: bool
+
+
+class CoachScenarioTrackItem(BaseModel):
+    track_id: str
+    goal: str
+    title: str
+    total_steps: int
+    completed_steps: int
+    completion_percent: int
+    next_scenario_id: str | None = None
+    steps: list[CoachScenarioTrackStepItem]
+    milestones: list[CoachScenarioTrackMilestone]
+
+
+class CoachScenarioTracksResponse(BaseModel):
+    user_id: int
+    items: list[CoachScenarioTrackItem]

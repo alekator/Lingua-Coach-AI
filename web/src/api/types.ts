@@ -275,6 +275,31 @@ export type ScenariosResponse = {
   items: ScenarioItem[];
 };
 
+export type CoachScenarioTracksResponse = {
+  user_id: number;
+  items: Array<{
+    track_id: string;
+    goal: string;
+    title: string;
+    total_steps: number;
+    completed_steps: number;
+    completion_percent: number;
+    next_scenario_id?: string | null;
+    steps: Array<{
+      order: number;
+      scenario_id: string;
+      title: string;
+      status: "completed" | "available" | "locked";
+    }>;
+    milestones: Array<{
+      id: string;
+      title: string;
+      required_completed: number;
+      is_reached: boolean;
+    }>;
+  }>;
+};
+
 export type ScenarioSelectResponse = {
   session_id: number;
   mode: string;

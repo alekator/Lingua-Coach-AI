@@ -470,3 +470,52 @@ def test_coach_review_queue_combines_vocab_grammar_pronunciation(
         assert "vocab" in types
         assert "grammar" in types
         assert "pronunciation" in types
+
+
+def test_coach_scenario_tracks_progress_and_milestones(client: TestClient) -> None:
+    setup = client.post(
+        "/profile/setup",
+        json={
+            "user_id": 1,
+            "native_lang": "ru",
+            "target_lang": "en",
+            "level": "A2",
+            "goal": "travel",
+            "preferences": {},
+        },
+    )
+    assert setup.status_code == 200
+    workspace_user_id = setup.json()["user_id"]
+
+    tracks_before = client.get("/coach/scenario-tracks", params={"user_id": workspace_user_id})
+    assert tracks_before.status_code == 200
+    before_body = tracks_before.json()
+    assert len(before_body["items"]) >= 3
+    travel_track = before_body["items"][0]
+    assert travel_track["goal"] == "travel"
+    assert travel_track["completed_steps"] == 0
+    assert travel_track["steps"][0]["status"] == "available"
+    assert travel_track["milestones"][0]["is_reached"] is False
+    first_scenario_id = travel_track["steps"][0]["scenario_id"]
+
+    warmup_chat = client.post("/chat/start", json={"user_id": workspace_user_id, "mode": "chat"})
+    assert warmup_chat.status_code == 200
+    warmup_session_id = warmup_chat.json()["session_id"]
+    warmup_turn = client.post("/chat/message", json={"session_id": warmup_session_id, "text": "I practice travel english"})
+    assert warmup_turn.status_code == 200
+
+    selected = client.post(
+        "/scenarios/select",
+        json={"user_id": workspace_user_id, "scenario_id": first_scenario_id},
+    )
+    assert selected.status_code == 200
+    session_id = selected.json()["session_id"]
+    ended = client.post("/chat/end", json={"session_id": session_id})
+    assert ended.status_code == 200
+
+    tracks_after = client.get("/coach/scenario-tracks", params={"user_id": workspace_user_id})
+    assert tracks_after.status_code == 200
+    after_body = tracks_after.json()
+    travel_after = next(item for item in after_body["items"] if item["goal"] == "travel")
+    assert travel_after["completed_steps"] >= 1
+    assert travel_after["milestones"][0]["is_reached"] is True

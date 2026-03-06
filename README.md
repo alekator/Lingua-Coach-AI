@@ -96,6 +96,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `GET /plan/today`
   - `GET /coach/session/today`
   - `GET /coach/review-queue`
+  - `GET /coach/scenario-tracks`
   - `GET /coach/error-bank`
   - `GET /coach/trajectory`
   - `GET /coach/roadmap`
@@ -210,6 +211,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - `items[].unlocked`
     - `items[].gate_reason`
   - locked scenarios are rejected by `POST /scenarios/select` until gate is satisfied.
+
+- `GET /coach/scenario-tracks`
+  - goal-based scenario sequences with explicit progress and milestones:
+    - `track_id`, `goal`, `title`
+    - `completed_steps`, `total_steps`, `completion_percent`
+    - `next_scenario_id`
+    - `milestones[]` for track progression
 
 - `POST /chat/message`
   - response includes coaching rubric in `rubric`:

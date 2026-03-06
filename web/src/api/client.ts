@@ -42,6 +42,7 @@ import type {
   ScenarioScriptResponse,
   ScenarioTurnResponse,
   ScenariosResponse,
+  CoachScenarioTracksResponse,
   TranslateResponse,
   TranslateVoiceResponse,
   VocabItem,
@@ -225,6 +226,12 @@ export const api = {
   scenarios: (userId?: number) =>
     request<ScenariosResponse>(
       `/scenarios${typeof userId === "number" ? `?user_id=${encodeURIComponent(userId)}` : ""}`,
+    ),
+  coachScenarioTracks: (userId: number, goal?: string) =>
+    request<CoachScenarioTracksResponse>(
+      `/coach/scenario-tracks?user_id=${encodeURIComponent(userId)}${
+        goal ? `&goal=${encodeURIComponent(goal)}` : ""
+      }`,
     ),
   selectScenario: (payload: { user_id: number; scenario_id: string }) =>
     request<ScenarioSelectResponse>("/scenarios/select", {

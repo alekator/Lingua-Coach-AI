@@ -54,6 +54,10 @@ from app.schemas.learning import (
     ScenarioTurnResponse,
     ScenariosResponse,
     TranslateVoiceResponse,
+    CoachScenarioTrackItem,
+    CoachScenarioTrackMilestone,
+    CoachScenarioTrackStepItem,
+    CoachScenarioTracksResponse,
 )
 from app.services.learning import (
     build_adaptive_plan,
@@ -99,6 +103,26 @@ SCENARIO_REQUIRED_LEVEL: dict[str, str] = {
     "travel-emergency": "B2",
 }
 LEVEL_SKILL_MIN_AVG = {"A1": 25.0, "A2": 35.0, "B1": 45.0, "B2": 58.0, "C1": 72.0, "C2": 85.0}
+SCENARIO_TRACK_DEFINITIONS = [
+    {
+        "track_id": "travel-core",
+        "goal": "travel",
+        "title": "Travel Core Track",
+        "scenario_ids": ["travel-hotel", "travel-restaurant", "airport-customs", "travel-emergency"],
+    },
+    {
+        "track_id": "job-core",
+        "goal": "job",
+        "title": "Job Communication Track",
+        "scenario_ids": ["job-interview", "work-standup", "work-meeting", "work-feedback", "work-email"],
+    },
+    {
+        "track_id": "relocation-core",
+        "goal": "relocation",
+        "title": "Relocation Essentials Track",
+        "scenario_ids": ["relocation-rental", "relocation-bank", "relocation-clinic", "service-support"],
+    },
+]
 
 
 def _to_utc_date(dt: datetime) -> datetime.date:
@@ -994,6 +1018,89 @@ def scenarios(user_id: int | None = None, db: Session = Depends(get_db)) -> Scen
             }
         )
     return ScenariosResponse(items=scenario_items)
+
+
+@router.get("/coach/scenario-tracks", response_model=CoachScenarioTracksResponse)
+def coach_scenario_tracks(user_id: int, goal: str | None = None, db: Session = Depends(get_db)) -> CoachScenarioTracksResponse:
+    scenario_title_map = {item.id: item.title for item in default_scenarios()}
+    completed_modes = db.scalars(
+        select(ChatSession.mode).where(
+            ChatSession.user_id == user_id,
+            ChatSession.mode.like("scenario:%"),
+            ChatSession.ended_at.is_not(None),
+        )
+    ).all()
+    completed_ids = {mode.split("scenario:", 1)[1] for mode in completed_modes if mode.startswith("scenario:")}
+
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    preferred_goal = (goal or (profile.goal if profile else "") or "").strip().lower()
+    tracks: list[CoachScenarioTrackItem] = []
+    for definition in SCENARIO_TRACK_DEFINITIONS:
+        scenario_ids = [sid for sid in definition["scenario_ids"] if sid in scenario_title_map]
+        if not scenario_ids:
+            continue
+        completed_steps = sum(1 for sid in scenario_ids if sid in completed_ids)
+        total_steps = len(scenario_ids)
+        completion_percent = int(round((completed_steps / max(1, total_steps)) * 100))
+
+        steps: list[CoachScenarioTrackStepItem] = []
+        first_pending_released = False
+        for idx, scenario_id in enumerate(scenario_ids):
+            if scenario_id in completed_ids:
+                status = "completed"
+            elif not first_pending_released:
+                status = "available"
+                first_pending_released = True
+            else:
+                status = "locked"
+            steps.append(
+                CoachScenarioTrackStepItem(
+                    order=idx + 1,
+                    scenario_id=scenario_id,
+                    title=scenario_title_map.get(scenario_id, scenario_id),
+                    status=status,
+                )
+            )
+        next_scenario = next((step.scenario_id for step in steps if step.status == "available"), None)
+        milestones = [
+            CoachScenarioTrackMilestone(
+                id=f"{definition['track_id']}-m1",
+                title="Track started",
+                required_completed=1,
+                is_reached=completed_steps >= 1,
+            ),
+            CoachScenarioTrackMilestone(
+                id=f"{definition['track_id']}-m2",
+                title="Halfway done",
+                required_completed=max(1, total_steps // 2),
+                is_reached=completed_steps >= max(1, total_steps // 2),
+            ),
+            CoachScenarioTrackMilestone(
+                id=f"{definition['track_id']}-m3",
+                title="Track completed",
+                required_completed=total_steps,
+                is_reached=completed_steps >= total_steps,
+            ),
+        ]
+        tracks.append(
+            CoachScenarioTrackItem(
+                track_id=definition["track_id"],
+                goal=definition["goal"],
+                title=definition["title"],
+                total_steps=total_steps,
+                completed_steps=completed_steps,
+                completion_percent=completion_percent,
+                next_scenario_id=next_scenario,
+                steps=steps,
+                milestones=milestones,
+            )
+        )
+
+    if preferred_goal:
+        tracks.sort(key=lambda item: (0 if item.goal == preferred_goal else 1, item.track_id))
+    else:
+        tracks.sort(key=lambda item: item.track_id)
+    return CoachScenarioTracksResponse(user_id=user_id, items=tracks)
 
 
 @router.get("/scenarios/script", response_model=ScenarioScriptResponse)

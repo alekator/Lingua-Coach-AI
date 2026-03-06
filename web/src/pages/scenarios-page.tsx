@@ -12,6 +12,7 @@ export function ScenariosPage() {
   const [selectionResult, setSelectionResult] = useState("");
   const [actionError, setActionError] = useState("");
   const [activeScenarioId, setActiveScenarioId] = useState("");
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [activeStepId, setActiveStepId] = useState("");
   const [activePrompt, setActivePrompt] = useState("");
   const [activeTip, setActiveTip] = useState("");
@@ -26,6 +27,10 @@ export function ScenariosPage() {
   const coachSession = useQuery({
     queryKey: ["coach-session-today", userId, dailyMinutes],
     queryFn: () => api.coachSessionToday(userId, dailyMinutes),
+  });
+  const scenarioTracks = useQuery({
+    queryKey: ["coach-scenario-tracks", userId],
+    queryFn: () => api.coachScenarioTracks(userId),
   });
 
   const recommendedScenarioId = useMemo(() => {
@@ -53,6 +58,7 @@ export function ScenariosPage() {
       ]);
       const firstStep = script.steps[0];
       setActiveScenarioId(scenarioId);
+      setActiveSessionId(response.session_id);
       setActiveStepId(firstStep?.id ?? "");
       setActivePrompt(firstStep?.coach_prompt ?? "");
       setActiveTip(firstStep?.tip ?? "");
@@ -82,6 +88,15 @@ export function ScenariosPage() {
       setTurnScore(`Step score: ${response.score}/${response.max_score}`);
       setTurnAnswer("");
       if (response.done) {
+        if (activeSessionId) {
+          try {
+            await api.chatEnd({ session_id: activeSessionId });
+            await scenarioTracks.refetch();
+          } catch {
+            // keep scenario completion UX even if close fails
+          }
+        }
+        setActiveSessionId(null);
         setActiveStepId("");
         setActivePrompt("Scenario completed. Great work.");
         setActiveTip("Review feedback and replay scenario for fluency.");
@@ -126,6 +141,26 @@ export function ScenariosPage() {
             </article>
           ))}
         </div>
+      )}
+      {scenarioTracks.isSuccess && scenarioTracks.data.items.length > 0 && (
+        <article className="panel stack">
+          <h3>Goal Scenario Tracks</h3>
+          {scenarioTracks.data.items.map((track) => (
+            <div key={track.track_id} className="panel stack">
+              <p>
+                <strong>{track.title}</strong> ({track.goal}) - {track.completed_steps}/{track.total_steps} (
+                {track.completion_percent}%)
+              </p>
+              {track.next_scenario_id && <p>Next milestone scenario: {track.next_scenario_id}</p>}
+              <p>
+                Milestones:{" "}
+                {track.milestones
+                  .map((m) => `${m.title}: ${m.is_reached ? "done" : `need ${m.required_completed}`}`)
+                  .join(" | ")}
+              </p>
+            </div>
+          ))}
+        </article>
       )}
       {activeScenarioId && (
         <article className="panel stack">

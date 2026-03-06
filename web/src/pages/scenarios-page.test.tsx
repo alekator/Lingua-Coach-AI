@@ -5,9 +5,11 @@ import { ScenariosPage } from "./scenarios-page";
 const mocks = vi.hoisted(() => ({
   scenarios: vi.fn(),
   coachSessionToday: vi.fn(),
+  coachScenarioTracks: vi.fn(),
   selectScenario: vi.fn(),
   scenarioScript: vi.fn(),
   scenarioTurn: vi.fn(),
+  chatEnd: vi.fn(),
   pushToast: vi.fn(),
 }));
 
@@ -15,9 +17,11 @@ vi.mock("../api/client", () => ({
   api: {
     scenarios: mocks.scenarios,
     coachSessionToday: mocks.coachSessionToday,
+    coachScenarioTracks: mocks.coachScenarioTracks,
     selectScenario: mocks.selectScenario,
     scenarioScript: mocks.scenarioScript,
     scenarioTurn: mocks.scenarioTurn,
+    chatEnd: mocks.chatEnd,
   },
 }));
 
@@ -75,6 +79,25 @@ describe("ScenariosPage", () => {
       session_id: 88,
       mode: "scenario:job-interview",
     });
+    mocks.coachScenarioTracks.mockResolvedValue({
+      user_id: 1,
+      items: [
+        {
+          track_id: "job-core",
+          goal: "job",
+          title: "Job Communication Track",
+          total_steps: 5,
+          completed_steps: 1,
+          completion_percent: 20,
+          next_scenario_id: "work-standup",
+          steps: [],
+          milestones: [
+            { id: "m1", title: "Track started", required_completed: 1, is_reached: true },
+            { id: "m2", title: "Halfway done", required_completed: 2, is_reached: false },
+          ],
+        },
+      ],
+    });
     mocks.scenarioScript.mockResolvedValue({
       scenario_id: "job-interview",
       title: "Job Interview",
@@ -99,6 +122,7 @@ describe("ScenariosPage", () => {
       done: true,
       suggested_reply: "Try again using: experience, role",
     });
+    mocks.chatEnd.mockResolvedValue({ session_id: 88, status: "ended" });
   });
 
   it("shows recommended scenario and runs roleplay turn flow", async () => {
@@ -111,6 +135,9 @@ describe("ScenariosPage", () => {
       expect(screen.getByText("Required level: B1")).toBeInTheDocument();
       expect(screen.getByText(/Locked:/)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Locked by mastery" })).toBeDisabled();
+      expect(screen.getByText("Goal Scenario Tracks")).toBeInTheDocument();
+      expect(screen.getByText(/Job Communication Track/)).toBeInTheDocument();
+      expect(screen.getByText(/Next milestone scenario: work-standup/)).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getAllByRole("button", { name: "Start coached roleplay" })[0]);
@@ -133,6 +160,7 @@ describe("ScenariosPage", () => {
         step_id: "intro",
         user_text: "I have experience in support role",
       });
+      expect(mocks.chatEnd).toHaveBeenCalledWith({ session_id: 88 });
       expect(screen.getByText("Step score: 2/3")).toBeInTheDocument();
     });
   });
