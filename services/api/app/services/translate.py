@@ -8,6 +8,7 @@ from openai import OpenAI
 
 from app.config import settings
 from app.services.ai_runtime import SmallLRUCache, log_usage, usage_from_response
+from app.services.local_llm import complete_text, is_local_llm_enabled
 
 
 TranslatorFn = Callable[[str, str, str], str]
@@ -30,30 +31,37 @@ def default_translator(text: str, source_lang: str, target_lang: str) -> str:
     if isinstance(cached, str):
         return cached
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        translated = f"[{source_lang}->{target_lang}] {clean_text}"
-        _translate_cache.set(cache_key, translated)
-        return translated
-
-    client = OpenAI(api_key=api_key)
     prompt = (
         "Translate the user text accurately.\n"
         f"Source language: {source_lang}\n"
         f"Target language: {target_lang}\n"
         "Return only translated text, no comments, no alternatives."
     )
-    response = client.responses.create(
-        model=settings.openai_translate_model,
-        max_output_tokens=settings.openai_translate_max_output_tokens,
-        temperature=settings.openai_temperature_translate,
-        input=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": clean_text},
-        ],
-    )
-    log_usage("translate", settings.openai_translate_model, usage_from_response(response))
-    translated = response.output_text.strip()
+    if is_local_llm_enabled():
+        translated = complete_text(
+            system_prompt=prompt,
+            messages=[{"role": "user", "content": clean_text}],
+            max_output_tokens=settings.openai_translate_max_output_tokens,
+            temperature=settings.openai_temperature_translate,
+        ).strip()
+    else:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            translated = f"[{source_lang}->{target_lang}] {clean_text}"
+            _translate_cache.set(cache_key, translated)
+            return translated
+        client = OpenAI(api_key=api_key)
+        response = client.responses.create(
+            model=settings.openai_translate_model,
+            max_output_tokens=settings.openai_translate_max_output_tokens,
+            temperature=settings.openai_temperature_translate,
+            input=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": clean_text},
+            ],
+        )
+        log_usage("translate", settings.openai_translate_model, usage_from_response(response))
+        translated = response.output_text.strip()
     _translate_cache.set(cache_key, translated)
     return translated
 

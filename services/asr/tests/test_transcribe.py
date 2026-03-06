@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.main import create_app
+from app.main import AsrTranscribeResponse, create_app
 
 
 def test_asr_transcribe_requires_key(monkeypatch) -> None:
@@ -47,3 +47,25 @@ def test_asr_transcribe_calls_provider(monkeypatch) -> None:
     body = response.json()
     assert body["language"] == "en"
     assert body["transcript"] == "hello from provider"
+
+
+def test_asr_transcribe_local_provider_path(monkeypatch) -> None:
+    monkeypatch.setenv("ASR_PROVIDER", "local")
+
+    def fake_local_transcribe(file, language_hint: str) -> AsrTranscribeResponse:
+        assert language_hint == "auto"
+        return AsrTranscribeResponse(transcript="hello from local asr", language="en")
+
+    monkeypatch.setattr("app.main.local_transcribe", fake_local_transcribe)
+
+    client = TestClient(create_app())
+    response = client.post(
+        "/asr/transcribe",
+        files={"file": ("sample.webm", b"fake-bytes", "audio/webm")},
+        data={"language_hint": "auto"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["language"] == "en"
+    assert body["transcript"] == "hello from local asr"

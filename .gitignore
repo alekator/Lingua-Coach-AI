@@ -18,6 +18,7 @@ desktop/package-lock.json
 
 # Local environment
 .env
+models/
 
 # Python artifacts
 *.pyc

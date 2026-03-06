@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from openai import OpenAI
 from pydantic import BaseModel
 
+from app.config import settings
 from app.db import init_db
 from app.routers.app_state import router as app_state_router
 from app.routers.chat import router as chat_router
@@ -59,6 +60,11 @@ if not logger.handlers:
 
 
 def default_openai_probe() -> tuple[str, str]:
+    if settings.api_llm_provider.strip().lower() == "local":
+        if settings.local_llm_model_path.strip():
+            return ("ok", "Local LLM provider is enabled")
+        return ("error", "API_LLM_PROVIDER=local but LOCAL_LLM_MODEL_PATH is empty")
+
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return ("not_configured", "OPENAI_API_KEY is not set")

@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./linguacoach.db"
     asr_url: str = "http://asr:8001"
     tts_url: str = "http://tts:8002"
+    api_llm_provider: str = "openai"
+    local_llm_model_path: str = ""
+    local_llm_n_ctx: int = 4096
+    local_llm_n_threads: int = 6
 
     # Cost-aware OpenAI defaults.
     openai_chat_model: str = "gpt-4.1-mini"

@@ -11,6 +11,30 @@ Dockerized MVP backend for an AI language tutor:
 - Docker Desktop (or Docker Engine + Compose)
 - Python 3.11+ (for local tests)
 
+## AI Runtime Modes (OpenAI + Local Models)
+
+LinguaCoach supports two runtime modes:
+- `openai` (default)
+- `local` (self-hosted models on your machine)
+
+Switch via `.env`:
+
+```powershell
+API_LLM_PROVIDER=openai   # or local
+ASR_PROVIDER=openai       # or local
+TTS_PROVIDER=openai       # or local
+```
+
+Local model paths:
+
+```powershell
+LOCAL_LLM_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m.gguf
+LOCAL_ASR_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\whisper-small
+LOCAL_TTS_MODEL_PATH=F:\AI_MODELS_GENERIC\LINGUA_MODELS\qwen3-tts
+```
+
+OpenAI fallback remains available for each component when provider is set to `openai`.
+
 ## Quick Start
 
 1. Copy env file:
@@ -359,6 +383,54 @@ npm install
 npm run start:web
 cd ..
 ```
+
+## Local Model Download Guide
+
+Install HuggingFace Hub:
+
+```powershell
+pip install huggingface_hub
+```
+
+Create local model directory (example):
+
+```powershell
+mkdir F:\AI_MODELS_GENERIC\LINGUA_MODELS
+```
+
+Download Whisper Small (ASR):
+
+```powershell
+python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='openai/whisper-small', local_dir='F:/AI_MODELS_GENERIC/LINGUA_MODELS/whisper-small')"
+```
+
+Download Qwen3-TTS (TTS):
+
+```powershell
+python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice', local_dir='F:/AI_MODELS_GENERIC/LINGUA_MODELS/qwen3-tts')"
+```
+
+Download Qwen2.5 7B GGUF (LLM):
+
+```powershell
+python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='Smoffyy/Qwen2.5-7B-Instruct-Q4_K-M-GGUF', filename='qwen2.5-7b-instruct-q4_k_m.gguf', local_dir='F:/AI_MODELS_GENERIC/LINGUA_MODELS/qwen2.5-7b')"
+```
+
+Optional faster download:
+
+```powershell
+python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='openai/whisper-small', local_dir='F:/AI_MODELS_GENERIC/LINGUA_MODELS/whisper-small', max_workers=8)"
+```
+
+### Optional Python dependencies for local mode
+
+Local providers use optional dependencies and are loaded lazily:
+
+```powershell
+pip install llama-cpp-python faster-whisper transformers numpy
+```
+
+If dependencies are missing, services return a clear setup error instead of crashing.
 
 ## E2E Smoke (Manual)
 

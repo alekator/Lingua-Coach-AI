@@ -9,6 +9,7 @@ from openai import OpenAI
 from app.config import settings
 from app.models import LearnerProfile, Message, Mistake, VocabItem
 from app.services.ai_runtime import log_usage, usage_from_response
+from app.services.local_llm import complete_json, is_local_llm_enabled
 from app.services.text_metrics import text_units
 from app.schemas.chat import ChatMessageResponse, ChatRubric, ChatRubricDimension
 
@@ -311,9 +312,6 @@ def build_teacher_payload(
 
 def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
     user_text = payload["user_input"]
-    api_key = __import__("os").getenv("OPENAI_API_KEY")
-    if not api_key:
-        return build_resilient_teacher_fallback(payload, reason="OPENAI_API_KEY missing")
 
     system_prompt = (
         "You are LinguaCoach AI, a concise language coach. "
@@ -330,20 +328,30 @@ def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
     )
     developer_prompt = json.dumps(payload, ensure_ascii=False)
 
-    client = OpenAI(api_key=api_key)
     try:
-        response = client.responses.create(
-            model=settings.openai_chat_model,
-            max_output_tokens=settings.openai_chat_max_output_tokens,
-            temperature=settings.openai_temperature_chat,
-            input=[
-                {"role": "system", "content": system_prompt},
-                {"role": "developer", "content": developer_prompt},
-            ],
-        )
-        log_usage("chat_teacher", settings.openai_chat_model, usage_from_response(response))
-        text = response.output_text
-        parsed = json.loads(text)
+        if is_local_llm_enabled():
+            parsed = complete_json(
+                system_prompt=system_prompt,
+                messages=[{"role": "user", "content": developer_prompt}],
+                max_output_tokens=settings.openai_chat_max_output_tokens,
+                temperature=settings.openai_temperature_chat,
+            )
+        else:
+            api_key = __import__("os").getenv("OPENAI_API_KEY")
+            if not api_key:
+                return build_resilient_teacher_fallback(payload, reason="OPENAI_API_KEY missing")
+            client = OpenAI(api_key=api_key)
+            response = client.responses.create(
+                model=settings.openai_chat_model,
+                max_output_tokens=settings.openai_chat_max_output_tokens,
+                temperature=settings.openai_temperature_chat,
+                input=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "developer", "content": developer_prompt},
+                ],
+            )
+            log_usage("chat_teacher", settings.openai_chat_model, usage_from_response(response))
+            parsed = json.loads(response.output_text)
         result = ChatMessageResponse.model_validate(parsed)
         return sanitize_teacher_response(result, payload)
     except Exception as exc:

@@ -11,6 +11,7 @@ from openai import OpenAI
 from app.config import settings
 from app.models import LearnerProfile
 from app.services.ai_runtime import SmallLRUCache, log_usage, usage_from_response
+from app.services.local_llm import complete_text, is_local_llm_enabled
 from app.services.teacher import build_learner_profile_block
 from app.services.text_metrics import lexical_diversity, text_units
 
@@ -53,60 +54,65 @@ def default_voice_teacher(transcript: str, profile: LearnerProfile | None, targe
     if isinstance(cached, str):
         return cached
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        opening = {
-            "low": "Nice voice attempt.",
-            "medium": "Good practice run.",
-            "high": "Straight feedback:",
-        }[strictness]
-        quick_fix = ""
-        lower_text = clean_transcript.lower()
-        if "goed" in lower_text:
-            quick_fix = " Quick fix: say 'went' instead of 'goed'."
-        fallback = (
-            f"{opening} We keep it in {target_lang}. Goal: {goal}. "
-            f"Focus now: {top_weak}. You said: {clean_transcript}.{quick_fix} "
-            "Next micro-step: record one shorter retry."
-        )
-        _voice_teacher_cache.set(cache_key, fallback)
-        return fallback
-
     prompt = (
         "You are a language tutor. Reply briefly in target language practice mode "
         "and include one short correction if needed. "
         "Adapt tone to strictness: low=supportive, medium=balanced, high=direct. "
         "Be human and specific: mention one concrete next micro-step for this learner goal."
     )
-    client = OpenAI(api_key=api_key)
-    response = client.responses.create(
-        model=settings.openai_voice_model,
-        max_output_tokens=settings.openai_voice_max_output_tokens,
-        temperature=settings.openai_temperature_voice,
-        input=[
-            {"role": "system", "content": prompt},
-            {
-                "role": "developer",
-                "content": json.dumps(
-                    {
-                        "learner_profile": profile_block,
-                        "target_lang": target_lang,
-                        "transcript": clean_transcript,
-                        "coaching_policy": {
-                            "strictness": strictness,
-                            "persona_style": persona_style,
-                            "goal": goal,
-                            "top_weak_topic": top_weak,
-                            "max_corrections": 1 if strictness == "low" else 2 if strictness == "medium" else 3,
-                        },
-                    },
-                    ensure_ascii=False,
-                ),
+    payload_text = json.dumps(
+        {
+            "learner_profile": profile_block,
+            "target_lang": target_lang,
+            "transcript": clean_transcript,
+            "coaching_policy": {
+                "strictness": strictness,
+                "persona_style": persona_style,
+                "goal": goal,
+                "top_weak_topic": top_weak,
+                "max_corrections": 1 if strictness == "low" else 2 if strictness == "medium" else 3,
             },
-        ],
+        },
+        ensure_ascii=False,
     )
-    log_usage("voice_teacher", settings.openai_voice_model, usage_from_response(response))
-    teacher_text = response.output_text.strip()
+    if is_local_llm_enabled():
+        teacher_text = complete_text(
+            system_prompt=prompt,
+            messages=[{"role": "user", "content": payload_text}],
+            max_output_tokens=settings.openai_voice_max_output_tokens,
+            temperature=settings.openai_temperature_voice,
+        ).strip()
+    else:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            opening = {
+                "low": "Nice voice attempt.",
+                "medium": "Good practice run.",
+                "high": "Straight feedback:",
+            }[strictness]
+            quick_fix = ""
+            lower_text = clean_transcript.lower()
+            if "goed" in lower_text:
+                quick_fix = " Quick fix: say 'went' instead of 'goed'."
+            fallback = (
+                f"{opening} We keep it in {target_lang}. Goal: {goal}. "
+                f"Focus now: {top_weak}. You said: {clean_transcript}.{quick_fix} "
+                "Next micro-step: record one shorter retry."
+            )
+            _voice_teacher_cache.set(cache_key, fallback)
+            return fallback
+        client = OpenAI(api_key=api_key)
+        response = client.responses.create(
+            model=settings.openai_voice_model,
+            max_output_tokens=settings.openai_voice_max_output_tokens,
+            temperature=settings.openai_temperature_voice,
+            input=[
+                {"role": "system", "content": prompt},
+                {"role": "developer", "content": payload_text},
+            ],
+        )
+        log_usage("voice_teacher", settings.openai_voice_model, usage_from_response(response))
+        teacher_text = response.output_text.strip()
     _voice_teacher_cache.set(cache_key, teacher_text)
     return teacher_text
 
