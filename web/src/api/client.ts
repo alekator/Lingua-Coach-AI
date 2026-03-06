@@ -175,7 +175,7 @@ export const api = {
     goal?: string;
     preferences?: Record<string, unknown>;
   }) =>
-    request("/profile/setup", {
+    request<ProfileResponse>("/profile/setup", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
