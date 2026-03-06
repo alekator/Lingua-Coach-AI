@@ -140,6 +140,22 @@ class CoachNextActionsResponse(BaseModel):
     items: list[CoachNextAction]
 
 
+class CoachReviewQueueItem(BaseModel):
+    id: str
+    type: str
+    title: str
+    reason: str
+    route: str
+    estimated_minutes: int = Field(ge=2, le=30)
+    priority: int = Field(ge=1, le=10)
+    due_now: bool = True
+
+
+class CoachReviewQueueResponse(BaseModel):
+    user_id: int
+    items: list[CoachReviewQueueItem]
+
+
 class CoachReactivationResponse(BaseModel):
     user_id: int
     eligible: bool

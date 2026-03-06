@@ -95,6 +95,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
   - `POST /exercises/grade`
   - `GET /plan/today`
   - `GET /coach/session/today`
+  - `GET /coach/review-queue`
   - `GET /coach/error-bank`
   - `GET /coach/trajectory`
   - `GET /coach/roadmap`
@@ -195,6 +196,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml config > $null
     - `items[].latest_bad`, `items[].latest_good`
     - `items[].drill_prompt`
     - `items[].suggested_route`
+
+- `GET /coach/review-queue`
+  - unified spaced review planner combining:
+    - due vocabulary cards
+    - recurring error-bank patterns
+    - grammar-focused repetitions
+    - pronunciation retries
 
 - `GET /scenarios`
   - supports optional `user_id` for mastery-gated visibility:

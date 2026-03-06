@@ -26,6 +26,8 @@ from app.schemas.learning import (
     CoachErrorBankResponse,
     CoachNextAction,
     CoachNextActionsResponse,
+    CoachReviewQueueItem,
+    CoachReviewQueueResponse,
     CoachSessionProgressResponse,
     CoachSessionProgressUpsertRequest,
     CoachSessionStepProgressItem,
@@ -633,6 +635,109 @@ def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNext
         )
 
     return CoachNextActionsResponse(user_id=user_id, items=sorted(items, key=lambda item: item.priority)[:4])
+
+
+@router.get("/coach/review-queue", response_model=CoachReviewQueueResponse)
+def coach_review_queue(user_id: int, db: Session = Depends(get_db)) -> CoachReviewQueueResponse:
+    items: list[CoachReviewQueueItem] = []
+    now = utcnow()
+
+    due_vocab_count = int(
+        db.scalar(
+            select(func.count(SrsState.vocab_item_id))
+            .select_from(SrsState)
+            .join(VocabItem, VocabItem.id == SrsState.vocab_item_id)
+            .where(VocabItem.user_id == user_id, SrsState.due_at <= now)
+        )
+        or 0
+    )
+    if due_vocab_count > 0:
+        items.append(
+            CoachReviewQueueItem(
+                id="review-vocab-due",
+                type="vocab",
+                title=f"Review {due_vocab_count} due vocab cards",
+                reason="Spaced repetition due now.",
+                route="/app/vocab",
+                estimated_minutes=min(10, max(3, due_vocab_count)),
+                priority=1,
+                due_now=True,
+            )
+        )
+
+    cutoff = datetime.now(UTC) - timedelta(days=14)
+    recent_mistakes = db.scalars(
+        select(Mistake)
+        .where(Mistake.user_id == user_id, Mistake.created_at >= cutoff)
+        .order_by(Mistake.created_at.desc())
+        .limit(120)
+    ).all()
+    by_category: dict[str, int] = {}
+    for m in recent_mistakes:
+        category = (m.category or "").strip().lower() or "general"
+        by_category[category] = by_category.get(category, 0) + 1
+
+    grammar_count = by_category.get("grammar", 0) + by_category.get("verb_form", 0)
+    if grammar_count > 0:
+        items.append(
+            CoachReviewQueueItem(
+                id="review-grammar-patterns",
+                type="grammar",
+                title=f"Repeat grammar patterns ({grammar_count})",
+                reason="Frequent grammar errors detected in recent turns.",
+                route="/app/exercises?topic=grammar&source=review-queue",
+                estimated_minutes=6,
+                priority=2,
+                due_now=True,
+            )
+        )
+
+    pronunciation_count = by_category.get("pronunciation", 0)
+    if pronunciation_count > 0:
+        items.append(
+            CoachReviewQueueItem(
+                id="review-pronunciation-retries",
+                type="pronunciation",
+                title=f"Pronunciation retries ({pronunciation_count})",
+                reason="Pronunciation corrections need spaced retries.",
+                route="/app/voice",
+                estimated_minutes=5,
+                priority=3,
+                due_now=True,
+            )
+        )
+
+    generic_top = sorted(by_category.items(), key=lambda item: item[1], reverse=True)
+    if generic_top:
+        category, count = generic_top[0]
+        items.append(
+            CoachReviewQueueItem(
+                id=f"review-error-{category}",
+                type="errors",
+                title=f"Error-bank review: {category} ({count})",
+                reason="Top recurring correction pattern from error bank.",
+                route=f"/app/exercises?topic={quote(category, safe='')}&source=review-queue",
+                estimated_minutes=5,
+                priority=4,
+                due_now=True,
+            )
+        )
+
+    if not items:
+        items.append(
+            CoachReviewQueueItem(
+                id="review-maintenance",
+                type="mixed",
+                title="Maintenance review",
+                reason="No urgent due items. Run one compact mixed review.",
+                route="/app/session",
+                estimated_minutes=5,
+                priority=5,
+                due_now=False,
+            )
+        )
+
+    return CoachReviewQueueResponse(user_id=user_id, items=sorted(items, key=lambda item: item.priority)[:5])
 
 
 @router.get("/coach/daily-challenge", response_model=CoachDailyChallengeResponse)

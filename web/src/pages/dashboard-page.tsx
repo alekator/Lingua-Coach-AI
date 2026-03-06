@@ -36,6 +36,10 @@ export function DashboardPage() {
     queryKey: ["coach-next-actions", userId],
     queryFn: () => api.coachNextActions(userId),
   });
+  const reviewQueue = useQuery({
+    queryKey: ["coach-review-queue", userId],
+    queryFn: () => api.coachReviewQueue(userId),
+  });
   const reactivation = useQuery({
     queryKey: ["coach-reactivation", userId],
     queryFn: () => api.coachReactivation(userId),
@@ -238,6 +242,25 @@ export function DashboardPage() {
               <p>{item.reason}</p>
               <Link to={item.route}>
                 <button type="button">Open action</button>
+              </Link>
+            </div>
+          ))}
+        </article>
+      )}
+      {reviewQueue.isPending && <LoadingState text="Loading review queue..." />}
+      {reviewQueue.isError && <ErrorState text="Failed to load review queue." />}
+      {reviewQueue.isSuccess && (
+        <article className="panel stack">
+          <h3>Unified Review Queue</h3>
+          <p>One place for spaced review of vocabulary, recurring errors, grammar and pronunciation.</p>
+          {reviewQueue.data.items.map((item) => (
+            <div key={item.id} className="panel stack">
+              <p>
+                <strong>{item.title}</strong> ({item.estimated_minutes} min)
+              </p>
+              <p>{item.reason}</p>
+              <Link to={item.route}>
+                <button type="button">Open review</button>
               </Link>
             </div>
           ))}

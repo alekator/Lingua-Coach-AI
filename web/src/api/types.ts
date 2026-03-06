@@ -178,6 +178,20 @@ export type CoachNextActionsResponse = {
   }>;
 };
 
+export type CoachReviewQueueResponse = {
+  user_id: number;
+  items: Array<{
+    id: string;
+    type: string;
+    title: string;
+    reason: string;
+    route: string;
+    estimated_minutes: number;
+    priority: number;
+    due_now: boolean;
+  }>;
+};
+
 export type CoachErrorBankResponse = {
   user_id: number;
   items: Array<{

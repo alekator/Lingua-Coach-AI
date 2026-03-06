@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   progressWeeklyGoal: vi.fn(),
   progressWeeklyGoalSet: vi.fn(),
   coachNextActions: vi.fn(),
+  coachReviewQueue: vi.fn(),
   coachReactivation: vi.fn(),
   coachDailyChallenge: vi.fn(),
   planToday: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock("../api/client", () => ({
     progressWeeklyGoal: mocks.progressWeeklyGoal,
     progressWeeklyGoalSet: mocks.progressWeeklyGoalSet,
     coachNextActions: mocks.coachNextActions,
+    coachReviewQueue: mocks.coachReviewQueue,
     coachReactivation: mocks.coachReactivation,
     coachDailyChallenge: mocks.coachDailyChallenge,
     planToday: mocks.planToday,
@@ -132,6 +134,31 @@ describe("DashboardPage", () => {
           route: "/app/session",
           priority: 1,
           quick_mode_minutes: 10,
+        },
+      ],
+    });
+    mocks.coachReviewQueue.mockResolvedValue({
+      user_id: 1,
+      items: [
+        {
+          id: "review-vocab-due",
+          type: "vocab",
+          title: "Review 3 due vocab cards",
+          reason: "Spaced repetition due now.",
+          route: "/app/vocab",
+          estimated_minutes: 5,
+          priority: 1,
+          due_now: true,
+        },
+        {
+          id: "review-grammar-patterns",
+          type: "grammar",
+          title: "Repeat grammar patterns (2)",
+          reason: "Frequent grammar errors detected in recent turns.",
+          route: "/app/exercises?topic=grammar&source=review-queue",
+          estimated_minutes: 6,
+          priority: 2,
+          due_now: true,
         },
       ],
     });
@@ -274,6 +301,9 @@ describe("DashboardPage", () => {
       expect(screen.getByText("Today one step:")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Do next best action" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Start 5-minute mode" })).toBeInTheDocument();
+      expect(screen.getByText("Unified Review Queue")).toBeInTheDocument();
+      expect(screen.getByText("Review 3 due vocab cards")).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: "Open review" }).length).toBeGreaterThan(0);
       expect(screen.getByText("Easy Return Plan")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Start easy return (5 min)" })).toBeInTheDocument();
       expect(screen.getByText("Rewards")).toBeInTheDocument();

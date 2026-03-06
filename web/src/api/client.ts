@@ -11,6 +11,7 @@ import type {
   ChatMessageResponse,
   CoachErrorBankResponse,
   CoachNextActionsResponse,
+  CoachReviewQueueResponse,
   CoachReactivationResponse,
   CoachDailyChallengeResponse,
   CoachTrajectoryResponse,
@@ -203,6 +204,8 @@ export const api = {
     }),
   coachNextActions: (userId: number) =>
     request<CoachNextActionsResponse>(`/coach/next-actions?user_id=${encodeURIComponent(userId)}`),
+  coachReviewQueue: (userId: number) =>
+    request<CoachReviewQueueResponse>(`/coach/review-queue?user_id=${encodeURIComponent(userId)}`),
   coachErrorBank: (userId: number, limit = 5) =>
     request<CoachErrorBankResponse>(
       `/coach/error-bank?user_id=${encodeURIComponent(userId)}&limit=${encodeURIComponent(limit)}`,

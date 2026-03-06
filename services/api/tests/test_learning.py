@@ -418,3 +418,55 @@ def test_coach_error_bank_and_next_actions(client_factory: Callable[..., TestCli
         error_action = next(item for item in actions if item["id"] == "error-bank-top")
         assert error_action["route"].startswith("/app/exercises?topic=grammar")
         assert error_action["quick_mode_minutes"] == 5
+
+
+def test_coach_review_queue_combines_vocab_grammar_pronunciation(
+    client_factory: Callable[[Callable[[dict[str, Any]], ChatMessageResponse]], TestClient],
+) -> None:
+    def fake_teacher(_: dict[str, Any]) -> ChatMessageResponse:
+        return ChatMessageResponse(
+            assistant_text="Queue signal",
+            corrections=[
+                Correction(type="grammar", bad="I goed", good="I went", explanation="Irregular past"),
+                Correction(type="pronunciation", bad="th", good="th", explanation="Stress pattern"),
+            ],
+            new_words=[],
+            homework_suggestions=[],
+        )
+
+    with client_factory(fake_teacher) as client:
+        setup = client.post(
+            "/profile/setup",
+            json={
+                "user_id": 1,
+                "native_lang": "de",
+                "target_lang": "en",
+                "level": "A2",
+                "goal": "travel",
+                "preferences": {},
+            },
+        )
+        assert setup.status_code == 200
+        workspace_user_id = setup.json()["user_id"]
+
+        vocab = client.post(
+            "/vocab/add",
+            json={"user_id": workspace_user_id, "word": "airport", "translation": "airport"},
+        )
+        assert vocab.status_code == 200
+
+        started = client.post("/chat/start", json={"user_id": workspace_user_id, "mode": "chat"})
+        assert started.status_code == 200
+        session_id = started.json()["session_id"]
+        message = client.post("/chat/message", json={"session_id": session_id, "text": "I goed to airport"})
+        assert message.status_code == 200
+
+        queue = client.get("/coach/review-queue", params={"user_id": workspace_user_id})
+        assert queue.status_code == 200
+        body = queue.json()
+        assert body["user_id"] == workspace_user_id
+        assert len(body["items"]) >= 3
+        types = {item["type"] for item in body["items"]}
+        assert "vocab" in types
+        assert "grammar" in types
+        assert "pronunciation" in types
