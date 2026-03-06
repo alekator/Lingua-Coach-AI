@@ -12,7 +12,8 @@ describe("i18n", () => {
   it("returns localized text with english fallback", () => {
     expect(t("ru", "onboarding_title")).toBe("Первый запуск");
     expect(t("en", "onboarding_title")).toBe("First Launch Setup");
+    expect(t("en", "file_picker_choose")).toBe("Choose file");
+    expect(t("en", "file_picker_empty")).toBe("No file selected");
     expect(t("ru", "unknown_key")).toBe("unknown_key");
   });
 });
-

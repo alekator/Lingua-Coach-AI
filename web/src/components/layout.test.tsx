@@ -6,6 +6,7 @@ import { AppLayout } from "./layout";
 const mocks = vi.hoisted(() => ({
   openaiKeyStatus: vi.fn(),
   debugOpenai: vi.fn(),
+  setTheme: vi.fn(),
 }));
 
 vi.mock("../api/client", () => ({
@@ -25,9 +26,17 @@ vi.mock("../lib/i18n", () => ({
 }));
 
 vi.mock("../store/app-store", () => ({
-  useAppStore: (selector: (state: { activeWorkspaceNativeLang: string }) => unknown) =>
+  useAppStore: (
+    selector: (state: {
+      activeWorkspaceNativeLang: string;
+      theme: "light" | "dark-elegant";
+      setTheme: typeof mocks.setTheme;
+    }) => unknown,
+  ) =>
     selector({
       activeWorkspaceNativeLang: "ru",
+      theme: "light",
+      setTheme: mocks.setTheme,
     }),
 }));
 
@@ -77,6 +86,12 @@ describe("AppLayout", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /close menu/i }));
     expect(container.querySelector(".app-sidebar")?.classList.contains("open")).toBe(false);
+  });
+
+  it("toggles theme from header icon", async () => {
+    renderLayout();
+    fireEvent.click(screen.getByRole("button", { name: "Switch to dark elegant theme" }));
+    expect(mocks.setTheme).toHaveBeenCalledWith("dark-elegant");
   });
 
   it("shows quota/billing specific banner when key is saved but unavailable", async () => {

@@ -23,6 +23,8 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     scenarios_title: "Roleplay Scenarios",
     scenarios_start: "Start coached roleplay",
     scenarios_locked: "Locked by mastery",
+    file_picker_choose: "Choose file",
+    file_picker_empty: "No file selected",
   },
   ru: {
     app_title: "LinguaCoach AI",
@@ -47,6 +49,8 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     scenarios_title: "Сценарии ролевой практики",
     scenarios_start: "Начать сценарий с коучем",
     scenarios_locked: "Заблокировано по mastery",
+    file_picker_choose: "Выбрать файл",
+    file_picker_empty: "Файл не выбран",
   },
 };
 
@@ -58,4 +62,3 @@ export function uiLocaleFromNativeLang(nativeLang?: string | null): Locale {
 export function t(locale: Locale, key: string): string {
   return MESSAGES[locale][key] ?? MESSAGES.en[key] ?? key;
 }
-

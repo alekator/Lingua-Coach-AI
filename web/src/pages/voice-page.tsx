@@ -5,6 +5,7 @@ import { getErrorMessage } from "../lib/errors";
 import type { VoiceMessageResponse } from "../api/types";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
+import { FilePicker } from "../components/file-picker";
 
 function extractCoachTarget(text: string): string {
   const marker = "You should say:";
@@ -61,10 +62,11 @@ export function VoicePage() {
       <form className="stack" onSubmit={onSubmit}>
         <label>
           Upload voice sample (10-45 sec)
-          <input
-            type="file"
+          <FilePicker
+            id="voice-sample-file"
+            ariaLabel="Upload voice sample (10-45 sec)"
             accept="audio/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onFileChange={setFile}
           />
         </label>
         <button type="submit" disabled={!file}>

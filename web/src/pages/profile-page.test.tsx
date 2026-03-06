@@ -346,17 +346,6 @@ describe("ProfilePage", () => {
     });
   });
 
-  it("switches appearance theme", async () => {
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByLabelText("Theme mode")).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByLabelText("Theme mode"), { target: { value: "dark-elegant" } });
-    expect(mocks.setTheme).toHaveBeenCalledWith("dark-elegant");
-  });
-
   it("saves OpenAI key from profile section", async () => {
     renderPage();
 

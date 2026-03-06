@@ -4,6 +4,7 @@ import { ErrorState } from "../components/feedback";
 import { getErrorMessage } from "../lib/errors";
 import { useAppStore } from "../store/app-store";
 import { useToastStore } from "../store/toast-store";
+import { FilePicker } from "../components/file-picker";
 
 export function TranslatePage() {
   const nativeLang = useAppStore((s) => s.activeWorkspaceNativeLang);
@@ -93,11 +94,7 @@ export function TranslatePage() {
       <form className="stack" onSubmit={onTranslateVoice}>
         <label>
           Voice input
-          <input
-            type="file"
-            accept="audio/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
+          <FilePicker id="translate-voice-file" ariaLabel="Voice input" accept="audio/*" onFileChange={setFile} />
         </label>
         <button type="submit" disabled={!file}>
           Translate voice

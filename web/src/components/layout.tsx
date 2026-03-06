@@ -102,6 +102,8 @@ function classifyOpenAIProbeError(error: unknown): KeyIssue {
 
 export function AppLayout() {
   const locale = uiLocaleFromNativeLang(useAppStore((s) => s.activeWorkspaceNativeLang));
+  const theme = useAppStore((s) => s.theme);
+  const setTheme = useAppStore((s) => s.setTheme);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const location = useLocation();
   const keyStatus = useQuery({
@@ -128,7 +130,27 @@ export function AppLayout() {
     <div className="app-layout">
       <aside id="app-sidebar" className={`app-sidebar ${mobileNavOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
-          <h1>{t(locale, "app_title")}</h1>
+          <div className="sidebar-brand-title">
+            <h1>{t(locale, "app_title")}</h1>
+            <button
+              type="button"
+              className="theme-toggle"
+              aria-label={theme === "dark-elegant" ? "Switch to light theme" : "Switch to dark elegant theme"}
+              title={theme === "dark-elegant" ? "Switch to light theme" : "Switch to dark elegant theme"}
+              onClick={() => setTheme(theme === "dark-elegant" ? "light" : "dark-elegant")}
+            >
+              {theme === "dark-elegant" ? (
+                <svg className="theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4.2" />
+                  <path d="M12 1.8v2.6M12 19.6v2.6M4.2 12H1.6M22.4 12h-2.6M5.7 5.7 3.8 3.8M20.2 20.2l-1.9-1.9M18.3 5.7l1.9-1.9M3.8 20.2l1.9-1.9" />
+                </svg>
+              ) : (
+                <svg className="theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M14.7 2.2a9.6 9.6 0 1 0 7.1 16.9 8.3 8.3 0 0 1-10.5-10.6 8.7 8.7 0 0 1 3.4-6.3Z" />
+                </svg>
+              )}
+            </button>
+          </div>
           <p>{t(locale, "app_tagline")}</p>
         </div>
         <WorkspaceSwitcher />
@@ -168,14 +190,16 @@ export function AppLayout() {
               >
                 {mobileNavOpen ? "Close menu" : "Open menu"}
               </button>
-              <div>
+              <div className="shell-header-title">
                 <h2>{t(locale, "app_title")}</h2>
                 <p>{activeNavLabel ? t(locale, activeNavLabel) : t(locale, "app_tagline")}</p>
               </div>
             </div>
-            <Link to="/app/session" className="shell-header-cta">
-              Continue session
-            </Link>
+            <div className="shell-header-actions">
+              <Link to="/app/session" className="shell-header-cta">
+                Continue session
+              </Link>
+            </div>
           </div>
           <div className="topbar-alerts">
           {showMissingKey && (
