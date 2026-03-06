@@ -719,6 +719,8 @@ def coach_outcome_packs(user_id: int, db: Session = Depends(get_db)) -> OutcomeP
 def coach_reactivation(user_id: int, db: Session = Depends(get_db)) -> CoachReactivationResponse:
     sessions = db.scalars(select(ChatSession).where(ChatSession.user_id == user_id)).all()
     gap_days = _reactivation_gap_days(sessions)
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user_id))
+    goal = (profile.goal if profile and profile.goal else "general communication").strip()
 
     weak_top = db.scalars(
         select(Mistake.category)
@@ -738,13 +740,21 @@ def coach_reactivation(user_id: int, db: Session = Depends(get_db)) -> CoachReac
         or 0
     )
     target_topic = weak_topic or "grammar"
+    target_topic_encoded = quote(target_topic, safe="")
+    cta_route = "/app/chat"
     tasks = [
-        f"2 min: quick warmup in {target_topic} with one simple sentence.",
+        f"2 min: quick warmup in {target_topic} for your {goal} goal with one simple sentence.",
         "2 min: one short coach chat turn and apply one correction.",
         "1 min: close with one success line to lock momentum.",
     ]
     if due_vocab_count > 0:
         tasks[0] = f"2 min: review {min(due_vocab_count, 5)} due vocab cards for easy restart."
+        cta_route = "/app/vocab"
+    elif weak_topic:
+        tasks[1] = f"2 min: one compact {weak_topic} drill and apply one correction."
+        cta_route = f"/app/exercises?topic={target_topic_encoded}&source=reactivation"
+    else:
+        cta_route = "/app/chat"
 
     if gap_days < 2:
         return CoachReactivationResponse(
@@ -754,6 +764,7 @@ def coach_reactivation(user_id: int, db: Session = Depends(get_db)) -> CoachReac
             weak_topic=weak_topic,
             title="No reactivation needed",
             tasks=[],
+            cta_route="/app/session",
             note="You are active recently. Keep normal daily flow.",
         )
 
@@ -764,6 +775,7 @@ def coach_reactivation(user_id: int, db: Session = Depends(get_db)) -> CoachReac
         weak_topic=weak_topic,
         title=f"Easy return plan after {gap_days} day break",
         tasks=tasks,
+        cta_route=cta_route,
         note="Keep it light today. The goal is to restart momentum, not intensity.",
     )
 

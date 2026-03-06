@@ -100,10 +100,10 @@ export function DashboardPage() {
     }
   }
 
-  function startFiveMinuteMode() {
+  function startFiveMinuteMode(route = "/app/session") {
     setDailyMinutes(5);
     pushToast("info", "5-minute mode enabled for today");
-    navigate("/app/session");
+    navigate(route);
   }
 
   const nextBestAction = nextActions.data?.items?.[0] ?? null;
@@ -210,7 +210,7 @@ export function DashboardPage() {
               <Link to={nextBestAction.route}>
                 <button type="button">Do next best action</button>
               </Link>
-              <button type="button" onClick={startFiveMinuteMode}>
+              <button type="button" onClick={() => startFiveMinuteMode()}>
                 Start 5-minute mode
               </button>
               {reactivationMsg && <p>Reactivation: {reactivationMsg}</p>}
@@ -237,7 +237,10 @@ export function DashboardPage() {
           {reactivation.data.tasks.map((task) => (
             <p key={task}>- {task}</p>
           ))}
-          <button type="button" onClick={startFiveMinuteMode}>
+          <button
+            type="button"
+            onClick={() => startFiveMinuteMode(reactivation.data.cta_route || "/app/session")}
+          >
             Start easy return (5 min)
           </button>
         </article>

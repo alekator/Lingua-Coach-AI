@@ -183,6 +183,7 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert new_user_body["eligible"] is True
         assert new_user_body["gap_days"] >= 2
         assert len(new_user_body["tasks"]) == 3
+        assert new_user_body["cta_route"] in {"/app/chat", "/app/vocab"}
 
         scenarios = client.get("/scenarios")
         assert scenarios.status_code == 200
@@ -223,6 +224,34 @@ def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> 
         assert "feedback" in turn_body
         if turn_body["suggested_reply"]:
             assert "Example:" in turn_body["suggested_reply"]
+
+
+def test_coach_reactivation_uses_vocab_cta_when_due_cards_exist(client: TestClient) -> None:
+    setup = client.post(
+        "/profile/setup",
+        json={
+            "user_id": 1,
+            "native_lang": "de",
+            "target_lang": "en",
+            "level": "A2",
+            "goal": "travel",
+            "preferences": {},
+        },
+    )
+    assert setup.status_code == 200
+    workspace_user_id = setup.json()["user_id"]
+
+    vocab = client.post(
+        "/vocab/add",
+        json={"user_id": workspace_user_id, "word": "airport", "translation": "airport"},
+    )
+    assert vocab.status_code == 200
+
+    reactivation = client.get("/coach/reactivation", params={"user_id": workspace_user_id})
+    assert reactivation.status_code == 200
+    body = reactivation.json()
+    assert body["eligible"] is True
+    assert body["cta_route"] == "/app/vocab"
 
 
 def test_coach_session_progress_lifecycle(client: TestClient) -> None:
