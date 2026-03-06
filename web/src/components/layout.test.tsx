@@ -61,6 +61,10 @@ describe("AppLayout", () => {
     expect(screen.getByText("nav_dashboard")).toBeInTheDocument();
     expect(screen.getByText("nav_chat")).toBeInTheDocument();
     expect(screen.getByText("nav_profile")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Open profile settings" })).toHaveAttribute(
+      "href",
+      "/app/profile#openai-key-input",
+    );
   });
 
   it("opens and closes mobile sidebar", async () => {

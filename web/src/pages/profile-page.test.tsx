@@ -38,6 +38,7 @@ vi.mock("react-router-dom", async () => {
   return {
     ...actual,
     useNavigate: () => mocks.navigate,
+    useLocation: () => ({ hash: "" }),
   };
 });
 

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { LanguagePairSelector } from "../components/language-pair-selector";
@@ -13,6 +13,8 @@ import { useToastStore } from "../store/toast-store";
 
 export function ProfilePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const openaiInputRef = useRef<HTMLInputElement | null>(null);
   const queryClient = useQueryClient();
   const userId = useAppStore((s) => s.userId) ?? 1;
   const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
@@ -131,6 +133,14 @@ export function ProfilePage() {
     setWeeklyTokenCap(String(usageBudget.data.weekly_token_cap));
     setWarningThreshold(String(usageBudget.data.warning_threshold));
   }, [usageBudget.data]);
+
+  useEffect(() => {
+    if (location.hash !== "#openai-key-input" && location.hash !== "#openai-key") return;
+    const element = openaiInputRef.current;
+    if (!element) return;
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+    element.focus();
+  }, [location.hash]);
 
   async function syncBootstrapContext() {
     const bootstrap = await syncWorkspaceContext(queryClient, setBootstrapState);
@@ -919,11 +929,13 @@ export function ProfilePage() {
         <label>
           OpenAI API key
           <input
+            id="openai-key-input"
             aria-label="OpenAI API key (Profile)"
             type="password"
             placeholder="sk-..."
             value={apiKeyDraft}
             onChange={(e) => setApiKeyDraft(e.target.value)}
+            ref={openaiInputRef}
           />
         </label>
         <div className="row">
