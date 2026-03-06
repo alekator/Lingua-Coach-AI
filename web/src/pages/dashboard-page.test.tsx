@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   progressRewardsClaim: vi.fn(),
   progressWeeklyReview: vi.fn(),
   progressWeeklyCheckpoint: vi.fn(),
+  progressAchievements: vi.fn(),
   workspacesOverview: vi.fn(),
   workspaceSwitch: vi.fn(),
   bootstrap: vi.fn(),
@@ -44,6 +45,7 @@ vi.mock("../api/client", () => ({
     progressRewardsClaim: mocks.progressRewardsClaim,
     progressWeeklyReview: mocks.progressWeeklyReview,
     progressWeeklyCheckpoint: mocks.progressWeeklyCheckpoint,
+    progressAchievements: mocks.progressAchievements,
     workspacesOverview: mocks.workspacesOverview,
     workspaceSwitch: mocks.workspaceSwitch,
     bootstrap: mocks.bootstrap,
@@ -244,6 +246,14 @@ describe("DashboardPage", () => {
       skills: [],
       summary: "Measured growth: +6 points over 7 days.",
     });
+    mocks.progressAchievements.mockResolvedValue({
+      user_id: 1,
+      items: [
+        { id: "streak_week", title: "7-Day Streak", status: "in_progress", progress: "3/7 days" },
+        { id: "weekly_sessions_5", title: "Weekly Consistency", status: "in_progress", progress: "3/5 sessions" },
+        { id: "weekly_goal", title: "Weekly Goal Completion", status: "in_progress", progress: "24/120 minutes" },
+      ],
+    });
     mocks.workspacesOverview.mockResolvedValue({
       owner_user_id: 1,
       items: [
@@ -293,6 +303,12 @@ describe("DashboardPage", () => {
     await waitFor(() => {
       expect(mocks.planToday).toHaveBeenCalledWith(1, 15);
       expect(screen.getByText("Today Focus")).toBeInTheDocument();
+      expect(screen.getByText("Momentum & Rewards")).toBeInTheDocument();
+      expect(screen.getByText("Streak target")).toBeInTheDocument();
+      expect(screen.getByText("Weekly goal")).toBeInTheDocument();
+      expect(screen.getByText("Milestones")).toBeInTheDocument();
+      expect(screen.getByText(/Reward ready:/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Claim reward now" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Start today one step" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Show full insights" })).toBeInTheDocument();
       expect(screen.queryByText("Weekly Goal Tracker")).not.toBeInTheDocument();
@@ -305,6 +321,11 @@ describe("DashboardPage", () => {
     await waitFor(() => {
       expect(mocks.setDailyMinutes).toHaveBeenCalledWith(10);
       expect(mocks.pushToast).toHaveBeenCalledWith("info", "Mode set to 10 minutes for this action");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Claim reward now" }));
+    await waitFor(() => {
+      expect(mocks.progressRewardsClaim).toHaveBeenCalledWith({ user_id: 1, reward_id: "weekly_goal_complete" });
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Show full insights" }));

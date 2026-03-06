@@ -53,6 +53,10 @@ export function DashboardPage() {
     queryKey: ["progress-rewards", userId],
     queryFn: () => api.progressRewards(userId),
   });
+  const achievements = useQuery({
+    queryKey: ["progress-achievements", userId],
+    queryFn: () => api.progressAchievements(userId),
+  });
   const weeklyReview = useQuery({
     queryKey: ["progress-weekly-review", userId],
     queryFn: () => api.progressWeeklyReview(userId),
@@ -141,6 +145,11 @@ export function DashboardPage() {
       ? `You had a ${reactivation.data.gap_days}-day pause. ${reactivation.data.note}`
       : null;
   const workspaceItems = Array.isArray(spacesOverview.data?.items) ? spacesOverview.data.items : [];
+  const quickReward = rewards.data?.items.find((item) => item.status === "available") ?? null;
+  const streakTarget = summary.data ? (summary.data.streak_days >= 3 ? 7 : 3) : 3;
+  const streakProgress = summary.data ? Math.min(100, Math.round((summary.data.streak_days / streakTarget) * 100)) : 0;
+  const weeklyProgress = weeklyGoal.data?.completion_percent ?? 0;
+  const topMilestones = (achievements.data?.items ?? []).slice(0, 3);
 
   return (
     <section className="panel">
@@ -191,6 +200,66 @@ export function DashboardPage() {
             <p>{summary.data.words_learned}</p>
           </article>
         </div>
+      )}
+      {(summary.isSuccess || weeklyGoal.isSuccess || achievements.isSuccess || rewards.isSuccess) && (
+        <article className="panel stack">
+          <h3>Momentum & Rewards</h3>
+          <div className="grid">
+            <article className="progress-card">
+              <p>
+                <strong>Streak target</strong>
+              </p>
+              <p>
+                {summary.data?.streak_days ?? 0}/{streakTarget} days
+              </p>
+              <div className="progress-meter" role="img" aria-label="Streak progress">
+                <span style={{ width: `${streakProgress}%` }} />
+              </div>
+            </article>
+            <article className="progress-card">
+              <p>
+                <strong>Weekly goal</strong>
+              </p>
+              <p>{weeklyGoal.data?.completion_percent ?? 0}% complete</p>
+              <div className="progress-meter" role="img" aria-label="Weekly goal progress">
+                <span style={{ width: `${Math.max(0, Math.min(100, weeklyProgress))}%` }} />
+              </div>
+            </article>
+            <article className="progress-card">
+              <p>
+                <strong>Total XP</strong>
+              </p>
+              <p>{rewards.data?.total_xp ?? 0}</p>
+              <p>Claimed rewards: {rewards.data?.claimed_count ?? 0}</p>
+            </article>
+          </div>
+          {topMilestones.length > 0 && (
+            <div className="stack">
+              <p>
+                <strong>Milestones</strong>
+              </p>
+              {topMilestones.map((item) => (
+                <div key={item.id} className="panel stack">
+                  <p>
+                    <strong>{item.title}</strong>
+                  </p>
+                  <p>Status: {item.status === "unlocked" ? "unlocked" : "in progress"}</p>
+                  <p>{item.progress}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {quickReward && (
+            <div className="panel stack">
+              <p>
+                <strong>Reward ready:</strong> {quickReward.title} ({quickReward.xp_points} XP)
+              </p>
+              <button type="button" className="cta-primary" onClick={() => onClaimReward(quickReward.id)}>
+                Claim reward now
+              </button>
+            </div>
+          )}
+        </article>
       )}
       {spacesOverview.isPending && <LoadingState text="Loading learning spaces overview..." />}
       {spacesOverview.isError && <ErrorState text="Failed to load learning spaces overview." />}
