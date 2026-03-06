@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy import func, select
@@ -504,24 +505,26 @@ def coach_next_actions(user_id: int, db: Session = Depends(get_db)) -> CoachNext
             )
         )
     if top_weak:
+        encoded_topic = quote(top_weak, safe="")
         items.append(
             CoachNextAction(
                 id="weak-area",
                 title=f"Run a targeted {top_weak} drill",
                 reason="Most frequent recent weak area.",
-                route="/app/exercises",
+                route=f"/app/exercises?topic={encoded_topic}",
                 priority=4,
             )
         )
     error_bank = _build_error_bank_items(db=db, user_id=user_id, limit=1)
     if error_bank:
         bank_top = error_bank[0]
+        encoded_topic = quote(bank_top.category, safe="")
         items.append(
             CoachNextAction(
                 id="error-bank-top",
                 title=f"Fix recurring {bank_top.category} pattern ({bank_top.occurrences}x)",
                 reason=bank_top.drill_prompt,
-                route=bank_top.suggested_route,
+                route=f"{bank_top.suggested_route}?topic={encoded_topic}&source=error-bank",
                 priority=2,
             )
         )

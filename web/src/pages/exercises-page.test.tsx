@@ -32,13 +32,13 @@ vi.mock("../store/toast-store", () => ({
     selector({ push: mocks.pushToast }),
 }));
 
-function renderPage() {
+function renderPage(initialEntries: string[] = ["/app/exercises"]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter future={routerFuture}>
+      <MemoryRouter future={routerFuture} initialEntries={initialEntries}>
         <ExercisesPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -96,5 +96,17 @@ describe("ExercisesPage", () => {
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Exercises generated for grammar");
     });
   });
-});
 
+  it("auto-generates drill from topic query param for one-click next action", async () => {
+    renderPage(["/app/exercises?topic=pronunciation"]);
+
+    await waitFor(() => {
+      expect(mocks.generateExercises).toHaveBeenCalledWith({
+        user_id: 1,
+        exercise_type: "fill_blank",
+        topic: "pronunciation",
+        count: 3,
+      });
+    });
+  });
+});

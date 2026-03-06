@@ -1,5 +1,6 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import { EmptyState, ErrorState } from "../components/feedback";
 import { getErrorMessage } from "../lib/errors";
@@ -8,7 +9,10 @@ import { useToastStore } from "../store/toast-store";
 
 export function ExercisesPage() {
   const userId = useAppStore((s) => s.userId) ?? 1;
+  const [searchParams] = useSearchParams();
+  const queryTopic = (searchParams.get("topic") ?? "").trim().toLowerCase();
   const [topic, setTopic] = useState("travel");
+  const autoStartedRef = useRef(false);
   const [items, setItems] = useState<
     Array<{ id: string; prompt: string; expected_answer: string; type: string }>
   >([]);
@@ -21,6 +25,14 @@ export function ExercisesPage() {
     queryKey: ["coach-error-bank", userId],
     queryFn: () => api.coachErrorBank(userId, 3),
   });
+
+  useEffect(() => {
+    if (!queryTopic) return;
+    if (autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    setTopic(queryTopic);
+    void generateDrillSet(queryTopic);
+  }, [queryTopic]);
 
   async function generateDrillSet(topicValue: string) {
     try {

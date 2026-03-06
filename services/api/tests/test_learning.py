@@ -354,4 +354,5 @@ def test_coach_error_bank_and_next_actions(client_factory: Callable[..., TestCli
         next_actions = client.get("/coach/next-actions", params={"user_id": workspace_user_id})
         assert next_actions.status_code == 200
         actions = next_actions.json()["items"]
-        assert any(item["id"] == "error-bank-top" for item in actions)
+        error_action = next(item for item in actions if item["id"] == "error-bank-top")
+        assert error_action["route"].startswith("/app/exercises?topic=grammar")
