@@ -12,6 +12,7 @@ from app.db import get_db
 from app.models import (
     AIUsageEvent,
     ChatSession,
+    GrammarAnalysisRecord,
     Homework,
     HomeworkSubmission,
     LearnerProfile,
@@ -56,6 +57,7 @@ MODEL_EXPORT_MAP: dict[str, Any] = {
     "homework_submissions": HomeworkSubmission,
     "session_step_progress": SessionStepProgress,
     "ai_usage_events": AIUsageEvent,
+    "grammar_analysis_records": GrammarAnalysisRecord,
 }
 MODEL_RESTORE_ORDER = [
     "users",
@@ -73,6 +75,7 @@ MODEL_RESTORE_ORDER = [
     "homework_submissions",
     "session_step_progress",
     "ai_usage_events",
+    "grammar_analysis_records",
 ]
 
 

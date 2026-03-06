@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import (
     ChatSession,
+    GrammarAnalysisRecord,
     Homework,
     LearnerProfile,
     Message,
@@ -43,6 +44,8 @@ from app.schemas.learning import (
     ExercisesGradeResponse,
     GrammarAnalyzeRequest,
     GrammarAnalyzeResponse,
+    GrammarHistoryItem,
+    GrammarHistoryResponse,
     GrammarError,
     PlanTodayResponse,
     OutcomePackItem,
@@ -59,6 +62,7 @@ from app.schemas.learning import (
     CoachScenarioTrackStepItem,
     CoachScenarioTracksResponse,
 )
+from app.services.grammar import analyze_grammar_with_ai
 from app.services.learning import (
     build_adaptive_plan,
     build_today_session_steps,
@@ -221,6 +225,16 @@ def _mastery_context(user_id: int, db: Session) -> tuple[str, float]:
     return effective_level, avg
 
 
+def _get_or_create_user(db: Session, user_id: int) -> User:
+    user = db.get(User, user_id)
+    if user:
+        return user
+    user = User(id=user_id)
+    db.add(user)
+    db.flush()
+    return user
+
+
 def _scenario_gate(user_id: int | None, scenario_id: str, db: Session) -> tuple[bool, str | None, str]:
     required = SCENARIO_REQUIRED_LEVEL.get(scenario_id, "A1")
     if user_id is None:
@@ -348,26 +362,58 @@ async def translate_voice(
 
 
 @router.post("/grammar/analyze", response_model=GrammarAnalyzeResponse)
-def grammar_analyze(payload: GrammarAnalyzeRequest) -> GrammarAnalyzeResponse:
-    corrected = payload.text.replace("I goed", "I went").replace("I has", "I have")
-    errors: list[GrammarError] = []
-    if corrected != payload.text:
-        errors.append(
-            GrammarError(
-                category="verb_form",
-                bad=payload.text,
-                good=corrected,
-                explanation="Use correct irregular/auxiliary verb form.",
+def grammar_analyze(payload: GrammarAnalyzeRequest, db: Session = Depends(get_db)) -> GrammarAnalyzeResponse:
+    _get_or_create_user(db, payload.user_id)
+    analysis = analyze_grammar_with_ai(text=payload.text, target_lang=payload.target_lang)
+    db.add(
+        GrammarAnalysisRecord(
+            user_id=payload.user_id,
+            target_lang=payload.target_lang,
+            input_text=payload.text,
+            corrected_text=analysis.corrected_text,
+            errors=[item.model_dump() for item in analysis.errors],
+            exercises=analysis.exercises,
+        )
+    )
+    db.commit()
+    return analysis
+
+
+@router.get("/grammar/history", response_model=GrammarHistoryResponse)
+def grammar_history(user_id: int, limit: int = 25, db: Session = Depends(get_db)) -> GrammarHistoryResponse:
+    safe_limit = max(1, min(100, limit))
+    rows = db.scalars(
+        select(GrammarAnalysisRecord)
+        .where(GrammarAnalysisRecord.user_id == user_id)
+        .order_by(GrammarAnalysisRecord.created_at.desc())
+        .limit(safe_limit)
+    ).all()
+    items: list[GrammarHistoryItem] = []
+    for row in rows:
+        parsed_errors: list[GrammarError] = []
+        for raw_error in row.errors or []:
+            if not isinstance(raw_error, dict):
+                continue
+            parsed_errors.append(
+                GrammarError(
+                    category=str(raw_error.get("category") or "grammar"),
+                    bad=str(raw_error.get("bad") or ""),
+                    good=str(raw_error.get("good") or ""),
+                    explanation=str(raw_error.get("explanation") or ""),
+                )
+            )
+        items.append(
+            GrammarHistoryItem(
+                id=row.id,
+                target_lang=row.target_lang,
+                input_text=row.input_text,
+                corrected_text=row.corrected_text,
+                errors=parsed_errors,
+                exercises=[str(item) for item in (row.exercises or [])],
+                created_at=row.created_at,
             )
         )
-    return GrammarAnalyzeResponse(
-        corrected_text=corrected,
-        errors=errors,
-        exercises=[
-            "Rewrite two sentences using past tense.",
-            "Write one sentence using present perfect.",
-        ],
-    )
+    return GrammarHistoryResponse(items=items)
 
 
 @router.post("/exercises/generate", response_model=ExercisesGenerateResponse)

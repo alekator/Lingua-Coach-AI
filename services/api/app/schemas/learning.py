@@ -13,6 +13,7 @@ class TranslateVoiceResponse(BaseModel):
 
 
 class GrammarAnalyzeRequest(BaseModel):
+    user_id: int = Field(default=1, ge=1)
     text: str = Field(min_length=1, max_length=5000)
     target_lang: str = Field(default="en", min_length=2, max_length=32)
 
@@ -28,6 +29,20 @@ class GrammarAnalyzeResponse(BaseModel):
     corrected_text: str
     errors: list[GrammarError]
     exercises: list[str]
+
+
+class GrammarHistoryItem(BaseModel):
+    id: int
+    target_lang: str
+    input_text: str
+    corrected_text: str
+    errors: list[GrammarError]
+    exercises: list[str]
+    created_at: datetime
+
+
+class GrammarHistoryResponse(BaseModel):
+    items: list[GrammarHistoryItem]
 
 
 class ExercisesGenerateRequest(BaseModel):

@@ -37,12 +37,19 @@ def test_translate_voice_pipeline(client_factory: Callable[..., TestClient]) -> 
 def test_grammar_analyze(client: TestClient) -> None:
     response = client.post(
         "/grammar/analyze",
-        json={"text": "I goed to school", "target_lang": "en"},
+        json={"user_id": 1, "text": "I goed to school", "target_lang": "en"},
     )
     assert response.status_code == 200
     body = response.json()
     assert "I went to school" in body["corrected_text"]
     assert len(body["exercises"]) >= 1
+
+    history = client.get("/grammar/history", params={"user_id": 1, "limit": 10})
+    assert history.status_code == 200
+    history_items = history.json()["items"]
+    assert len(history_items) >= 1
+    assert history_items[0]["input_text"] == "I goed to school"
+    assert "corrected_text" in history_items[0]
 
 
 def test_exercises_generate_and_grade(client: TestClient) -> None:

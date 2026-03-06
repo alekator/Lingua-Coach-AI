@@ -1392,6 +1392,132 @@ video {
   color: var(--fg-muted);
 }
 
+.grammar-page {
+  gap: 14px;
+}
+
+.grammar-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--status-loading-bg) 24%, transparent), transparent 62%),
+    var(--panel-bg);
+}
+
+.grammar-hero h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2vw, 1.42rem);
+}
+
+.grammar-hero p {
+  margin: 6px 0 0;
+  color: var(--fg-muted);
+}
+
+.grammar-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.82fr) minmax(0, 1.18fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.grammar-analyzer-card {
+  gap: 10px;
+}
+
+.grammar-analyzer-form {
+  border: 1px solid color-mix(in srgb, var(--panel-border) 70%, var(--status-loading-border));
+  border-radius: 12px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--chip-bg) 72%, transparent);
+}
+
+.grammar-result-card h3 {
+  margin: 0 0 4px;
+}
+
+.grammar-result-card p {
+  margin: 0;
+}
+
+.grammar-error-row {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 8px 9px;
+  background: color-mix(in srgb, var(--chip-bg) 70%, transparent);
+  display: grid;
+  gap: 4px;
+}
+
+.grammar-error-row small {
+  color: var(--fg-muted);
+}
+
+.grammar-exercise-line {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.grammar-history-card {
+  gap: 10px;
+  position: sticky;
+  top: 92px;
+  border-color: color-mix(in srgb, var(--panel-border) 72%, var(--status-loading-border));
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--status-loading-bg) 30%, transparent), transparent 65%),
+    var(--panel-bg);
+}
+
+.grammar-history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.grammar-history-head h3 {
+  margin: 0;
+}
+
+.grammar-history-list {
+  max-height: 720px;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  padding-right: 2px;
+}
+
+.grammar-history-item {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: color-mix(in srgb, var(--chip-bg) 72%, transparent);
+  display: grid;
+  gap: 5px;
+}
+
+.grammar-history-time {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+.grammar-history-original,
+.grammar-history-corrected {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.grammar-history-original {
+  color: var(--fg-muted);
+}
+
+.grammar-history-corrected {
+  font-weight: 600;
+}
+
 .toast-viewport {
   position: fixed;
   right: 16px;
@@ -1560,6 +1686,14 @@ video {
   }
 
   .homework-progress-card {
+    position: static;
+  }
+
+  .grammar-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grammar-history-card {
     position: static;
   }
 

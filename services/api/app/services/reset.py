@@ -8,6 +8,7 @@ from app.models import (
     AIUsageEvent,
     AppSecret,
     ChatSession,
+    GrammarAnalysisRecord,
     Homework,
     HomeworkSubmission,
     LearnerProfile,
@@ -37,6 +38,7 @@ def reset_local_app_data(db: Session) -> dict[str, int | bool]:
     deleted_skill_snapshots = db.query(SkillSnapshot).delete(synchronize_session=False)
     deleted_session_step_progress = db.query(SessionStepProgress).delete(synchronize_session=False)
     deleted_ai_usage_events = db.query(AIUsageEvent).delete(synchronize_session=False)
+    deleted_grammar_analysis_records = db.query(GrammarAnalysisRecord).delete(synchronize_session=False)
     deleted_app_secrets = db.query(AppSecret).delete(synchronize_session=False)
     deleted_profiles = db.query(LearnerProfile).delete(synchronize_session=False)
     deleted_workspaces = db.query(LearningWorkspace).delete(synchronize_session=False)
@@ -63,6 +65,7 @@ def reset_local_app_data(db: Session) -> dict[str, int | bool]:
         "deleted_skill_snapshots": int(deleted_skill_snapshots or 0),
         "deleted_session_step_progress": int(deleted_session_step_progress or 0),
         "deleted_ai_usage_events": int(deleted_ai_usage_events or 0),
+        "deleted_grammar_analysis_records": int(deleted_grammar_analysis_records or 0),
         "deleted_app_secrets": int(deleted_app_secrets or 0),
         "deleted_profiles": int(deleted_profiles or 0),
         "deleted_workspaces": int(deleted_workspaces or 0),

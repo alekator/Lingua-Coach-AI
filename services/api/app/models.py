@@ -296,3 +296,18 @@ class AppSecret(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+class GrammarAnalysisRecord(Base):
+    __tablename__ = "grammar_analysis_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    target_lang: Mapped[str] = mapped_column(String(32), nullable=False)
+    input_text: Mapped[str] = mapped_column(Text, nullable=False)
+    corrected_text: Mapped[str] = mapped_column(Text, nullable=False)
+    errors: Mapped[list] = mapped_column(json_type(), default=list, nullable=False)
+    exercises: Mapped[list] = mapped_column(json_type(), default=list, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )

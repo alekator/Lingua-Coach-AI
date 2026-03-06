@@ -387,6 +387,25 @@ export type GrammarAnalyzeResponse = {
   exercises: string[];
 };
 
+export type GrammarHistoryItem = {
+  id: number;
+  target_lang: string;
+  input_text: string;
+  corrected_text: string;
+  errors: Array<{
+    category: string;
+    bad: string;
+    good: string;
+    explanation: string;
+  }>;
+  exercises: string[];
+  created_at: string;
+};
+
+export type GrammarHistoryResponse = {
+  items: GrammarHistoryItem[];
+};
+
 export type ExercisesGenerateResponse = {
   items: Array<{
     id: string;

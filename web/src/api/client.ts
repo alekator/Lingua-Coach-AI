@@ -27,6 +27,7 @@ import type {
   ExercisesGenerateResponse,
   ExercisesGradeResponse,
   GrammarAnalyzeResponse,
+  GrammarHistoryResponse,
   HomeworkItem,
   HomeworkListResponse,
   HomeworkDeleteResponse,
@@ -306,11 +307,15 @@ export const api = {
       body: formData,
     });
   },
-  grammarAnalyze: (payload: { text: string; target_lang: string }) =>
+  grammarAnalyze: (payload: { user_id: number; text: string; target_lang: string }) =>
     request<GrammarAnalyzeResponse>("/grammar/analyze", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  grammarHistory: (userId: number, limit = 25) =>
+    request<GrammarHistoryResponse>(
+      `/grammar/history?user_id=${encodeURIComponent(userId)}&limit=${encodeURIComponent(limit)}`,
+    ),
   generateExercises: (payload: {
     user_id: number;
     exercise_type: string;
