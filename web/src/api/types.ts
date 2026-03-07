@@ -437,12 +437,14 @@ export type TranslateResponse = {
   source_lang: string;
   target_lang: string;
   audio_url?: string | null;
+  engine_used?: "openai" | "local" | "fallback" | string;
 };
 
 export type TranslateVoiceResponse = {
   transcript: string;
   translated_text: string;
   audio_url: string;
+  engine_used?: "openai" | "local" | "fallback" | string;
 };
 
 export type ChatStartResponse = {
@@ -504,6 +506,7 @@ export type VocabItem = {
   translation: string;
   example?: string | null;
   phonetics?: string | null;
+  enrichment_source?: "openai" | "local" | "fallback" | "manual" | string | null;
   due_at?: string | null;
   interval_days?: number | null;
   ease?: number | null;

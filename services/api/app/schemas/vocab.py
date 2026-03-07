@@ -23,6 +23,7 @@ class VocabItemResponse(BaseModel):
     due_at: datetime | None = None
     interval_days: int | None = None
     ease: float | None = None
+    enrichment_source: str | None = None
 
 
 class VocabListResponse(BaseModel):

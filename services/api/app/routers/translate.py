@@ -9,10 +9,30 @@ from app.services.translate import TranslatorFn, TtsSynthesizerFn
 from app.db import get_db
 from app.services.usage_budget import estimate_text_tokens, get_usage_budget_snapshot, record_usage_event
 from app.services.language_capabilities import is_speech_language_supported, validate_language_code
+from app.services.local_llm import is_local_llm_enabled
+from app.services.openai_key_runtime import get_runtime_openai_key
+from app.services.provider_config import get_llm_provider
 from sqlalchemy.orm import Session
 from fastapi import Depends
 
 router = APIRouter(tags=["translate"])
+
+
+def _resolve_translation_engine() -> str:
+    provider = get_llm_provider()
+    local_available = is_local_llm_enabled()
+    has_openai_key = bool(get_runtime_openai_key())
+    if provider == "local":
+        if local_available:
+            return "local"
+        if has_openai_key:
+            return "openai"
+        return "fallback"
+    if has_openai_key:
+        return "openai"
+    if local_available:
+        return "local"
+    return "fallback"
 
 
 @router.post("/translate", response_model=TranslateResponse)
@@ -29,6 +49,7 @@ def translate(payload: TranslateRequest, request: Request, db: Session = Depends
 
     translator: TranslatorFn = request.app.state.translator
     tts_synthesizer: TtsSynthesizerFn = request.app.state.tts_synthesizer
+    engine_used = _resolve_translation_engine()
     if payload.user_id is not None:
         budget = get_usage_budget_snapshot(db, payload.user_id)
         if budget.blocked:
@@ -37,6 +58,7 @@ def translate(payload: TranslateRequest, request: Request, db: Session = Depends
                 source_lang=payload.source_lang,
                 target_lang=payload.target_lang,
                 audio_url=None,
+                engine_used="fallback",
             )
 
     try:
@@ -44,6 +66,7 @@ def translate(payload: TranslateRequest, request: Request, db: Session = Depends
     except Exception:
         # Lightweight fallback for offline/degraded mode.
         translated = f"[{payload.source_lang}->{payload.target_lang}] {payload.text}"
+        engine_used = "fallback"
 
     audio_url: str | None = None
     if payload.voice:
@@ -74,4 +97,5 @@ def translate(payload: TranslateRequest, request: Request, db: Session = Depends
         source_lang=payload.source_lang,
         target_lang=payload.target_lang,
         audio_url=audio_url,
+        engine_used=engine_used,
     )

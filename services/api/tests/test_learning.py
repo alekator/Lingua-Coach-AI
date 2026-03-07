@@ -11,9 +11,11 @@ from sqlalchemy.pool import StaticPool
 from app.db import Base, get_db
 from app.main import create_app
 from app.models import GrammarAnalysisRecord
+from app.routers import learning as learning_router
 from app.schemas.chat import ChatMessageResponse, Correction
 from app.services import grammar as grammar_service
 from app.services import learning as learning_service
+from app.services import translate as translate_service
 
 
 def test_translate_voice_pipeline(client_factory: Callable[..., TestClient]) -> None:
@@ -41,6 +43,116 @@ def test_translate_voice_pipeline(client_factory: Callable[..., TestClient]) -> 
         assert body["transcript"] == "hello"
         assert body["translated_text"] == "hola"
         assert body["audio_url"] == "http://tts.local/audio/x.mp3"
+
+
+def test_translate_voice_pipeline_uses_openai_translator_provider(
+    client_factory: Callable[..., TestClient],
+    monkeypatch,
+) -> None:
+    calls: dict[str, Any] = {}
+    translate_service._translate_cache._store.clear()
+
+    class FakeResponse:
+        output_text = "hola desde openai"
+
+    class FakeResponsesApi:
+        def create(self, **kwargs):
+            calls["kwargs"] = kwargs
+            return FakeResponse()
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str):
+            calls["api_key"] = api_key
+            self.responses = FakeResponsesApi()
+
+    def fake_asr(audio: bytes, filename: str, content_type: str, language_hint: str) -> dict[str, str]:
+        return {"transcript": "hello", "language": "en"}
+
+    def fake_tts(text: str, target_lang: str, voice_name: str) -> str:
+        return "http://tts.local/audio/openai.mp3"
+
+    monkeypatch.setenv("API_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-voice-openai")
+    monkeypatch.setattr(translate_service, "OpenAI", FakeOpenAI)
+    monkeypatch.setattr(translate_service, "is_local_llm_enabled", lambda: False)
+    monkeypatch.setattr(learning_router, "get_llm_provider", lambda: "openai")
+    monkeypatch.setattr(translate_service, "usage_from_response", lambda _response: {"total_tokens": 9})
+    monkeypatch.setattr(translate_service, "log_usage", lambda *_args, **_kwargs: None)
+
+    with client_factory(asr_transcriber=fake_asr, tts_synthesizer=fake_tts) as client:
+        response = client.post(
+            "/translate/voice",
+            files={"file": ("sample.webm", b"abc", "audio/webm")},
+            data={"source_lang": "en", "target_lang": "es", "language_hint": "en"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["translated_text"] == "hola desde openai"
+        assert body["engine_used"] == "openai"
+        assert body["audio_url"] == "http://tts.local/audio/openai.mp3"
+        assert calls["api_key"] == "sk-test-voice-openai"
+        assert calls["kwargs"]["model"]
+
+
+def test_translate_voice_pipeline_uses_local_translator_provider(
+    client_factory: Callable[..., TestClient],
+    monkeypatch,
+) -> None:
+    calls: dict[str, Any] = {}
+    translate_service._translate_cache._store.clear()
+
+    def fake_complete_text(
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        max_output_tokens: int,
+        temperature: float,
+    ) -> str:
+        calls["system_prompt"] = system_prompt
+        calls["messages"] = messages
+        calls["max_output_tokens"] = max_output_tokens
+        calls["temperature"] = temperature
+        return "hola desde local"
+
+    def fake_asr(audio: bytes, filename: str, content_type: str, language_hint: str) -> dict[str, str]:
+        return {"transcript": "hello local", "language": "en"}
+
+    def fake_tts(text: str, target_lang: str, voice_name: str) -> str:
+        return "http://tts.local/audio/local.mp3"
+
+    monkeypatch.setenv("API_LLM_PROVIDER", "local")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-voice-local")
+    monkeypatch.setattr(translate_service, "complete_text", fake_complete_text)
+    monkeypatch.setattr(translate_service, "is_local_llm_enabled", lambda: True)
+    monkeypatch.setattr(learning_router, "get_llm_provider", lambda: "local")
+
+    with client_factory(asr_transcriber=fake_asr, tts_synthesizer=fake_tts) as client:
+        response = client.post(
+            "/translate/voice",
+            files={"file": ("sample.webm", b"abc", "audio/webm")},
+            data={"source_lang": "en", "target_lang": "es", "language_hint": "en"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["translated_text"] == "hola desde local"
+        assert body["engine_used"] == "local"
+        assert body["audio_url"] == "http://tts.local/audio/local.mp3"
+        assert calls["messages"][0]["content"] == "hello local"
+
+
+def test_translate_voice_returns_503_when_asr_unavailable(
+    client_factory: Callable[..., TestClient],
+) -> None:
+    def failing_asr(audio: bytes, filename: str, content_type: str, language_hint: str) -> dict[str, str]:
+        raise RuntimeError("ASR offline")
+
+    with client_factory(asr_transcriber=failing_asr) as client:
+        response = client.post(
+            "/translate/voice",
+            files={"file": ("sample.webm", b"abc", "audio/webm")},
+            data={"source_lang": "en", "target_lang": "es", "language_hint": "en"},
+        )
+        assert response.status_code == 503
+        assert "Voice transcription unavailable" in response.json()["detail"]
 
 
 def test_grammar_analyze(client: TestClient) -> None:

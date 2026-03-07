@@ -16,9 +16,10 @@ vi.mock("../api/client", () => ({
 
 vi.mock("../store/app-store", () => ({
   useAppStore: (
-    selector: (state: { activeWorkspaceNativeLang: string | null; activeWorkspaceTargetLang: string | null }) => unknown,
+    selector: (state: { userId: number; activeWorkspaceNativeLang: string | null; activeWorkspaceTargetLang: string | null }) => unknown,
   ) =>
     selector({
+      userId: 1,
       activeWorkspaceNativeLang: "de",
       activeWorkspaceTargetLang: "en",
     }),
@@ -32,9 +33,11 @@ vi.mock("../store/toast-store", () => ({
 describe("TranslatePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     mocks.translate.mockResolvedValue({
       translated_text: "hello world",
       audio_url: null,
+      engine_used: "openai",
     });
     mocks.translateVoice.mockResolvedValue({
       transcript: "hallo welt",
@@ -48,18 +51,46 @@ describe("TranslatePage", () => {
 
     expect(screen.getByDisplayValue("de")).toBeInTheDocument();
     expect(screen.getByDisplayValue("en")).toBeInTheDocument();
-    expect(screen.getByText("Default pair from active space: DE -> EN")).toBeInTheDocument();
+    expect(screen.getByText("Smart pair from active space: DE -> EN")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Translate text" }));
 
     await waitFor(() => {
       expect(mocks.translate).toHaveBeenCalledWith({
+        user_id: 1,
         text: "Hello world",
         source_lang: "de",
         target_lang: "en",
         voice: true,
       });
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Text translated");
+      expect(screen.getAllByText("OpenAI").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("loads memory feed from localStorage on page reload", async () => {
+    window.localStorage.setItem(
+      "translate-memory:v2:user:1",
+      JSON.stringify([
+        {
+          id: "txt-1",
+          kind: "text",
+          sourceLang: "de",
+          targetLang: "en",
+          inputText: "Guten Morgen",
+          outputText: "Good morning",
+          engine: "local",
+          createdAt: "2026-03-07T10:00:00.000Z",
+        },
+      ]),
+    );
+
+    render(<TranslatePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Guten Morgen")).toBeInTheDocument();
+      expect(screen.getByText("Good morning")).toBeInTheDocument();
+      expect(screen.getAllByText("Local").length).toBeGreaterThan(0);
     });
   });
 });

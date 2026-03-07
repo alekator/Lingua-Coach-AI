@@ -7,7 +7,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.schemas.chat import ChatMessageResponse
+from app.services import translate as translate_service
 from app.services.translate import default_tts_synthesizer
+from app.config import settings
 from app.services.voice import default_asr_transcriber
 
 
@@ -80,6 +82,39 @@ def test_default_tts_synthesizer_sends_runtime_key_header(monkeypatch) -> None: 
     assert captured["url"].endswith("/tts/speak")
     assert captured["headers"]["X-OpenAI-API-Key"] == "sk-test-1234567890"
     assert captured["payload"]["voice"] == "alloy"
+
+
+def test_default_tts_synthesizer_retries_localhost_when_docker_alias_unreachable(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-1234567890")
+    monkeypatch.setattr(settings, "tts_url", "http://tts:8002")
+    translate_service._tts_cache._store.clear()
+    calls: list[str] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, str]:
+            return {"audio_url": "/audio/fallback.mp3"}
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def post(self, url: str, json: dict[str, Any], headers: dict[str, str]):
+            calls.append(url)
+            if url.startswith("http://tts:8002"):
+                raise RuntimeError("connect failed")
+            return FakeResponse()
+
+    monkeypatch.setattr("app.services.translate.httpx.Client", lambda timeout=20.0: FakeClient())
+    audio_url = default_tts_synthesizer("Hello", "en", "alloy")
+    assert audio_url == "/audio/fallback.mp3"
+    assert calls[0].startswith("http://tts:8002")
+    assert calls[1].startswith("http://localhost:8002")
 
 
 @pytest.mark.parametrize("provider", ["openai", "local"])

@@ -79,10 +79,10 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, timeoutMs: number = REQUEST_TIMEOUT_MS): Promise<T> {
   const isFormData = init?.body instanceof FormData;
   const timeoutController = new AbortController();
-  const timeoutId = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
 
   if (init?.signal) {
     init.signal.addEventListener("abort", () => timeoutController.abort(), { once: true });
@@ -101,8 +101,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       signal: timeoutController.signal,
     });
   } catch (err) {
+    if (timeoutController.signal.aborted) {
+      throw new ApiError(`Request timeout after ${timeoutMs}ms`, 504);
+    }
     if (err instanceof DOMException && err.name === "AbortError") {
-      throw new ApiError(`Request timeout after ${REQUEST_TIMEOUT_MS}ms`, 504);
+      throw new ApiError(`Request timeout after ${timeoutMs}ms`, 504);
     }
     throw err;
   } finally {
@@ -310,7 +313,7 @@ export const api = {
     request<TranslateResponse>("/translate", {
       method: "POST",
       body: JSON.stringify(payload),
-    }),
+    }, 90000),
   translateVoice: (payload: {
     file: File;
     source_lang: string;
@@ -325,7 +328,7 @@ export const api = {
     return request<TranslateVoiceResponse>("/translate/voice", {
       method: "POST",
       body: formData,
-    });
+    }, 180000);
   },
   grammarAnalyze: (payload: { user_id: number; text: string; target_lang: string }) =>
     request<GrammarAnalyzeResponse>("/grammar/analyze", {

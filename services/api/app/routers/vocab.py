@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import SrsState, User, VocabItem
+from app.models import LearnerProfile, SrsState, User, VocabItem
 from app.schemas.vocab import (
     VocabAddRequest,
     VocabItemResponse,
@@ -18,6 +18,10 @@ from app.schemas.vocab import (
     VocabReviewSubmitResponse,
 )
 from app.services.srs import next_srs_state, utcnow
+from app.services.vocab_ai import enrich_vocab_entry
+from app.services.local_llm import is_local_llm_enabled
+from app.services.openai_key_runtime import get_runtime_openai_key
+from app.services.provider_config import get_llm_provider
 
 router = APIRouter(prefix="/vocab", tags=["vocab"])
 
@@ -32,7 +36,35 @@ def _get_or_create_user(db: Session, user_id: int) -> User:
     return user
 
 
-def _to_item_response(item: VocabItem, state: SrsState | None) -> VocabItemResponse:
+def _runtime_enrichment_source() -> str:
+    provider = get_llm_provider()
+    local_available = is_local_llm_enabled()
+    has_openai_key = bool(get_runtime_openai_key())
+    if provider == "local":
+        if local_available:
+            return "local"
+        if has_openai_key:
+            return "openai"
+        return "fallback"
+    if has_openai_key:
+        return "openai"
+    if local_available:
+        return "local"
+    return "fallback"
+
+
+def _to_item_response(
+    item: VocabItem,
+    state: SrsState | None,
+    *,
+    enrichment_source: str | None = None,
+) -> VocabItemResponse:
+    derived_source = enrichment_source
+    if derived_source is None:
+        if item.example or item.phonetics:
+            derived_source = _runtime_enrichment_source()
+        else:
+            derived_source = "manual"
     return VocabItemResponse(
         id=item.id,
         user_id=item.user_id,
@@ -43,6 +75,7 @@ def _to_item_response(item: VocabItem, state: SrsState | None) -> VocabItemRespo
         due_at=state.due_at if state else None,
         interval_days=state.interval_days if state else None,
         ease=state.ease if state else None,
+        enrichment_source=derived_source,
     )
 
 
@@ -56,13 +89,34 @@ def vocab_list(user_id: int, db: Session = Depends(get_db)) -> VocabListResponse
 @router.post("/add", response_model=VocabItemResponse)
 def vocab_add(payload: VocabAddRequest, db: Session = Depends(get_db)) -> VocabItemResponse:
     _get_or_create_user(db, payload.user_id)
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == payload.user_id))
+    target_lang = profile.target_lang if profile is not None else "en"
+    native_lang = profile.native_lang if profile is not None else "en"
+
+    final_translation = payload.translation
+    final_example = payload.example
+    final_phonetics = payload.phonetics
+    enrichment_source: str | None = "manual"
+    if final_example is None or final_phonetics is None:
+        enrichment = enrich_vocab_entry(
+            payload.word,
+            payload.translation,
+            native_lang=native_lang,
+            target_lang=target_lang,
+        )
+        final_translation = enrichment.get("translation") or final_translation
+        if final_example is None:
+            final_example = enrichment.get("example")
+        if final_phonetics is None:
+            final_phonetics = enrichment.get("phonetics")
+        enrichment_source = enrichment.get("source") or "fallback"
 
     item = VocabItem(
         user_id=payload.user_id,
         word=payload.word,
-        translation=payload.translation,
-        example=payload.example,
-        phonetics=payload.phonetics,
+        translation=final_translation,
+        example=final_example,
+        phonetics=final_phonetics,
     )
     db.add(item)
     db.flush()
@@ -76,7 +130,7 @@ def vocab_add(payload: VocabAddRequest, db: Session = Depends(get_db)) -> VocabI
     db.add(state)
     db.commit()
     db.refresh(item)
-    return _to_item_response(item, item.srs_state)
+    return _to_item_response(item, item.srs_state, enrichment_source=enrichment_source)
 
 
 @router.post("/review/next", response_model=VocabReviewNextResponse)

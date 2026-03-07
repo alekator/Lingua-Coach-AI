@@ -28,6 +28,7 @@ def test_translate_without_voice(
         body = response.json()
         assert body["translated_text"] == "Hola mundo"
         assert body["audio_url"] is None
+        assert body["engine_used"] in {"openai", "local", "fallback"}
         assert calls == [("Hello world", "en", "es")]
 
 
@@ -60,6 +61,7 @@ def test_translate_with_voice_uses_tts(
         body = response.json()
         assert body["translated_text"] == "Bonjour"
         assert body["audio_url"] == "http://tts.local/audio/abc123.mp3"
+        assert body["engine_used"] in {"openai", "local", "fallback"}
         assert translator_calls == [("Good day", "en", "fr")]
         assert tts_calls == [("Bonjour", "fr", "alloy")]
 
@@ -118,6 +120,7 @@ def test_translate_budget_cap_returns_lightweight_mode(
         )
         assert second.status_code == 200
         assert second.json()["translated_text"] == "Second phrase"
+        assert second.json()["engine_used"] == "fallback"
 
 
 def test_translate_provider_failure_uses_lightweight_fallback(
@@ -138,6 +141,7 @@ def test_translate_provider_failure_uses_lightweight_fallback(
         )
         assert response.status_code == 200
         assert response.json()["translated_text"] == "[en->de] Good evening"
+        assert response.json()["engine_used"] == "fallback"
 
 
 def test_translate_tts_failure_returns_text_without_audio(
@@ -202,3 +206,27 @@ def test_translate_voice_mode_skips_audio_for_limited_speech_language(
         )
         assert response.status_code == 200
         assert response.json()["audio_url"] is None
+
+
+def test_translate_reports_local_engine_when_local_provider_enabled(
+    client_factory: Callable[..., TestClient],
+    monkeypatch,
+) -> None:
+    def fake_translator(text: str, source_lang: str, target_lang: str) -> str:
+        return "Привет"
+
+    monkeypatch.setenv("API_LLM_PROVIDER", "local")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-local-test")
+
+    with client_factory(translator=fake_translator) as client:
+        response = client.post(
+            "/translate",
+            json={
+                "text": "Hello",
+                "source_lang": "en",
+                "target_lang": "ru",
+                "voice": False,
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["engine_used"] == "local"

@@ -10,6 +10,7 @@ class TranslateVoiceResponse(BaseModel):
     transcript: str
     translated_text: str
     audio_url: str
+    engine_used: str = "fallback"
 
 
 class GrammarAnalyzeRequest(BaseModel):

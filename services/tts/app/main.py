@@ -253,12 +253,22 @@ def _synthesize_openai_speech(text: str, voice: str, api_key_override: str | Non
         raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured for TTS")
     try:
         client = OpenAI(api_key=api_key)
-        response = client.audio.speech.create(
-            model=os.getenv("OPENAI_TTS_MODEL", "tts-1"),
-            voice=voice,
-            input=text,
-            format="mp3",
-        )
+        model = os.getenv("OPENAI_TTS_MODEL", "tts-1")
+        try:
+            response = client.audio.speech.create(
+                model=model,
+                voice=voice,
+                input=text,
+                response_format="mp3",
+            )
+        except TypeError:
+            # Backward compatibility for SDK versions that still use `format`.
+            response = client.audio.speech.create(
+                model=model,
+                voice=voice,
+                input=text,
+                format="mp3",
+            )
         content = response.read()
         if not content:
             raise HTTPException(status_code=502, detail="TTS provider returned empty audio")

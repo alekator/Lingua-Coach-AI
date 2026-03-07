@@ -3,12 +3,14 @@ import { VoicePage } from "./voice-page";
 
 const mocks = vi.hoisted(() => ({
   voiceMessage: vi.fn(),
+  voiceProgress: vi.fn(),
   pushToast: vi.fn(),
 }));
 
 vi.mock("../api/client", () => ({
   api: {
     voiceMessage: mocks.voiceMessage,
+    voiceProgress: mocks.voiceProgress,
   },
 }));
 
@@ -41,10 +43,25 @@ describe("VoicePage", () => {
         actionable_tips: ["Speak slower in short chunks."],
       },
     });
+    mocks.voiceProgress.mockResolvedValue({
+      user_id: 1,
+      trend: "improving",
+      points: [
+        { date: "2026-03-01", speaking_score: 44 },
+        { date: "2026-03-02", speaking_score: 51 },
+        { date: "2026-03-03", speaking_score: 58 },
+      ],
+      pronunciation_mistakes_7d: 2,
+      recommendation: "Run 3 short pronunciation retries on the same phrase this week.",
+    });
   });
 
   it("renders structured feedback and supports coach-target retry", async () => {
     render(<VoicePage />);
+
+    expect(screen.getByText("Sentence Challenge")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New sentence" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use for retry" })).toBeInTheDocument();
 
     const fileInput = screen.getByLabelText("Upload voice sample (10-45 sec)") as HTMLInputElement;
     const file = new File(["voice-bytes"], "voice.webm", { type: "audio/webm" });
@@ -53,8 +70,9 @@ describe("VoicePage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Coach feedback")).toBeInTheDocument();
-      expect(screen.getByText("Transcript: I goed to school")).toBeInTheDocument();
-      expect(screen.getByText(/Rubric: 56 \(developing\)/)).toBeInTheDocument();
+      expect(screen.getAllByText("I goed to school").length).toBeGreaterThan(0);
+      expect(screen.getByText(/56 • developing/)).toBeInTheDocument();
+      expect(screen.getByText("Dynamic metrics")).toBeInTheDocument();
       expect(mocks.voiceMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           user_id: 1,
@@ -62,6 +80,7 @@ describe("VoicePage", () => {
           language_hint: "de",
         }),
       );
+      expect(mocks.voiceProgress).toHaveBeenCalledWith(1);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Use coach target for retry" }));

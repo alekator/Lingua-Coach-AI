@@ -80,6 +80,9 @@ from app.services.progress import compute_streak_days
 from app.services.srs import utcnow
 from app.services.translate import TranslatorFn, TtsSynthesizerFn
 from app.services.voice import AsrTranscriberFn
+from app.services.local_llm import is_local_llm_enabled
+from app.services.openai_key_runtime import get_runtime_openai_key
+from app.services.provider_config import get_llm_provider
 
 router = APIRouter(tags=["learning"])
 CEFR_RANK = {"A1": 1, "A2": 2, "B1": 3, "B2": 4, "C1": 5, "C2": 6}
@@ -313,6 +316,23 @@ def _build_error_bank_items(db: Session, user_id: int, limit: int = 5) -> list[C
     return items
 
 
+def _resolve_translation_engine() -> str:
+    provider = get_llm_provider()
+    local_available = is_local_llm_enabled()
+    has_openai_key = bool(get_runtime_openai_key())
+    if provider == "local":
+        if local_available:
+            return "local"
+        if has_openai_key:
+            return "openai"
+        return "fallback"
+    if has_openai_key:
+        return "openai"
+    if local_available:
+        return "local"
+    return "fallback"
+
+
 @router.post("/translate/voice", response_model=TranslateVoiceResponse)
 async def translate_voice(
     request: Request,
@@ -340,18 +360,28 @@ async def translate_voice(
     asr_transcriber: AsrTranscriberFn = request.app.state.asr_transcriber
     translator: TranslatorFn = request.app.state.translator
     tts_synthesizer: TtsSynthesizerFn = request.app.state.tts_synthesizer
+    engine_used = _resolve_translation_engine()
 
     audio_bytes = await file.read()
-    asr = asr_transcriber(
-        audio_bytes,
-        file.filename or "audio.webm",
-        file.content_type or "audio/webm",
-        language_hint,
-    )
+    try:
+        asr = asr_transcriber(
+            audio_bytes,
+            file.filename or "audio.webm",
+            file.content_type or "audio/webm",
+            language_hint,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Voice transcription unavailable: {exc}") from exc
     transcript = asr["transcript"]
-    translated = translator(transcript, source_lang, target_lang)
+    try:
+        translated = translator(transcript, source_lang, target_lang)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Voice translation unavailable: {exc}") from exc
     if is_speech_language_supported(target_lang):
-        audio_url = tts_synthesizer(translated, target_lang, voice_name)
+        try:
+            audio_url = tts_synthesizer(translated, target_lang, voice_name)
+        except Exception:
+            audio_url = "offline://tts-failed"
     else:
         audio_url = "offline://tts-language-limited"
 
@@ -359,6 +389,7 @@ async def translate_voice(
         transcript=transcript,
         translated_text=translated,
         audio_url=audio_url,
+        engine_used=engine_used,
     )
 
 

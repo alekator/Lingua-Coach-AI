@@ -17,3 +17,4 @@ class TranslateResponse(BaseModel):
     source_lang: str
     target_lang: str
     audio_url: str | None = None
+    engine_used: str = "fallback"

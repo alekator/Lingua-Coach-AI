@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from io import BytesIO
 from collections.abc import Callable
 from typing import Any
 
@@ -26,17 +27,41 @@ def default_asr_transcriber(
     content_type: str,
     language_hint: str,
 ) -> dict[str, str]:
-    files = {"file": (filename, audio_bytes, content_type)}
-    data = {"language_hint": language_hint}
     headers: dict[str, str] = {}
     api_key = get_runtime_openai_key()
     if api_key:
         headers["X-OpenAI-API-Key"] = api_key
-    with httpx.Client(timeout=25.0) as client:
-        response = client.post(f"{settings.asr_url}/asr/transcribe", files=files, data=data, headers=headers)
-        response.raise_for_status()
-        payload = response.json()
-    return {"transcript": payload["transcript"], "language": payload.get("language", "unknown")}
+
+    files = {"file": (filename, audio_bytes, content_type)}
+    data = {"language_hint": language_hint}
+    try:
+        with httpx.Client(timeout=25.0) as client:
+            response = client.post(f"{settings.asr_url}/asr/transcribe", files=files, data=data, headers=headers)
+            response.raise_for_status()
+            payload = response.json()
+        return {"transcript": payload["transcript"], "language": payload.get("language", "unknown")}
+    except Exception as asr_exc:
+        if not api_key:
+            raise RuntimeError("ASR service is unavailable and OpenAI key is not configured") from asr_exc
+
+        try:
+            client = OpenAI(api_key=api_key)
+            audio_stream = BytesIO(audio_bytes)
+            audio_stream.name = filename or "audio.webm"
+            kwargs: dict[str, Any] = {"model": settings.openai_asr_model, "file": audio_stream}
+            if language_hint and language_hint != "auto":
+                kwargs["language"] = language_hint
+            transcript_response = client.audio.transcriptions.create(**kwargs)
+            transcript_text = str(getattr(transcript_response, "text", "") or "").strip()
+            if not transcript_text:
+                raise RuntimeError("Empty transcript from OpenAI ASR")
+            detected_language = str(getattr(transcript_response, "language", "") or "").strip()
+            return {
+                "transcript": transcript_text,
+                "language": detected_language or (language_hint if language_hint != "auto" else "unknown"),
+            }
+        except Exception as openai_exc:
+            raise RuntimeError("Voice transcription failed for both ASR service and OpenAI fallback") from openai_exc
 
 
 def default_voice_teacher(transcript: str, profile: LearnerProfile | None, target_lang: str) -> str:
