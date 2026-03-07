@@ -169,10 +169,10 @@ export function DashboardPage() {
     .slice(0, 4);
 
   return (
-    <section className="panel">
+    <section className="panel dashboard-page stack">
       <h2>Dashboard</h2>
       <p>Your coaching loop for today. Follow the plan, then track improvement in Profile.</p>
-      <article className="panel stack">
+      <article className="panel stack dashboard-focus-card">
         <h3>Today Focus</h3>
         <p>
           <strong>One next step:</strong> {todayOneStepTitle}
@@ -203,7 +203,7 @@ export function DashboardPage() {
         <EmptyState text="No study activity yet. Start chat, voice, or exercises." />
       )}
       {summary.isSuccess && (
-        <div className="grid">
+        <div className="grid dashboard-kpi-grid">
           <article>
             <h3>Streak</h3>
             <p>{summary.data.streak_days} days</p>
@@ -219,7 +219,7 @@ export function DashboardPage() {
         </div>
       )}
       {(summary.isSuccess || weeklyGoal.isSuccess || achievements.isSuccess || rewards.isSuccess) && (
-        <article className="panel stack">
+        <article className="panel stack dashboard-momentum-card">
           <h3>Momentum & Rewards</h3>
           <div className="grid">
             <article className="progress-card">
@@ -256,7 +256,7 @@ export function DashboardPage() {
                 <strong>Milestones</strong>
               </p>
               {topMilestones.map((item) => (
-                <div key={item.id} className="panel stack">
+                <div key={item.id} className="panel stack dashboard-milestone-item">
                   <p>
                     <strong>{item.title}</strong>
                   </p>
@@ -267,7 +267,7 @@ export function DashboardPage() {
             </div>
           )}
           {quickReward && (
-            <div className="panel stack">
+            <div className="panel stack dashboard-reward-callout">
               <p>
                 <strong>Reward ready:</strong> {quickReward.title} ({quickReward.xp_points} XP)
               </p>
@@ -281,7 +281,7 @@ export function DashboardPage() {
       {weeklyCheckpoint.isPending && <LoadingState text="Loading weekly checkpoint..." />}
       {weeklyCheckpoint.isError && <ErrorState text="Failed to load weekly checkpoint." />}
       {weeklyCheckpoint.isSuccess && (
-        <article className="panel stack checkpoint-hero">
+        <article className="panel stack checkpoint-hero dashboard-checkpoint-card">
           <h3>Before/After This Week</h3>
           <div className="checkpoint-headline">
             <p className={`checkpoint-delta checkpoint-${checkpointDirection}`}>{checkpointHeadline}</p>
@@ -339,11 +339,11 @@ export function DashboardPage() {
       {spacesOverview.isPending && <LoadingState text="Loading learning spaces overview..." />}
       {spacesOverview.isError && <ErrorState text="Failed to load learning spaces overview." />}
       {spacesOverview.isSuccess && workspaceItems.length > 0 && (
-        <article className="panel stack">
+        <article className="panel stack dashboard-spaces-card">
           <h3>Your Learning Spaces</h3>
           <p>Each pair is an isolated coach space with separate progress and history.</p>
           {workspaceItems.map((item) => (
-            <div key={item.workspace_id} className="panel stack">
+            <div key={item.workspace_id} className="panel stack dashboard-space-item">
               <p>
                 <strong>
                   {item.native_lang} {"->"} {item.target_lang}

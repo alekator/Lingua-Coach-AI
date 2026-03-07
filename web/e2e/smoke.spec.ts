@@ -22,5 +22,5 @@ test("seeded profile opens dashboard and chat", async ({ page, request }) => {
 
   await page.locator("a[href='/app/chat']").first().click();
   await expect(page).toHaveURL(/\/app\/chat$/);
-  await expect(page.getByRole("heading", { name: "Coach Chat Practice" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Coach Chat Studio" })).toBeVisible();
 });
