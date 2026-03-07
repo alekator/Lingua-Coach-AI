@@ -117,55 +117,68 @@ export function ScenariosPage() {
   }
 
   return (
-    <section className="panel stack">
-      <h2>{t(locale, "scenarios_title")}</h2>
-      <p>Choose one realistic situation and run a short coached roleplay.</p>
-      {coachSession.isSuccess && (
-        <p>Coach cue: today focus is {coachSession.data.focus.join(", ")}. Start with the recommended scenario.</p>
-      )}
+    <section className="panel stack roleplays-page">
+      <header className="roleplays-hero panel">
+        <div>
+          <h2>{t(locale, "scenarios_title")}</h2>
+          <p>Choose one realistic situation and run a short coached roleplay.</p>
+          {coachSession.isSuccess && (
+            <p className="roleplays-hero-note">
+              Coach cue: today focus is {coachSession.data.focus.join(", ")}. Start with the recommended scenario.
+            </p>
+          )}
+        </div>
+      </header>
       {scenarios.isPending && <LoadingState text="Loading scenarios..." />}
       {scenarios.isError && <ErrorState text="Failed to load scenarios." />}
       {scenarios.isSuccess && scenarios.data.items.length === 0 && (
         <EmptyState text="No scenarios available yet." />
       )}
       {scenarios.isSuccess && (
-        <div className="stack">
-          {scenarios.data.items.map((item) => (
-            <article key={item.id} className="panel">
-              <h3>{item.title}</h3>
-              {recommendedScenarioId === item.id && <p className="badge">Recommended for today</p>}
-              <p>Required level: {item.required_level}</p>
-              <p>{item.description}</p>
-              {!item.unlocked && <p>Locked: {item.gate_reason ?? "Improve mastery to unlock."}</p>}
-              <button onClick={() => onSelect(item.id)} type="button" disabled={!item.unlocked}>
-                {item.unlocked ? t(locale, "scenarios_start") : t(locale, "scenarios_locked")}
-              </button>
+        <div className="roleplays-list">
+          {scenarios.data.items.map((item, idx) => (
+            <article key={item.id} className={`panel roleplay-scenario-card ${!item.unlocked ? "locked" : ""}`}>
+              <div className="roleplay-card-head">
+                <p className="roleplay-order">#{idx + 1}</p>
+                <h3>{item.title}</h3>
+                {recommendedScenarioId === item.id && <p className="badge">Recommended for today</p>}
+              </div>
+              <p className="roleplay-level">Required level: {item.required_level}</p>
+              <p className="roleplay-description">{item.description}</p>
+              {!item.unlocked && <p className="roleplay-lock-note">Locked: {item.gate_reason ?? "Improve mastery to unlock."}</p>}
+              <div className="roleplay-card-actions">
+                <button onClick={() => onSelect(item.id)} type="button" disabled={!item.unlocked}>
+                  {item.unlocked ? t(locale, "scenarios_start") : t(locale, "scenarios_locked")}
+                </button>
+              </div>
             </article>
           ))}
         </div>
       )}
       {scenarioTracks.isSuccess && scenarioTracks.data.items.length > 0 && (
-        <article className="panel stack">
+        <article className="panel stack roleplay-tracks-card">
           <h3>Goal Scenario Tracks</h3>
-          {scenarioTracks.data.items.map((track) => (
-            <div key={track.track_id} className="panel stack">
-              <p>
+          <div className="roleplay-track-list">
+            {scenarioTracks.data.items.map((track) => (
+              <div key={track.track_id} className="panel stack roleplay-track-item">
+                <p>
                 <strong>{track.title}</strong> ({track.goal}) - {track.completed_steps}/{track.total_steps} (
                 {track.completion_percent}%)
-              </p>
-              {track.next_scenario_id && <p>Next milestone scenario: {track.next_scenario_id}</p>}
-              <p>
+                </p>
+                {track.next_scenario_id && <p>Next milestone scenario: {track.next_scenario_id}</p>}
+                <p>
                 Milestones:{" "}
                 {track.milestones
                   .map((m) => `${m.title}: ${m.is_reached ? "done" : `need ${m.required_completed}`}`)
                   .join(" | ")}
-              </p>
-            </div>
-          ))}
+                </p>
+              </div>
+            ))}
+          </div>
         </article>
       )}
       {activeScenarioId && (
-        <article className="panel stack">
+        <article className="panel stack roleplay-active-card">
           <h3>Active Roleplay Step</h3>
           <p>{activePrompt}</p>
           {activeTip && <p>Coach tip: {activeTip}</p>}

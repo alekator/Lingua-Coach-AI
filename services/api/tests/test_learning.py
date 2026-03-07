@@ -13,6 +13,7 @@ from app.main import create_app
 from app.models import GrammarAnalysisRecord
 from app.schemas.chat import ChatMessageResponse, Correction
 from app.services import grammar as grammar_service
+from app.services import learning as learning_service
 
 
 def test_translate_voice_pipeline(client_factory: Callable[..., TestClient]) -> None:
@@ -203,6 +204,163 @@ def test_exercises_generate_and_grade(client: TestClient) -> None:
     assert "ex-1" in body["rubric"]
     assert body["rubric"]["ex-1"]["is_correct"] is True
     assert "item_score" in body["rubric"]["ex-2"]
+
+
+def test_exercises_generate_uses_openai_provider(client: TestClient, monkeypatch) -> None:
+    calls: dict[str, Any] = {}
+
+    class FakeResponse:
+        output_text = (
+            '{"items":['
+            '{"id":"ex-1","type":"fill_blank","prompt":"Complete: I ___ to school yesterday.","expected_answer":"went"},'
+            '{"id":"ex-2","type":"fill_blank","prompt":"Fix: She go to work.","expected_answer":"She goes to work."}'
+            "]}")
+
+    class FakeResponsesApi:
+        def create(self, **kwargs):
+            calls["kwargs"] = kwargs
+            return FakeResponse()
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str):
+            calls["api_key"] = api_key
+            self.responses = FakeResponsesApi()
+
+    monkeypatch.setenv("API_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-drills")
+    monkeypatch.setattr(learning_service, "OpenAI", FakeOpenAI)
+    monkeypatch.setattr(learning_service, "usage_from_response", lambda _response: {"total_tokens": 12})
+    monkeypatch.setattr(learning_service, "log_usage", lambda *_args, **_kwargs: None)
+
+    generated = client.post(
+        "/exercises/generate",
+        json={"user_id": 1, "exercise_type": "fill_blank", "topic": "grammar", "count": 2},
+    )
+    assert generated.status_code == 200
+    body = generated.json()
+    assert len(body["items"]) == 2
+    assert body["items"][0]["expected_answer"] == "went"
+    assert calls["api_key"] == "sk-test-drills"
+    assert calls["kwargs"]["model"]
+
+
+def test_exercises_generate_uses_local_provider(client: TestClient, monkeypatch) -> None:
+    calls: dict[str, Any] = {}
+
+    def fake_complete_json(
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        max_output_tokens: int,
+        temperature: float,
+    ) -> dict[str, Any]:
+        calls["system_prompt"] = system_prompt
+        calls["messages"] = messages
+        calls["max_output_tokens"] = max_output_tokens
+        calls["temperature"] = temperature
+        return {
+            "items": [
+                {
+                    "id": "ex-1",
+                    "type": "fill_blank",
+                    "prompt": "Complete: They ___ at 8.",
+                    "expected_answer": "arrive",
+                }
+            ]
+        }
+
+    monkeypatch.setenv("API_LLM_PROVIDER", "local")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(learning_service, "complete_json", fake_complete_json)
+
+    generated = client.post(
+        "/exercises/generate",
+        json={"user_id": 1, "exercise_type": "fill_blank", "topic": "grammar", "count": 1},
+    )
+    assert generated.status_code == 200
+    body = generated.json()
+    assert body["items"][0]["expected_answer"] == "arrive"
+    assert calls["messages"][0]["content"]
+    assert calls["max_output_tokens"] > 0
+
+
+def test_exercises_grade_uses_openai_provider(client: TestClient, monkeypatch) -> None:
+    calls: dict[str, Any] = {}
+
+    class FakeResponse:
+        output_text = (
+            '{"items":['
+            '{"id":"ex-1","is_correct":true,"item_score":1.0,"feedback":"Correct answer."},'
+            '{"id":"ex-2","is_correct":false,"item_score":0.2,"feedback":"Wrong verb form."}'
+            "]}")
+
+    class FakeResponsesApi:
+        def create(self, **kwargs):
+            calls["kwargs"] = kwargs
+            return FakeResponse()
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str):
+            calls["api_key"] = api_key
+            self.responses = FakeResponsesApi()
+
+    monkeypatch.setenv("API_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-grade")
+    monkeypatch.setattr(learning_service, "OpenAI", FakeOpenAI)
+    monkeypatch.setattr(learning_service, "usage_from_response", lambda _response: {"total_tokens": 15})
+    monkeypatch.setattr(learning_service, "log_usage", lambda *_args, **_kwargs: None)
+
+    graded = client.post(
+        "/exercises/grade",
+        json={
+            "answers": {"ex-1": "went", "ex-2": "go"},
+            "expected": {"ex-1": "went", "ex-2": "goes"},
+        },
+    )
+    assert graded.status_code == 200
+    body = graded.json()
+    assert body["score"] == 1.0
+    assert body["max_score"] == 2.0
+    assert body["rubric"]["ex-2"]["feedback"] == "Wrong verb form."
+    assert calls["api_key"] == "sk-test-grade"
+    assert calls["kwargs"]["model"]
+
+
+def test_exercises_grade_uses_local_provider(client: TestClient, monkeypatch) -> None:
+    calls: dict[str, Any] = {}
+
+    def fake_complete_json(
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        max_output_tokens: int,
+        temperature: float,
+    ) -> dict[str, Any]:
+        calls["system_prompt"] = system_prompt
+        calls["messages"] = messages
+        calls["max_output_tokens"] = max_output_tokens
+        calls["temperature"] = temperature
+        return {
+            "items": [
+                {"id": "ex-1", "is_correct": True, "item_score": 1.0, "feedback": "Great."},
+                {"id": "ex-2", "is_correct": False, "item_score": 0.3, "feedback": "Check agreement."},
+            ]
+        }
+
+    monkeypatch.setenv("API_LLM_PROVIDER", "local")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(learning_service, "complete_json", fake_complete_json)
+
+    graded = client.post(
+        "/exercises/grade",
+        json={
+            "answers": {"ex-1": "went", "ex-2": "go"},
+            "expected": {"ex-1": "went", "ex-2": "goes"},
+        },
+    )
+    assert graded.status_code == 200
+    body = graded.json()
+    assert body["score"] == 1.0
+    assert body["rubric"]["ex-2"]["feedback"] == "Check agreement."
+    assert calls["messages"][0]["content"]
 
 
 def test_plan_today_and_scenarios(client_factory: Callable[..., TestClient]) -> None:

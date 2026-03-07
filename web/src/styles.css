@@ -1518,6 +1518,273 @@ video {
   font-weight: 600;
 }
 
+.roleplays-page {
+  gap: 14px;
+}
+
+.roleplays-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--status-loading-bg) 24%, transparent), transparent 62%),
+    var(--panel-bg);
+}
+
+.roleplays-hero h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2vw, 1.42rem);
+}
+
+.roleplays-hero p {
+  margin: 6px 0 0;
+  color: var(--fg-muted);
+}
+
+.roleplays-hero-note {
+  margin-top: 8px;
+}
+
+.roleplays-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.roleplay-scenario-card {
+  display: grid;
+  gap: 8px;
+  border-color: color-mix(in srgb, var(--panel-border) 72%, var(--status-loading-border));
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--status-loading-bg) 14%, transparent), transparent 65%),
+    color-mix(in srgb, var(--chip-bg) 72%, transparent);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.2s ease;
+  animation: roleplay-card-enter 260ms ease both;
+}
+
+.roleplay-scenario-card.locked {
+  border-color: color-mix(in srgb, #ef4444 28%, var(--panel-border));
+  opacity: 0.92;
+}
+
+.roleplay-scenario-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--status-loading-border) 54%, var(--panel-border));
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+}
+
+.roleplay-scenario-card.locked:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.roleplay-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.roleplay-card-head h3 {
+  margin: 0;
+}
+
+.roleplay-order {
+  margin: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 0.74rem;
+  color: var(--fg-muted);
+  letter-spacing: 0.04em;
+}
+
+.roleplay-level,
+.roleplay-description,
+.roleplay-lock-note {
+  margin: 0;
+}
+
+.roleplay-level {
+  font-size: 0.84rem;
+  color: var(--fg-muted);
+}
+
+.roleplay-lock-note {
+  font-size: 0.84rem;
+  color: color-mix(in srgb, var(--status-error-fg) 88%, var(--fg));
+}
+
+.roleplay-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.roleplay-card-actions button {
+  padding: 8px 12px;
+  font-size: 0.84rem;
+}
+
+.roleplay-tracks-card {
+  gap: 10px;
+}
+
+.roleplay-track-list {
+  display: grid;
+  gap: 8px;
+}
+
+.roleplay-track-item {
+  border-color: color-mix(in srgb, var(--panel-border) 74%, var(--status-loading-border));
+  background: color-mix(in srgb, var(--chip-bg) 76%, transparent);
+}
+
+.roleplay-track-item p {
+  margin: 0;
+}
+
+.roleplay-active-card {
+  border-color: color-mix(in srgb, var(--panel-border) 74%, var(--status-loading-border));
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--status-loading-bg) 20%, transparent), transparent 68%),
+    var(--panel-bg);
+}
+
+.roleplay-active-card h3 {
+  margin: 0;
+}
+
+.drills-page {
+  gap: 14px;
+}
+
+.drills-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--status-loading-bg) 24%, transparent), transparent 62%),
+    var(--panel-bg);
+}
+
+.drills-hero h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2vw, 1.42rem);
+}
+
+.drills-hero p {
+  margin: 6px 0 0;
+  color: var(--fg-muted);
+}
+
+.drills-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.drills-main-card {
+  gap: 10px;
+}
+
+.drills-error-focus,
+.drills-generate-card,
+.drills-answer-card,
+.drills-rubric-card {
+  border-color: color-mix(in srgb, var(--panel-border) 72%, var(--status-loading-border));
+  background: color-mix(in srgb, var(--chip-bg) 72%, transparent);
+}
+
+.drills-focus-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.drills-focus-row p {
+  margin: 0;
+  min-width: 220px;
+}
+
+.drills-item-row > span {
+  font-size: 0.9rem;
+}
+
+.drills-score-line {
+  margin: 0;
+  font-weight: 700;
+}
+
+.drills-rubric-card p {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.86rem;
+}
+
+.drills-progress-card {
+  position: sticky;
+  top: 92px;
+  gap: 12px;
+  border-color: color-mix(in srgb, var(--panel-border) 72%, var(--status-loading-border));
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--status-loading-bg) 28%, transparent), transparent 65%),
+    var(--panel-bg);
+}
+
+.drills-progress-card h3 {
+  margin: 0;
+}
+
+.drills-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.drills-kpi-grid div {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--chip-bg) 75%, transparent);
+  padding: 9px 10px;
+}
+
+.drills-kpi-grid p {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.78rem;
+}
+
+.drills-kpi-grid strong {
+  font-size: 1rem;
+}
+
+.drills-meter-card {
+  display: grid;
+  gap: 5px;
+}
+
+.drills-meter-card p {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+@keyframes roleplay-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .toast-viewport {
   position: fixed;
   right: 16px;
@@ -1694,6 +1961,18 @@ video {
   }
 
   .grammar-history-card {
+    position: static;
+  }
+
+  .roleplays-list {
+    grid-template-columns: 1fr;
+  }
+
+  .drills-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .drills-progress-card {
     position: static;
   }
 

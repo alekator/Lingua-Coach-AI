@@ -1,9 +1,18 @@
 from __future__ import annotations
 
 from collections import Counter
+import json
 import re
+from typing import Any
+
+from openai import OpenAI
 
 from app.schemas.learning import CoachSessionStep, ExerciseItem, ScenarioItem, ScenarioScriptStep
+from app.config import settings
+from app.services.ai_runtime import log_usage, usage_from_response
+from app.services.local_llm import complete_json, is_local_llm_enabled
+from app.services.openai_key_runtime import get_runtime_openai_key
+from app.services.provider_config import get_llm_provider
 from app.services.text_metrics import text_units
 
 
@@ -656,22 +665,208 @@ def build_suggested_reply(expected_keywords: list[str], target_lang: str | None 
     return f"Example: I want to confirm {lead} and {tail}, please."
 
 
-def generate_exercises(exercise_type: str, topic: str, count: int) -> list[ExerciseItem]:
+def _extract_json_object(raw_text: str) -> dict[str, Any]:
+    try:
+        parsed = json.loads(raw_text)
+        if isinstance(parsed, dict):
+            return parsed
+    except Exception:
+        pass
+
+    start = raw_text.find("{")
+    end = raw_text.rfind("}")
+    if start >= 0 and end > start:
+        candidate = raw_text[start : end + 1]
+        parsed = json.loads(candidate)
+        if isinstance(parsed, dict):
+            return parsed
+
+    raise ValueError("Model response is not valid JSON")
+
+
+def _fallback_generate_exercises(exercise_type: str, topic: str, count: int) -> list[ExerciseItem]:
+    normalized_topic = topic.strip().lower() or "general"
+    topic_prompts: dict[str, list[tuple[str, str]]] = {
+        "grammar": [
+            ("Fill the blank: Yesterday I ___ to school.", "went"),
+            ("Fix the sentence: She go to work every day.", "She goes to work every day."),
+            ("Choose correct form: They ___ dinner now.", "are having"),
+            ("Rewrite correctly: I has a new phone.", "I have a new phone."),
+            ("Fill the blank: If I ___ time, I will call you.", "have"),
+        ],
+        "vocab": [
+            ("Use a better word: The movie was very ___.", "interesting"),
+            ("Complete with one word: I need to ___ a decision.", "make"),
+            ("Choose a synonym for 'big': ___", "large"),
+            ("Complete the phrase: pay ___ attention", "close"),
+            ("Fill the blank: We should ___ this problem.", "solve"),
+        ],
+        "pronunciation": [
+            ("Write stress mark: comPUter or COMputer?", "comPUter"),
+            ("Pick natural chunking: I-want-to-go-now / I want to go now", "I want to go now"),
+            ("Choose clearer sentence for speaking: I'm gonna / I am going to", "I am going to"),
+            ("Mark linked form: next day / nexday", "next day"),
+            ("Pick smoother phrase: could you / couldya", "could you"),
+        ],
+        "speaking": [
+            ("Write one short sentence introducing yourself for a meeting.", "I am Alex, and I work in product design."),
+            ("Write one sentence about your plan for today.", "Today I will finish my report and send it."),
+            ("Ask one polite follow-up question in a conversation.", "Could you tell me more about that?"),
+            ("Write one sentence describing a recent task you completed.", "I completed the presentation yesterday."),
+            ("Write one sentence giving your opinion politely.", "I think this option is more practical."),
+        ],
+    }
+    bank = topic_prompts.get(normalized_topic, [
+        ("Write one clear sentence about your current goal.", "I want to improve my English for work."),
+        ("Rewrite this with better grammar: I goed there.", "I went there."),
+        ("Fill the blank: I am looking ___ a new job.", "for"),
+        ("Write a polite question to request clarification.", "Could you clarify that, please?"),
+        ("Write one sentence in present perfect.", "I have finished my homework."),
+    ])
     items: list[ExerciseItem] = []
     for index in range(1, count + 1):
-        prompt = f"[{exercise_type}] {topic}: item {index}"
+        prompt, expected_answer = bank[(index - 1) % len(bank)]
         items.append(
             ExerciseItem(
                 id=f"ex-{index}",
                 type=exercise_type,
                 prompt=prompt,
-                expected_answer=f"answer-{index}",
+                expected_answer=expected_answer,
             )
         )
     return items
 
 
-def grade_exercises(
+def _normalize_prompt(prompt: str, exercise_type: str, topic: str, idx: int) -> str:
+    clean = prompt.strip()
+    if not clean:
+        return _fallback_generate_exercises(exercise_type, topic, max(1, idx))[idx - 1].prompt
+    if clean.startswith("[") and "]" in clean and ":" in clean:
+        right = clean.split(":", 1)[1].strip()
+        if right:
+            return right[0].upper() + right[1:]
+    return clean
+
+
+def _sanitize_generated_items(
+    payload: dict[str, Any],
+    exercise_type: str,
+    topic: str,
+    count: int,
+) -> list[ExerciseItem]:
+    raw_items = payload.get("items")
+    if not isinstance(raw_items, list):
+        raise ValueError("Generated payload must contain items list")
+    items: list[ExerciseItem] = []
+    for idx, raw in enumerate(raw_items[:count], start=1):
+        if not isinstance(raw, dict):
+            continue
+        prompt = str(raw.get("prompt") or "").strip()
+        expected_answer = str(raw.get("expected_answer") or "").strip()
+        if not prompt or not expected_answer:
+            continue
+        item_type = str(raw.get("type") or exercise_type).strip() or exercise_type
+        item_id = str(raw.get("id") or f"ex-{idx}").strip() or f"ex-{idx}"
+        items.append(
+            ExerciseItem(
+                id=item_id,
+                type=item_type,
+                prompt=_normalize_prompt(prompt, exercise_type, topic, idx),
+                expected_answer=expected_answer,
+            )
+        )
+    if len(items) < count:
+        raise ValueError("Not enough valid exercises generated")
+    return items
+
+
+def _generate_exercises_with_local(exercise_type: str, topic: str, count: int) -> list[ExerciseItem]:
+    system_prompt = (
+        "You are a language drills generator. Return strict JSON only:\n"
+        '{ "items": [ { "id": "ex-1", "type": "fill_blank", "prompt": "...", "expected_answer": "..." } ] }\n'
+        "Rules: exactly requested count, concise prompts, practical language-learning tasks."
+    )
+    payload = complete_json(
+        system_prompt=system_prompt,
+        messages=[
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {"exercise_type": exercise_type, "topic": topic, "count": count},
+                    ensure_ascii=False,
+                ),
+            }
+        ],
+        max_output_tokens=settings.openai_chat_max_output_tokens,
+        temperature=settings.openai_temperature_chat,
+    )
+    return _sanitize_generated_items(payload, exercise_type, topic, count)
+
+
+def _generate_exercises_with_openai(exercise_type: str, topic: str, count: int) -> list[ExerciseItem]:
+    api_key = get_runtime_openai_key()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not configured")
+    client = OpenAI(api_key=api_key)
+    response = client.responses.create(
+        model=settings.openai_chat_model,
+        max_output_tokens=settings.openai_chat_max_output_tokens,
+        temperature=settings.openai_temperature_chat,
+        input=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a language drills generator. Return strict JSON only:\n"
+                    '{ "items": [ { "id": "ex-1", "type": "fill_blank", "prompt": "...", "expected_answer": "..." } ] }\n'
+                    "Rules: exactly requested count, concise prompts, practical language-learning tasks."
+                ),
+            },
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {"exercise_type": exercise_type, "topic": topic, "count": count},
+                    ensure_ascii=False,
+                ),
+            },
+        ],
+    )
+    log_usage("exercises_generate", settings.openai_chat_model, usage_from_response(response))
+    payload = _extract_json_object(response.output_text)
+    return _sanitize_generated_items(payload, exercise_type, topic, count)
+
+
+def generate_exercises(exercise_type: str, topic: str, count: int) -> list[ExerciseItem]:
+    safe_count = max(1, min(20, count))
+    normalized_type = exercise_type.strip() or "fill_blank"
+    normalized_topic = topic.strip() or "general"
+    try:
+        provider = get_llm_provider()
+        local_available = is_local_llm_enabled()
+        has_openai_key = bool(get_runtime_openai_key())
+
+        if provider == "local":
+            if local_available:
+                try:
+                    return _generate_exercises_with_local(normalized_type, normalized_topic, safe_count)
+                except Exception:
+                    pass
+            if has_openai_key:
+                return _generate_exercises_with_openai(normalized_type, normalized_topic, safe_count)
+            return _fallback_generate_exercises(normalized_type, normalized_topic, safe_count)
+
+        if has_openai_key:
+            try:
+                return _generate_exercises_with_openai(normalized_type, normalized_topic, safe_count)
+            except Exception:
+                pass
+        if local_available:
+            return _generate_exercises_with_local(normalized_type, normalized_topic, safe_count)
+        return _fallback_generate_exercises(normalized_type, normalized_topic, safe_count)
+    except Exception:
+        return _fallback_generate_exercises(normalized_type, normalized_topic, safe_count)
+
+
+def _fallback_grade_exercises(
     answers: dict[str, str],
     expected: dict[str, str],
 ) -> tuple[float, float, dict[str, bool], dict[str, dict[str, float | str | bool]]]:
@@ -688,7 +883,6 @@ def grade_exercises(
         if ok:
             correct += 1
 
-        # Lightweight rubric for MVP scoring transparency.
         answer_len = text_units(answer)
         expected_len = max(1, text_units(expected_clean))
         completeness = min(1.0, answer_len / expected_len)
@@ -708,6 +902,134 @@ def grade_exercises(
         }
     max_score = float(len(expected))
     return float(correct), max_score, details, rubric
+
+
+def _sanitize_grade_payload(
+    payload: dict[str, Any],
+    expected: dict[str, str],
+) -> tuple[float, float, dict[str, bool], dict[str, dict[str, float | str | bool]]]:
+    raw_items = payload.get("items")
+    if not isinstance(raw_items, list):
+        raise ValueError("Grade payload must contain items")
+    details: dict[str, bool] = {}
+    rubric: dict[str, dict[str, float | str | bool]] = {}
+    correct = 0
+    for raw in raw_items:
+        if not isinstance(raw, dict):
+            continue
+        item_id = str(raw.get("id") or "").strip()
+        if not item_id or item_id not in expected:
+            continue
+        ok = bool(raw.get("is_correct", False))
+        details[item_id] = ok
+        if ok:
+            correct += 1
+        item_score_raw = raw.get("item_score", 1.0 if ok else 0.0)
+        try:
+            item_score = max(0.0, min(1.0, float(item_score_raw)))
+        except Exception:
+            item_score = 1.0 if ok else 0.0
+        feedback = str(raw.get("feedback") or ("Exact match." if ok else "Answer differs from expected form.")).strip()
+        rubric[item_id] = {
+            "is_correct": ok,
+            "completeness": 1.0 if ok else 0.5,
+            "grammar_quality": 1.0 if ok else 0.6,
+            "lexical_quality": 1.0 if ok else 0.6,
+            "item_score": round(item_score, 3),
+            "feedback": feedback,
+        }
+    if not details:
+        raise ValueError("No grade items were parsed")
+    max_score = float(len(expected))
+    return float(correct), max_score, details, rubric
+
+
+def _grade_with_local(
+    answers: dict[str, str],
+    expected: dict[str, str],
+) -> tuple[float, float, dict[str, bool], dict[str, dict[str, float | str | bool]]]:
+    system_prompt = (
+        "You are a strict drill grader. Return strict JSON only:\n"
+        '{ "items": [ { "id": "ex-1", "is_correct": true, "item_score": 1.0, "feedback": "..." } ] }\n'
+        "Use expected_answer as reference and keep feedback short."
+    )
+    payload = complete_json(
+        system_prompt=system_prompt,
+        messages=[
+            {
+                "role": "user",
+                "content": json.dumps({"answers": answers, "expected": expected}, ensure_ascii=False),
+            }
+        ],
+        max_output_tokens=settings.openai_chat_max_output_tokens,
+        temperature=settings.openai_temperature_chat,
+    )
+    return _sanitize_grade_payload(payload, expected)
+
+
+def _grade_with_openai(
+    answers: dict[str, str],
+    expected: dict[str, str],
+) -> tuple[float, float, dict[str, bool], dict[str, dict[str, float | str | bool]]]:
+    api_key = get_runtime_openai_key()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not configured")
+    client = OpenAI(api_key=api_key)
+    response = client.responses.create(
+        model=settings.openai_chat_model,
+        max_output_tokens=settings.openai_chat_max_output_tokens,
+        temperature=settings.openai_temperature_chat,
+        input=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a strict drill grader. Return strict JSON only:\n"
+                    '{ "items": [ { "id": "ex-1", "is_correct": true, "item_score": 1.0, "feedback": "..." } ] }\n'
+                    "Use expected_answer as reference and keep feedback short."
+                ),
+            },
+            {
+                "role": "user",
+                "content": json.dumps({"answers": answers, "expected": expected}, ensure_ascii=False),
+            },
+        ],
+    )
+    log_usage("exercises_grade", settings.openai_chat_model, usage_from_response(response))
+    payload = _extract_json_object(response.output_text)
+    return _sanitize_grade_payload(payload, expected)
+
+
+def grade_exercises(
+    answers: dict[str, str],
+    expected: dict[str, str],
+) -> tuple[float, float, dict[str, bool], dict[str, dict[str, float | str | bool]]]:
+    if not expected:
+        return 0.0, 0.0, {}, {}
+    try:
+        provider = get_llm_provider()
+        local_available = is_local_llm_enabled()
+        has_openai_key = bool(get_runtime_openai_key())
+
+        if provider == "local":
+            if local_available:
+                try:
+                    return _grade_with_local(answers, expected)
+                except Exception:
+                    pass
+            if has_openai_key:
+                return _grade_with_openai(answers, expected)
+            return _fallback_grade_exercises(answers, expected)
+
+        if has_openai_key:
+            try:
+                return _grade_with_openai(answers, expected)
+            except Exception:
+                pass
+        if local_available:
+            return _grade_with_local(answers, expected)
+        return _fallback_grade_exercises(answers, expected)
+    except Exception:
+        return _fallback_grade_exercises(answers, expected)
 
 
 def build_adaptive_plan(
