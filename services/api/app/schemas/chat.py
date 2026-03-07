@@ -56,6 +56,7 @@ class ChatMessageResponse(BaseModel):
     new_words: list[NewWord] = Field(default_factory=list)
     homework_suggestions: list[str] = Field(default_factory=list)
     rubric: ChatRubric | None = None
+    engine_used: str | None = None
 
 
 class ChatEndRequest(BaseModel):

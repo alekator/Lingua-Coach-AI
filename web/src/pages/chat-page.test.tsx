@@ -38,6 +38,7 @@ describe("ChatPage", () => {
     });
     mocks.chatMessage.mockResolvedValue({
       assistant_text: "Good try. Let's refine your collocation.",
+      engine_used: "openai",
       corrections: [
         {
           type: "grammar",
@@ -63,18 +64,19 @@ describe("ChatPage", () => {
 
     render(<ChatPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start coaching session" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start session" }));
     await waitFor(() => {
       expect(screen.getByText("Coach session 42 started")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Send to coach" }));
     await waitFor(() => {
-      expect(screen.getByText("Coach rubric")).toBeInTheDocument();
-      expect(screen.getByText("Overall score: 72/100 (developing)")).toBeInTheDocument();
+      expect(screen.getByText("Live insights")).toBeInTheDocument();
+      expect(screen.getByText("Last coach feedback")).toBeInTheDocument();
+      expect(screen.getByText("Overall: 72/100 (developing)")).toBeInTheDocument();
       expect(screen.getByText("Grammar: 3/5")).toBeInTheDocument();
-      expect(screen.getByText("Fix: I did a mistake -> I made a mistake")).toBeInTheDocument();
-      expect(screen.getByText("Next drill: Write 3 short lines about yesterday plans.")).toBeInTheDocument();
+      expect(screen.getByText("I did a mistake -> I made a mistake")).toBeInTheDocument();
+      expect(screen.getAllByText("OpenAI").length).toBeGreaterThan(0);
       expect(mocks.pushToast).toHaveBeenCalledWith("success", "Chat session started");
     });
   });

@@ -18,6 +18,7 @@ def test_chat_flow_with_memory_updates(
         payloads.append(payload)
         return ChatMessageResponse(
             assistant_text="Great effort. Small correction below.",
+            engine_used="openai",
             corrections=[
                 Correction(
                     type="grammar",
@@ -69,6 +70,7 @@ def test_chat_flow_with_memory_updates(
         assert msg1.status_code == 200
         body1 = msg1.json()
         assert body1["assistant_text"]
+        assert body1["engine_used"] == "openai"
         assert body1["corrections"][0]["good"] == "I made a mistake"
         assert body1["new_words"][0]["word"] == "achieve"
         assert body1["rubric"]["overall_score"] == 72
@@ -137,6 +139,7 @@ def test_chat_teacher_failure_uses_resilient_fallback(
         assert sent.status_code == 200
         body = sent.json()
         assert "local coaching" in body["assistant_text"]
+        assert body["engine_used"] == "fallback"
         assert body["rubric"] is not None
 
 

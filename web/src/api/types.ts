@@ -458,6 +458,7 @@ export type ChatMessageResponse = {
   corrections: Array<{ type: string; bad: string; good: string; explanation?: string | null }>;
   new_words: Array<{ word: string; translation: string; example?: string | null; phonetics?: string | null }>;
   homework_suggestions: string[];
+  engine_used?: "openai" | "local" | "fallback" | string;
   rubric?: {
     overall_score: number;
     level_band: string;

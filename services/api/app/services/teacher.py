@@ -183,6 +183,7 @@ def build_resilient_teacher_fallback(payload: dict[str, Any], reason: str | None
         corrections=[],
         new_words=[],
         homework_suggestions=[f"Write 3 short lines about {goal} with clean {top_weak}."],
+        engine_used="fallback",
     )
     response.rubric = build_fallback_rubric(user_text, response)
     return response
@@ -336,6 +337,7 @@ def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
                 max_output_tokens=settings.openai_chat_max_output_tokens,
                 temperature=settings.openai_temperature_chat,
             )
+            engine_used = "local"
         else:
             api_key = __import__("os").getenv("OPENAI_API_KEY")
             if not api_key:
@@ -352,7 +354,9 @@ def default_teacher_responder(payload: dict[str, Any]) -> ChatMessageResponse:
             )
             log_usage("chat_teacher", settings.openai_chat_model, usage_from_response(response))
             parsed = json.loads(response.output_text)
+            engine_used = "openai"
         result = ChatMessageResponse.model_validate(parsed)
+        result.engine_used = result.engine_used or engine_used
         return sanitize_teacher_response(result, payload)
     except Exception as exc:
         return build_resilient_teacher_fallback(payload, reason=f"provider error: {exc}")
