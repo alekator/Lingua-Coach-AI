@@ -333,10 +333,27 @@ export function OnboardingPage() {
   }
 
   return (
-    <section className="panel">
-      <h2>{t(locale, "onboarding_title")}</h2>
+    <section className="onboarding-page stack">
+      <article className="panel onboarding-hero">
+        <div>
+          <h2>{t(locale, "onboarding_title")}</h2>
+          <p>Let your coach calibrate your starting point. Set languages and complete a quick placement test.</p>
+          <div className="onboarding-hero-chips">
+            <span className="badge">Mode: {runtimeProvider.toUpperCase()}</span>
+            <span className="badge">Daily: {dailyMinutes} min</span>
+            <span className={`badge onboarding-key-chip ${keyStatus}`}>
+              Key: {keyStatus === "configured" ? "configured" : keyStatus === "invalid" ? "invalid" : "missing"}
+            </span>
+          </div>
+        </div>
+        <div className="onboarding-hero-art" aria-hidden>
+          <div />
+          <div />
+          <div />
+        </div>
+      </article>
       {showWowResult && (
-        <article className="panel stack">
+        <article className="panel stack onboarding-result-card">
           <h3>You're in. First result is ready.</h3>
           <p>
             <strong>Your level:</strong> {recommendedLevel}
@@ -375,93 +392,112 @@ export function OnboardingPage() {
         </article>
       )}
       {!sessionId && (
-        <form className="stack" onSubmit={(event) => event.preventDefault()}>
+        <form className="panel onboarding-form stack" onSubmit={(event) => event.preventDefault()}>
           {firstTimeInCurrentSpace && (
-            <article className="panel stack">
+            <article className="panel stack onboarding-new-space-card">
               <h3>{t(locale, "onboarding_new_space_title")}</h3>
               <p>{t(locale, "onboarding_new_space_note")}</p>
             </article>
           )}
-          <p>Let your coach calibrate your starting point. Set languages and complete a quick placement test.</p>
-          <LanguagePairSelector
-            nativeLang={nativeLang}
-            targetLang={targetLang}
-            onNativeLangChange={setNativeLang}
-            onTargetLangChange={setTargetLang}
-            ariaPrefix="Onboarding"
-          />
-          {capabilityHint && <p>{capabilityHint}</p>}
-          <label>
-            AI runtime mode
-            <select
-              value={runtimeProvider}
-              onChange={(e) => setRuntimeProvider(e.target.value as "openai" | "local")}
-              disabled={runtimeLoading || runtimeSaving || submitting}
-            >
-              <option value="openai">OpenAI (cloud API)</option>
-              <option value="local">Local models (on this machine)</option>
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={onSaveRuntimeProvider}
-            disabled={runtimeLoading || runtimeSaving || submitting}
-          >
-            {runtimeSaving ? "Saving runtime..." : "Save runtime mode"}
-          </button>
-          <p>{runtimeLoading ? "Loading runtime mode..." : runtimeHint}</p>
-          <label>
-            Goal
-            <input value={goal} onChange={(e) => setGoal(e.target.value)} />
-          </label>
-          <label>
-            Daily study minutes
-            <input
-              type="number"
-              min={5}
-              max={120}
-              value={dailyMinutes}
-              onChange={(e) => setDailyMinutes(Number(e.target.value || 15))}
-            />
-          </label>
-          <label>
-            Feedback strictness
-            <select value={strictness} onChange={(e) => setStrictness(e.target.value as "low" | "medium" | "high")}>
-              <option value="low">Low (soft)</option>
-              <option value="medium">Medium</option>
-              <option value="high">High (strict)</option>
-            </select>
-          </label>
-          <label>
-            OpenAI API key {runtimeProvider === "local" ? "(optional in local mode)" : ""}
-            <input
-              type="password"
-              placeholder="sk-..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
-          </label>
-          {(runtimeProvider === "openai" || keyStatus === "invalid") && (keyStatus === "missing" || keyStatus === "invalid") && (
-            <article className="panel stack" aria-live="polite">
-              <strong>
-                {keyStatus === "invalid" ? "OpenAI key is invalid or unavailable." : "OpenAI key is not configured."}
-              </strong>
-              <p>
-                You can continue onboarding now. App will use lightweight fallback responses until key access works.
-              </p>
+          <section className="onboarding-grid">
+            <article className="panel onboarding-setup-card stack">
+              <h3>Language setup</h3>
+              <LanguagePairSelector
+                nativeLang={nativeLang}
+                targetLang={targetLang}
+                onNativeLangChange={setNativeLang}
+                onTargetLangChange={setTargetLang}
+                ariaPrefix="Onboarding"
+              />
+              {capabilityHint && <p className="onboarding-hint">{capabilityHint}</p>}
+              <label>
+                Goal
+                <input value={goal} onChange={(e) => setGoal(e.target.value)} />
+              </label>
+              <div className="onboarding-inline-grid">
+                <label>
+                  Daily study minutes
+                  <input
+                    type="number"
+                    min={5}
+                    max={120}
+                    value={dailyMinutes}
+                    onChange={(e) => setDailyMinutes(Number(e.target.value || 15))}
+                  />
+                </label>
+                <label>
+                  Feedback strictness
+                  <select
+                    value={strictness}
+                    onChange={(e) => setStrictness(e.target.value as "low" | "medium" | "high")}
+                  >
+                    <option value="low">Low (soft)</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High (strict)</option>
+                  </select>
+                </label>
+              </div>
             </article>
-          )}
-          <p>{keyStatus === "checking" ? "Checking key status..." : keyHint}</p>
-          <button disabled={submitting || !apiKey.trim()} type="button" onClick={onSaveApiKey}>
-            {submitting ? "Saving key..." : t(locale, "onboarding_save_key")}
-          </button>
-          <button disabled={submitting} type="button" onClick={onStart}>
-            {submitting ? "Starting..." : t(locale, "onboarding_start")}
-          </button>
+
+            <article className="panel onboarding-runtime-card stack">
+              <h3>Runtime & API</h3>
+              <label>
+                AI runtime mode
+                <select
+                  value={runtimeProvider}
+                  onChange={(e) => setRuntimeProvider(e.target.value as "openai" | "local")}
+                  disabled={runtimeLoading || runtimeSaving || submitting}
+                >
+                  <option value="openai">OpenAI (cloud API)</option>
+                  <option value="local">Local models (on this machine)</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={onSaveRuntimeProvider}
+                disabled={runtimeLoading || runtimeSaving || submitting}
+              >
+                {runtimeSaving ? "Saving runtime..." : "Save runtime mode"}
+              </button>
+              <p className="onboarding-hint">{runtimeLoading ? "Loading runtime mode..." : runtimeHint}</p>
+              <label>
+                OpenAI API key {runtimeProvider === "local" ? "(optional in local mode)" : ""}
+                <input
+                  type="password"
+                  placeholder="sk-..."
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                />
+              </label>
+              {(runtimeProvider === "openai" || keyStatus === "invalid") &&
+                (keyStatus === "missing" || keyStatus === "invalid") && (
+                  <article className="panel stack onboarding-key-warning" aria-live="polite">
+                    <strong>
+                      {keyStatus === "invalid"
+                        ? "OpenAI key is invalid or unavailable."
+                        : "OpenAI key is not configured."}
+                    </strong>
+                    <p>
+                      You can continue onboarding now. App will use lightweight fallback responses until key access works.
+                    </p>
+                  </article>
+                )}
+              <p className="onboarding-hint">{keyStatus === "checking" ? "Checking key status..." : keyHint}</p>
+              <button disabled={submitting || !apiKey.trim()} type="button" onClick={onSaveApiKey}>
+                {submitting ? "Saving key..." : t(locale, "onboarding_save_key")}
+              </button>
+            </article>
+          </section>
+
+          <div className="onboarding-start-row">
+            <button disabled={submitting} type="button" className="cta-primary" onClick={onStart}>
+              {submitting ? "Starting..." : t(locale, "onboarding_start")}
+            </button>
+          </div>
         </form>
       )}
       {sessionId && (
-        <form onSubmit={onAnswer} className="stack">
+        <form onSubmit={onAnswer} className="panel onboarding-quiz-card stack">
           <p>
             Question {questionIndex + 1} / {totalQuestions}
           </p>

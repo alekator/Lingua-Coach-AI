@@ -2229,6 +2229,148 @@ video {
   font-size: 0.84rem;
 }
 
+.onboarding-page {
+  gap: 14px;
+}
+
+.onboarding-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 14px;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--status-loading-bg) 30%, transparent), transparent 60%),
+    var(--panel-bg);
+}
+
+.onboarding-hero h2 {
+  margin: 0;
+  font-size: clamp(1.28rem, 2.4vw, 1.6rem);
+}
+
+.onboarding-hero p {
+  margin: 7px 0 0;
+  color: var(--fg-muted);
+}
+
+.onboarding-hero-chips {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.onboarding-key-chip.configured {
+  border-color: color-mix(in srgb, #22c55e 55%, var(--panel-border));
+  background: color-mix(in srgb, #22c55e 14%, transparent);
+}
+
+.onboarding-key-chip.invalid {
+  border-color: color-mix(in srgb, #ef4444 55%, var(--panel-border));
+  background: color-mix(in srgb, #ef4444 14%, transparent);
+}
+
+.onboarding-key-chip.missing {
+  border-color: color-mix(in srgb, #f59e0b 55%, var(--panel-border));
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+}
+
+.onboarding-hero-art {
+  min-width: 210px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--chip-bg) 72%, transparent);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.onboarding-hero-art div {
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--status-loading-bg) 20%, transparent);
+}
+
+.onboarding-hero-art div:nth-child(1) {
+  min-height: 42px;
+}
+
+.onboarding-hero-art div:nth-child(2) {
+  min-height: 74px;
+}
+
+.onboarding-hero-art div:nth-child(3) {
+  min-height: 42px;
+}
+
+.onboarding-form {
+  gap: 12px;
+  border-color: color-mix(in srgb, var(--panel-border) 72%, var(--status-loading-border));
+}
+
+.onboarding-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.onboarding-setup-card,
+.onboarding-runtime-card,
+.onboarding-result-card,
+.onboarding-quiz-card {
+  border-color: color-mix(in srgb, var(--panel-border) 72%, var(--status-loading-border));
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--status-loading-bg) 16%, transparent), transparent 66%),
+    color-mix(in srgb, var(--chip-bg) 72%, transparent);
+}
+
+.onboarding-setup-card h3,
+.onboarding-runtime-card h3,
+.onboarding-result-card h3 {
+  margin: 0;
+}
+
+.onboarding-inline-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.onboarding-hint {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.88rem;
+}
+
+.onboarding-key-warning {
+  border-color: color-mix(in srgb, #ef4444 46%, var(--panel-border));
+  background: color-mix(in srgb, #ef4444 10%, var(--chip-bg));
+}
+
+.onboarding-start-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.onboarding-start-row button {
+  min-width: 240px;
+}
+
+.onboarding-result-card h4 {
+  margin: 2px 0 0;
+}
+
+.onboarding-result-card .panel {
+  border-color: color-mix(in srgb, var(--panel-border) 74%, var(--status-loading-border));
+  background: color-mix(in srgb, var(--chip-bg) 76%, transparent);
+}
+
+.onboarding-new-space-card {
+  border-color: color-mix(in srgb, #22c55e 38%, var(--panel-border));
+  background: color-mix(in srgb, #22c55e 10%, var(--chip-bg));
+}
+
 .voice-page {
   gap: 14px;
 }
@@ -3009,6 +3151,30 @@ video {
 
   .vocab-srs-card {
     position: static;
+  }
+
+  .onboarding-hero {
+    flex-direction: column;
+  }
+
+  .onboarding-hero-art {
+    min-width: 0;
+  }
+
+  .onboarding-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-inline-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-start-row {
+    justify-content: stretch;
+  }
+
+  .onboarding-start-row button {
+    width: 100%;
   }
 
   .grammar-grid {
