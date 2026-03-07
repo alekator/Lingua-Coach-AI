@@ -105,7 +105,7 @@ describe("AppRouter bootstrap gate", () => {
     renderRouter("/app/chat");
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Coach Chat Practice" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Coach Chat Studio" })).toBeInTheDocument();
       expect(screen.getByText("OpenAI key is not configured.")).toBeInTheDocument();
     });
   });

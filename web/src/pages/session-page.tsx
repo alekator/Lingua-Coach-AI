@@ -68,75 +68,122 @@ export function SessionPage() {
   }
 
   return (
-    <section className="panel stack">
-      <h2>Coach Session</h2>
-      <p>Follow your guided flow: warmup, focused practice, quick drill, vocab review, and recap.</p>
+    <section className="session-page stack">
+      <article className="panel session-hero">
+        <div>
+          <h2>Coach Session</h2>
+          <p>Follow your guided flow: warmup, focused practice, quick drill, vocab review, and recap.</p>
+        </div>
+        {progress.data && (
+          <div className="session-hero-kpis">
+            <span className="badge">Steps: {progress.data.total_steps}</span>
+            <span className="badge">Done: {progress.data.completed_steps}</span>
+            <span className="badge">Progress: {progress.data.completion_percent}%</span>
+          </div>
+        )}
+      </article>
+
       {session.isPending && <LoadingState text="Preparing your session..." />}
       {session.isError && <ErrorState text="Failed to load daily session." />}
       {progress.isPending && <LoadingState text="Loading session progress..." />}
       {progress.isError && <ErrorState text="Failed to load session progress." />}
       {session.isSuccess && (
         <>
-          <p>
-            Time budget: {session.data.time_budget_minutes} min | Focus: {session.data.focus.join(", ")}
-          </p>
-          {progress.data && (
-            <p>
-              Progress: {progress.data.completed_steps}/{progress.data.total_steps} steps ({progress.data.completion_percent}
-              %)
-            </p>
-          )}
-          <p>Coach note: complete each step in order, even if you keep responses short.</p>
-          <article className="panel">
-            <h3>
-              Step {activeIndex + 1}: {activeStep?.title}
-            </h3>
-            <p>{activeStep?.description}</p>
-            <p>Recommended time: {activeStep?.duration_minutes} min</p>
-            {activeStep && <p>Status: {statusByStep.get(activeStep.id) ?? "pending"}</p>}
-            <div className="row">
-              {activeStep && (
-                <Link to={activeStep.route}>
-                  <button type="button">Open activity</button>
-                </Link>
+          <section className="session-grid">
+            <article className="panel session-main-card stack">
+              <div className="session-meta-row">
+                <p>
+                  Time budget: {session.data.time_budget_minutes} min | Focus: {session.data.focus.join(", ")}
+                </p>
+                <p>Coach note: complete each step in order, even if you keep responses short.</p>
+              </div>
+              {progress.data && (
+                <div className="session-progress-strip">
+                  <p>
+                    Progress: {progress.data.completed_steps}/{progress.data.total_steps} steps ({progress.data.completion_percent}
+                    %)
+                  </p>
+                  <div className="progress-meter" aria-hidden>
+                    <span style={{ width: `${progress.data.completion_percent}%` }} />
+                  </div>
+                </div>
               )}
-              <button
-                type="button"
-                onClick={() => markStep("in_progress")}
-                disabled={!activeStep || updating || (activeStep ? statusByStep.get(activeStep.id) === "completed" : true)}
-              >
-                Mark step started
-              </button>
-              <button
-                type="button"
-                onClick={() => markStep("completed")}
-                disabled={!activeStep || updating || (activeStep ? statusByStep.get(activeStep.id) === "completed" : true)}
-              >
-                Mark step completed
-              </button>
-            </div>
-          </article>
-          {actionError && <ErrorState text={actionError} />}
-          <div className="row">
-            <button type="button" disabled={activeIndex === 0} onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}>
-              Previous step
-            </button>
-            <button
-              type="button"
-              disabled={activeIndex >= session.data.steps.length - 1}
-              onClick={() => setActiveIndex((i) => Math.min(session.data.steps.length - 1, i + 1))}
-            >
-              Next step
-            </button>
-          </div>
-          <article className="panel">
-            <h3>Today step roadmap</h3>
-            {session.data.steps.map((step, index) => (
-              <p key={step.id}>
-                {index + 1}. {step.title} ({step.duration_minutes} min) - {statusByStep.get(step.id) ?? "pending"}
-              </p>
-            ))}
-          </article>
+
+              <article className="session-active-step">
+                <h3>
+                  Step {activeIndex + 1}: {activeStep?.title}
+                </h3>
+                <p>{activeStep?.description}</p>
+                <p>Recommended time: {activeStep?.duration_minutes} min</p>
+                {activeStep && <p>Status: {statusByStep.get(activeStep.id) ?? "pending"}</p>}
+                <div className="row">
+                  {activeStep && (
+                    <Link to={activeStep.route}>
+                      <button type="button" className="cta-secondary">
+                        Open activity
+                      </button>
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    className="cta-secondary"
+                    onClick={() => markStep("in_progress")}
+                    disabled={!activeStep || updating || (activeStep ? statusByStep.get(activeStep.id) === "completed" : true)}
+                  >
+                    Mark step started
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => markStep("completed")}
+                    disabled={!activeStep || updating || (activeStep ? statusByStep.get(activeStep.id) === "completed" : true)}
+                  >
+                    Mark step completed
+                  </button>
+                </div>
+              </article>
+
+              {actionError && <ErrorState text={actionError} />}
+
+              <div className="row">
+                <button
+                  type="button"
+                  className="cta-secondary"
+                  disabled={activeIndex === 0}
+                  onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}
+                >
+                  Previous step
+                </button>
+                <button
+                  type="button"
+                  className="cta-secondary"
+                  disabled={activeIndex >= session.data.steps.length - 1}
+                  onClick={() => setActiveIndex((i) => Math.min(session.data.steps.length - 1, i + 1))}
+                >
+                  Next step
+                </button>
+              </div>
+            </article>
+
+            <aside className="panel session-roadmap-card stack">
+              <h3>Today step roadmap</h3>
+              <section className="session-roadmap-list">
+                {session.data.steps.map((step, index) => {
+                  const status = statusByStep.get(step.id) ?? "pending";
+                  const isActive = index === activeIndex;
+                  return (
+                    <article key={step.id} className={`session-roadmap-item ${status} ${isActive ? "active" : ""}`}>
+                      <p>
+                        {index + 1}. {step.title}
+                      </p>
+                      <small>
+                        {step.duration_minutes} min | {status}
+                      </small>
+                    </article>
+                  );
+                })}
+              </section>
+            </aside>
+          </section>
         </>
       )}
     </section>

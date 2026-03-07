@@ -2384,6 +2384,140 @@ video {
   color: #22d3ee;
 }
 
+/* Daily session page */
+.session-page {
+  gap: 14px;
+}
+
+.session-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--status-loading-bg) 24%, transparent), transparent 64%),
+    var(--panel-bg);
+}
+
+.session-hero h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2vw, 1.42rem);
+}
+
+.session-hero p {
+  margin: 6px 0 0;
+  color: var(--fg-muted);
+}
+
+.session-hero-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.session-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.32fr) minmax(280px, 0.68fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.session-main-card {
+  gap: 10px;
+}
+
+.session-meta-row {
+  display: grid;
+  gap: 5px;
+}
+
+.session-meta-row p {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.session-progress-strip {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--chip-bg) 76%, transparent);
+  padding: 9px 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.session-progress-strip p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.session-active-step {
+  border: 1px solid color-mix(in srgb, var(--panel-border) 72%, var(--status-loading-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--chip-bg) 72%, transparent);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.session-active-step h3,
+.session-active-step p {
+  margin: 0;
+}
+
+.session-roadmap-card {
+  position: sticky;
+  top: 92px;
+  gap: 10px;
+  border-color: color-mix(in srgb, var(--panel-border) 72%, var(--status-loading-border));
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--status-loading-bg) 24%, transparent), transparent 66%),
+    var(--panel-bg);
+}
+
+.session-roadmap-card h3 {
+  margin: 0;
+}
+
+.session-roadmap-list {
+  display: grid;
+  gap: 7px;
+}
+
+.session-roadmap-item {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--chip-bg) 76%, transparent);
+  padding: 8px 9px;
+  display: grid;
+  gap: 2px;
+}
+
+.session-roadmap-item p,
+.session-roadmap-item small {
+  margin: 0;
+}
+
+.session-roadmap-item small {
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.72rem;
+}
+
+.session-roadmap-item.active {
+  border-color: color-mix(in srgb, #3b82f6 55%, var(--panel-border));
+  background: color-mix(in srgb, var(--status-loading-bg) 18%, var(--chip-bg));
+}
+
+.session-roadmap-item.completed {
+  border-color: color-mix(in srgb, #22c55e 52%, var(--panel-border));
+}
+
+.session-roadmap-item.in_progress {
+  border-color: color-mix(in srgb, #38bdf8 54%, var(--panel-border));
+}
+
 /* Chat page */
 .chat-page {
   gap: 14px;
@@ -2775,6 +2909,22 @@ video {
   }
 
   .grammar-history-card {
+    position: static;
+  }
+
+  .session-hero {
+    flex-direction: column;
+  }
+
+  .session-hero-kpis {
+    justify-content: flex-start;
+  }
+
+  .session-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .session-roadmap-card {
     position: static;
   }
 
