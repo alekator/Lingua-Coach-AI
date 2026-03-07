@@ -5,6 +5,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -365,29 +366,52 @@ async def translate_voice(
 def grammar_analyze(payload: GrammarAnalyzeRequest, db: Session = Depends(get_db)) -> GrammarAnalyzeResponse:
     _get_or_create_user(db, payload.user_id)
     analysis = analyze_grammar_with_ai(text=payload.text, target_lang=payload.target_lang)
-    db.add(
-        GrammarAnalysisRecord(
-            user_id=payload.user_id,
-            target_lang=payload.target_lang,
-            input_text=payload.text,
-            corrected_text=analysis.corrected_text,
-            errors=[item.model_dump() for item in analysis.errors],
-            exercises=analysis.exercises,
-        )
+    record = GrammarAnalysisRecord(
+        user_id=payload.user_id,
+        target_lang=payload.target_lang,
+        input_text=payload.text,
+        corrected_text=analysis.corrected_text,
+        errors=[item.model_dump() for item in analysis.errors],
+        exercises=analysis.exercises,
     )
-    db.commit()
+    try:
+        db.add(record)
+        db.commit()
+    except OperationalError as exc:
+        if "no such table" not in str(exc).lower():
+            raise
+        db.rollback()
+        GrammarAnalysisRecord.__table__.create(bind=db.get_bind(), checkfirst=True)
+        db.add(
+            GrammarAnalysisRecord(
+                user_id=payload.user_id,
+                target_lang=payload.target_lang,
+                input_text=payload.text,
+                corrected_text=analysis.corrected_text,
+                errors=[item.model_dump() for item in analysis.errors],
+                exercises=analysis.exercises,
+            )
+        )
+        db.commit()
     return analysis
 
 
 @router.get("/grammar/history", response_model=GrammarHistoryResponse)
 def grammar_history(user_id: int, limit: int = 25, db: Session = Depends(get_db)) -> GrammarHistoryResponse:
     safe_limit = max(1, min(100, limit))
-    rows = db.scalars(
-        select(GrammarAnalysisRecord)
-        .where(GrammarAnalysisRecord.user_id == user_id)
-        .order_by(GrammarAnalysisRecord.created_at.desc())
-        .limit(safe_limit)
-    ).all()
+    try:
+        rows = db.scalars(
+            select(GrammarAnalysisRecord)
+            .where(GrammarAnalysisRecord.user_id == user_id)
+            .order_by(GrammarAnalysisRecord.created_at.desc())
+            .limit(safe_limit)
+        ).all()
+    except OperationalError as exc:
+        if "no such table" not in str(exc).lower():
+            raise
+        db.rollback()
+        GrammarAnalysisRecord.__table__.create(bind=db.get_bind(), checkfirst=True)
+        rows = []
     items: list[GrammarHistoryItem] = []
     for row in rows:
         parsed_errors: list[GrammarError] = []

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Generator
 from typing import Any
+import os
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +13,25 @@ from sqlalchemy.pool import StaticPool
 from app.db import Base, get_db
 from app.main import create_app
 from app.schemas.chat import ChatMessageResponse
+
+
+@pytest.fixture(autouse=True)
+def isolate_runtime_ai_env() -> Generator[None, None, None]:
+    previous_openai_key = os.environ.get("OPENAI_API_KEY")
+    previous_llm_provider = os.environ.get("API_LLM_PROVIDER")
+    os.environ["OPENAI_API_KEY"] = "sk-test-suite"
+    os.environ["API_LLM_PROVIDER"] = os.environ.get("API_LLM_PROVIDER", "openai")
+    try:
+        yield
+    finally:
+        if previous_openai_key is None:
+            os.environ.pop("OPENAI_API_KEY", None)
+        else:
+            os.environ["OPENAI_API_KEY"] = previous_openai_key
+        if previous_llm_provider is None:
+            os.environ.pop("API_LLM_PROVIDER", None)
+        else:
+            os.environ["API_LLM_PROVIDER"] = previous_llm_provider
 
 
 @pytest.fixture()

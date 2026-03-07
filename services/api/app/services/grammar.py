@@ -10,6 +10,7 @@ from app.schemas.learning import GrammarAnalyzeResponse, GrammarError
 from app.services.ai_runtime import log_usage, usage_from_response
 from app.services.local_llm import complete_json, is_local_llm_enabled
 from app.services.openai_key_runtime import get_runtime_openai_key
+from app.services.provider_config import get_llm_provider
 
 
 def _fallback_grammar_analysis(text: str) -> GrammarAnalyzeResponse:
@@ -70,6 +71,54 @@ def _sanitize_response(raw: dict[str, Any], source_text: str) -> GrammarAnalyzeR
     )
 
 
+def _extract_json_object(raw_text: str) -> dict[str, Any]:
+    try:
+        parsed = json.loads(raw_text)
+        if isinstance(parsed, dict):
+            return parsed
+    except Exception:
+        pass
+
+    start = raw_text.find("{")
+    end = raw_text.rfind("}")
+    if start >= 0 and end > start:
+        candidate = raw_text[start : end + 1]
+        parsed = json.loads(candidate)
+        if isinstance(parsed, dict):
+            return parsed
+
+    raise ValueError("Grammar analyzer response is not valid JSON")
+
+
+def _analyze_with_local(system_prompt: str, user_payload: str, clean_text: str) -> GrammarAnalyzeResponse:
+    raw = complete_json(
+        system_prompt=system_prompt,
+        messages=[{"role": "user", "content": user_payload}],
+        max_output_tokens=settings.openai_chat_max_output_tokens,
+        temperature=settings.openai_temperature_chat,
+    )
+    return _sanitize_response(raw, clean_text)
+
+
+def _analyze_with_openai(system_prompt: str, user_payload: str, clean_text: str) -> GrammarAnalyzeResponse:
+    api_key = get_runtime_openai_key()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not configured")
+    client = OpenAI(api_key=api_key)
+    response = client.responses.create(
+        model=settings.openai_chat_model,
+        max_output_tokens=settings.openai_chat_max_output_tokens,
+        temperature=settings.openai_temperature_chat,
+        input=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_payload},
+        ],
+    )
+    log_usage("grammar_analyze", settings.openai_chat_model, usage_from_response(response))
+    raw = _extract_json_object(response.output_text)
+    return _sanitize_response(raw, clean_text)
+
+
 def analyze_grammar_with_ai(text: str, target_lang: str) -> GrammarAnalyzeResponse:
     clean_text = text.strip()
     if not clean_text:
@@ -87,32 +136,27 @@ def analyze_grammar_with_ai(text: str, target_lang: str) -> GrammarAnalyzeRespon
     user_payload = json.dumps({"target_lang": target_lang, "text": clean_text}, ensure_ascii=False)
 
     try:
-        if is_local_llm_enabled():
-            raw = complete_json(
-                system_prompt=system_prompt,
-                messages=[{"role": "user", "content": user_payload}],
-                max_output_tokens=settings.openai_chat_max_output_tokens,
-                temperature=settings.openai_temperature_chat,
-            )
-            return _sanitize_response(raw, clean_text)
+        provider = get_llm_provider()
+        local_available = is_local_llm_enabled()
+        has_openai_key = bool(get_runtime_openai_key())
 
-        api_key = get_runtime_openai_key()
-        if not api_key:
+        if provider == "local":
+            if local_available:
+                try:
+                    return _analyze_with_local(system_prompt, user_payload, clean_text)
+                except Exception:
+                    pass
+            if has_openai_key:
+                return _analyze_with_openai(system_prompt, user_payload, clean_text)
             return _fallback_grammar_analysis(text)
-        client = OpenAI(api_key=api_key)
-        response = client.responses.create(
-            model=settings.openai_chat_model,
-            max_output_tokens=settings.openai_chat_max_output_tokens,
-            temperature=settings.openai_temperature_chat,
-            input=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_payload},
-            ],
-        )
-        log_usage("grammar_analyze", settings.openai_chat_model, usage_from_response(response))
-        raw = json.loads(response.output_text)
-        if not isinstance(raw, dict):
-            return _fallback_grammar_analysis(text)
-        return _sanitize_response(raw, clean_text)
+
+        if has_openai_key:
+            try:
+                return _analyze_with_openai(system_prompt, user_payload, clean_text)
+            except Exception:
+                pass
+        if local_available:
+            return _analyze_with_local(system_prompt, user_payload, clean_text)
+        return _fallback_grammar_analysis(text)
     except Exception:
         return _fallback_grammar_analysis(text)

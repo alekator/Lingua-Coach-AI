@@ -4,7 +4,15 @@ from collections.abc import Callable
 from typing import Any
 
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.db import Base, get_db
+from app.main import create_app
+from app.models import GrammarAnalysisRecord
 from app.schemas.chat import ChatMessageResponse, Correction
+from app.services import grammar as grammar_service
 
 
 def test_translate_voice_pipeline(client_factory: Callable[..., TestClient]) -> None:
@@ -50,6 +58,129 @@ def test_grammar_analyze(client: TestClient) -> None:
     assert len(history_items) >= 1
     assert history_items[0]["input_text"] == "I goed to school"
     assert "corrected_text" in history_items[0]
+
+
+def test_grammar_analyze_uses_openai_provider_and_persists_history(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    calls: dict[str, Any] = {}
+
+    class FakeResponse:
+        output_text = (
+            '{"corrected_text":"I need to come to school",'
+            '"errors":[{"category":"grammar","bad":"i nead com to schol","good":"I need to come to school",'
+            '"explanation":"Fix spelling and verb form."}],'
+            '"exercises":["Write the sentence again.","Write one similar sentence."]}'
+        )
+
+    class FakeResponsesApi:
+        def create(self, **kwargs):
+            calls["kwargs"] = kwargs
+            return FakeResponse()
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str):
+            calls["api_key"] = api_key
+            self.responses = FakeResponsesApi()
+
+    monkeypatch.setenv("API_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-grammar")
+    monkeypatch.setattr(grammar_service, "OpenAI", FakeOpenAI)
+    monkeypatch.setattr(grammar_service, "usage_from_response", lambda _response: {"total_tokens": 12})
+    monkeypatch.setattr(grammar_service, "log_usage", lambda *_args, **_kwargs: None)
+
+    response = client.post(
+        "/grammar/analyze",
+        json={"user_id": 1, "text": "i nead com to schol", "target_lang": "en"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["corrected_text"] == "I need to come to school"
+    assert body["errors"][0]["good"] == "I need to come to school"
+    assert calls["api_key"] == "sk-test-grammar"
+    assert calls["kwargs"]["model"]
+
+    history = client.get("/grammar/history", params={"user_id": 1, "limit": 5})
+    assert history.status_code == 200
+    items = history.json()["items"]
+    assert items[0]["input_text"] == "i nead com to schol"
+    assert items[0]["corrected_text"] == "I need to come to school"
+
+
+def test_grammar_analyze_uses_local_provider_and_persists_history(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    calls: dict[str, Any] = {}
+
+    def fake_complete_json(
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        max_output_tokens: int,
+        temperature: float,
+    ) -> dict[str, Any]:
+        calls["system_prompt"] = system_prompt
+        calls["messages"] = messages
+        calls["max_output_tokens"] = max_output_tokens
+        calls["temperature"] = temperature
+        return {
+            "corrected_text": "I need to come to school",
+            "errors": [
+                {
+                    "category": "grammar",
+                    "bad": "i nead com to schol",
+                    "good": "I need to come to school",
+                    "explanation": "Fix spelling and grammar.",
+                }
+            ],
+            "exercises": ["Repeat the corrected version."],
+        }
+
+    monkeypatch.setenv("API_LLM_PROVIDER", "local")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(grammar_service, "complete_json", fake_complete_json)
+
+    response = client.post(
+        "/grammar/analyze",
+        json={"user_id": 1, "text": "i nead com to schol", "target_lang": "en"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["corrected_text"] == "I need to come to school"
+    assert calls["messages"][0]["content"]
+    assert calls["max_output_tokens"] > 0
+
+    history = client.get("/grammar/history", params={"user_id": 1, "limit": 5})
+    assert history.status_code == 200
+    items = history.json()["items"]
+    assert items[0]["corrected_text"] == "I need to come to school"
+
+
+def test_grammar_history_recovers_if_table_is_missing(monkeypatch) -> None:
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    testing_session_local = sessionmaker(bind=engine, autocommit=False, autoflush=False, class_=Session)
+    Base.metadata.create_all(bind=engine)
+
+    def override_get_db():
+        db = testing_session_local()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app = create_app()
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as client:
+        GrammarAnalysisRecord.__table__.drop(bind=engine)
+        history = client.get("/grammar/history", params={"user_id": 1, "limit": 5})
+        assert history.status_code == 200
+        assert history.json() == {"items": []}
 
 
 def test_exercises_generate_and_grade(client: TestClient) -> None:

@@ -66,6 +66,7 @@ import type {
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const REQUEST_TIMEOUT_MS = 15000;
 
 export class ApiError extends Error {
   status: number;
@@ -80,15 +81,34 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: isFormData
-      ? init?.headers
-      : {
-          "Content-Type": "application/json",
-          ...(init?.headers ?? {}),
-        },
-    ...init,
-  });
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
+
+  if (init?.signal) {
+    init.signal.addEventListener("abort", () => timeoutController.abort(), { once: true });
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      headers: isFormData
+        ? init?.headers
+        : {
+            "Content-Type": "application/json",
+            ...(init?.headers ?? {}),
+          },
+      ...init,
+      signal: timeoutController.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(`Request timeout after ${REQUEST_TIMEOUT_MS}ms`, 504);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
   if (!response.ok) {
     const text = await response.text();
     let detail = text;

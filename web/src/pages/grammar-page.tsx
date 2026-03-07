@@ -33,7 +33,7 @@ export function GrammarPage() {
       setResult(response);
       setError("");
       pushToast("success", "Grammar analysis completed");
-      await history.refetch();
+      void history.refetch();
     } catch (err) {
       const msg = getErrorMessage(err);
       setError(msg);
