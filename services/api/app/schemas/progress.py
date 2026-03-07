@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class ProgressSummaryResponse(BaseModel):
+    """Response schema for progress summary API results."""
     streak_days: int
     minutes_practiced: int
     words_learned: int
@@ -18,6 +19,7 @@ class ProgressSummaryResponse(BaseModel):
 
 
 class ProgressSkillMapResponse(BaseModel):
+    """Response schema for progress skill map API results."""
     speaking: float
     listening: float
     grammar: float
@@ -27,11 +29,13 @@ class ProgressSkillMapResponse(BaseModel):
 
 
 class ProgressStreakResponse(BaseModel):
+    """Response schema for progress streak API results."""
     streak_days: int
     active_dates: list[date]
 
 
 class ProgressJournalEntry(BaseModel):
+    """Data model for progress journal entry."""
     session_id: int
     started_at: date
     mode: str
@@ -40,6 +44,7 @@ class ProgressJournalEntry(BaseModel):
 
 
 class ProgressJournalResponse(BaseModel):
+    """Response schema for progress journal API results."""
     weekly_minutes: int
     weekly_sessions: int
     weak_areas: list[str]
@@ -48,11 +53,13 @@ class ProgressJournalResponse(BaseModel):
 
 
 class WeeklyGoalSetRequest(BaseModel):
+    """Request schema for weekly goal set API operations."""
     user_id: int = Field(ge=1)
     target_minutes: int = Field(ge=30, le=2000)
 
 
 class WeeklyGoalResponse(BaseModel):
+    """Response schema for weekly goal API results."""
     user_id: int
     target_minutes: int
     completed_minutes: int
@@ -62,6 +69,7 @@ class WeeklyGoalResponse(BaseModel):
 
 
 class RewardItem(BaseModel):
+    """Schema item representing reward."""
     id: str
     title: str
     description: str
@@ -71,6 +79,7 @@ class RewardItem(BaseModel):
 
 
 class ProgressRewardsResponse(BaseModel):
+    """Response schema for progress rewards API results."""
     user_id: int
     total_xp: int
     claimed_count: int
@@ -78,11 +87,13 @@ class ProgressRewardsResponse(BaseModel):
 
 
 class RewardClaimRequest(BaseModel):
+    """Request schema for reward claim API operations."""
     user_id: int = Field(ge=1)
     reward_id: str = Field(min_length=3, max_length=64)
 
 
 class ProgressWeeklyReviewResponse(BaseModel):
+    """Response schema for progress weekly review API results."""
     user_id: int
     weekly_minutes: int
     weekly_sessions: int
@@ -97,6 +108,7 @@ class ProgressWeeklyReviewResponse(BaseModel):
 
 
 class ProgressOutcomesResponse(BaseModel):
+    """Response schema for progress outcomes API results."""
     user_id: int
     current_level: str
     estimated_level_from_skills: str
@@ -109,6 +121,7 @@ class ProgressOutcomesResponse(BaseModel):
 
 
 class CheckpointSkillDelta(BaseModel):
+    """Data model for checkpoint skill delta."""
     skill: str
     before: float
     after: float
@@ -116,6 +129,7 @@ class CheckpointSkillDelta(BaseModel):
 
 
 class ProgressWeeklyCheckpointResponse(BaseModel):
+    """Response schema for progress weekly checkpoint API results."""
     user_id: int
     window_days: int
     baseline_at: str | None = None
@@ -132,6 +146,7 @@ class ProgressWeeklyCheckpointResponse(BaseModel):
 
 
 class SkillTreeLevelNode(BaseModel):
+    """Data model for skill tree level node."""
     level: str
     status: str
     progress_percent: int
@@ -140,6 +155,7 @@ class SkillTreeLevelNode(BaseModel):
 
 
 class ProgressSkillTreeResponse(BaseModel):
+    """Response schema for progress skill tree API results."""
     user_id: int
     current_level: str
     estimated_level_from_skills: str
@@ -149,6 +165,7 @@ class ProgressSkillTreeResponse(BaseModel):
 
 
 class AchievementItem(BaseModel):
+    """Schema item representing achievement."""
     id: str
     title: str
     status: str
@@ -156,11 +173,13 @@ class AchievementItem(BaseModel):
 
 
 class ProgressAchievementsResponse(BaseModel):
+    """Response schema for progress achievements API results."""
     user_id: int
     items: list[AchievementItem]
 
 
 class ProgressReportResponse(BaseModel):
+    """Response schema for progress report API results."""
     user_id: int
     period_days: int
     generated_at: str
@@ -170,6 +189,7 @@ class ProgressReportResponse(BaseModel):
 
 
 class ProgressTimelineItem(BaseModel):
+    """Schema item representing progress timeline."""
     id: str
     workspace_id: int | None = None
     workspace_label: str | None = None
@@ -181,6 +201,7 @@ class ProgressTimelineItem(BaseModel):
 
 
 class ProgressTimelineResponse(BaseModel):
+    """Response schema for progress timeline API results."""
     user_id: int
     workspace_id: int | None = None
     skill_filter: str | None = None

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class TranslateVoiceResponse(BaseModel):
+    """Response schema for translate voice API results."""
     transcript: str
     translated_text: str
     audio_url: str
@@ -14,12 +15,14 @@ class TranslateVoiceResponse(BaseModel):
 
 
 class GrammarAnalyzeRequest(BaseModel):
+    """Request schema for grammar analyze API operations."""
     user_id: int = Field(default=1, ge=1)
     text: str = Field(min_length=1, max_length=5000)
     target_lang: str = Field(default="en", min_length=2, max_length=32)
 
 
 class GrammarError(BaseModel):
+    """Data model for grammar error."""
     category: str
     bad: str
     good: str
@@ -27,12 +30,14 @@ class GrammarError(BaseModel):
 
 
 class GrammarAnalyzeResponse(BaseModel):
+    """Response schema for grammar analyze API results."""
     corrected_text: str
     errors: list[GrammarError]
     exercises: list[str]
 
 
 class GrammarHistoryItem(BaseModel):
+    """Schema item representing grammar history."""
     id: int
     target_lang: str
     input_text: str
@@ -43,10 +48,12 @@ class GrammarHistoryItem(BaseModel):
 
 
 class GrammarHistoryResponse(BaseModel):
+    """Response schema for grammar history API results."""
     items: list[GrammarHistoryItem]
 
 
 class ExercisesGenerateRequest(BaseModel):
+    """Request schema for exercises generate API operations."""
     user_id: int = Field(ge=1)
     exercise_type: str = Field(default="mixed", min_length=2, max_length=32)
     topic: str = Field(default="general", min_length=2, max_length=100)
@@ -54,6 +61,7 @@ class ExercisesGenerateRequest(BaseModel):
 
 
 class ExerciseItem(BaseModel):
+    """Schema item representing exercise."""
     id: str
     type: str
     prompt: str
@@ -61,15 +69,18 @@ class ExerciseItem(BaseModel):
 
 
 class ExercisesGenerateResponse(BaseModel):
+    """Response schema for exercises generate API results."""
     items: list[ExerciseItem]
 
 
 class ExercisesGradeRequest(BaseModel):
+    """Request schema for exercises grade API operations."""
     answers: dict[str, str] = Field(default_factory=dict)
     expected: dict[str, str] = Field(default_factory=dict)
 
 
 class ExercisesGradeResponse(BaseModel):
+    """Response schema for exercises grade API results."""
     score: float
     max_score: float
     details: dict[str, bool]
@@ -77,6 +88,7 @@ class ExercisesGradeResponse(BaseModel):
 
 
 class PlanTodayResponse(BaseModel):
+    """Response schema for plan today API results."""
     user_id: int
     time_budget_minutes: int
     focus: list[str]
@@ -85,6 +97,7 @@ class PlanTodayResponse(BaseModel):
 
 
 class CoachSessionStep(BaseModel):
+    """Data model for coach session step."""
     id: str
     title: str
     description: str
@@ -93,6 +106,7 @@ class CoachSessionStep(BaseModel):
 
 
 class CoachSessionTodayResponse(BaseModel):
+    """Response schema for coach session today API results."""
     user_id: int
     time_budget_minutes: int
     focus: list[str]
@@ -103,6 +117,7 @@ SessionStepStatus = Literal["pending", "in_progress", "completed"]
 
 
 class CoachSessionStepProgressItem(BaseModel):
+    """Schema item representing coach session step progress."""
     step_id: str
     title: str
     status: SessionStepStatus
@@ -111,6 +126,7 @@ class CoachSessionStepProgressItem(BaseModel):
 
 
 class CoachSessionProgressResponse(BaseModel):
+    """Response schema for coach session progress API results."""
     user_id: int
     session_date: date
     total_steps: int
@@ -120,6 +136,7 @@ class CoachSessionProgressResponse(BaseModel):
 
 
 class CoachSessionProgressUpsertRequest(BaseModel):
+    """Request schema for coach session progress upsert API operations."""
     user_id: int = Field(ge=1)
     step_id: str = Field(min_length=2, max_length=64)
     status: SessionStepStatus
@@ -127,6 +144,7 @@ class CoachSessionProgressUpsertRequest(BaseModel):
 
 
 class CoachErrorBankItem(BaseModel):
+    """Schema item representing coach error bank."""
     category: str
     occurrences: int
     latest_bad: str
@@ -138,11 +156,13 @@ class CoachErrorBankItem(BaseModel):
 
 
 class CoachErrorBankResponse(BaseModel):
+    """Response schema for coach error bank API results."""
     user_id: int
     items: list[CoachErrorBankItem]
 
 
 class CoachNextAction(BaseModel):
+    """Data model for coach next action."""
     id: str
     title: str
     reason: str
@@ -152,11 +172,13 @@ class CoachNextAction(BaseModel):
 
 
 class CoachNextActionsResponse(BaseModel):
+    """Response schema for coach next actions API results."""
     user_id: int
     items: list[CoachNextAction]
 
 
 class CoachReviewQueueItem(BaseModel):
+    """Schema item representing coach review queue."""
     id: str
     type: str
     title: str
@@ -168,11 +190,13 @@ class CoachReviewQueueItem(BaseModel):
 
 
 class CoachReviewQueueResponse(BaseModel):
+    """Response schema for coach review queue API results."""
     user_id: int
     items: list[CoachReviewQueueItem]
 
 
 class CoachReactivationResponse(BaseModel):
+    """Response schema for coach reactivation API results."""
     user_id: int
     eligible: bool
     gap_days: int
@@ -187,6 +211,7 @@ class CoachReactivationResponse(BaseModel):
 
 
 class CoachDailyChallengeResponse(BaseModel):
+    """Response schema for coach daily challenge API results."""
     user_id: int
     title: str
     reason: str
@@ -196,12 +221,14 @@ class CoachDailyChallengeResponse(BaseModel):
 
 
 class CoachTrajectoryMilestone(BaseModel):
+    """Data model for coach trajectory milestone."""
     day: int
     title: str
     target: str
 
 
 class CoachTrajectoryResponse(BaseModel):
+    """Response schema for coach trajectory API results."""
     user_id: int
     horizon_days: int
     current_phase: str
@@ -210,6 +237,7 @@ class CoachTrajectoryResponse(BaseModel):
 
 
 class CoachRoadmapItem(BaseModel):
+    """Schema item representing coach roadmap."""
     id: str
     title: str
     reason: str
@@ -218,12 +246,14 @@ class CoachRoadmapItem(BaseModel):
 
 
 class CoachRoadmapResponse(BaseModel):
+    """Response schema for coach roadmap API results."""
     user_id: int
     goal: str
     items: list[CoachRoadmapItem]
 
 
 class OutcomePackItem(BaseModel):
+    """Schema item representing outcome pack."""
     id: str
     title: str
     target_level: str
@@ -233,11 +263,13 @@ class OutcomePackItem(BaseModel):
 
 
 class OutcomePacksResponse(BaseModel):
+    """Response schema for outcome packs API results."""
     user_id: int
     items: list[OutcomePackItem]
 
 
 class ScenarioItem(BaseModel):
+    """Schema item representing scenario."""
     id: str
     title: str
     description: str
@@ -247,20 +279,24 @@ class ScenarioItem(BaseModel):
 
 
 class ScenariosResponse(BaseModel):
+    """Response schema for scenarios API results."""
     items: list[ScenarioItem]
 
 
 class ScenarioSelectRequest(BaseModel):
+    """Request schema for scenario select API operations."""
     user_id: int = Field(ge=1)
     scenario_id: str = Field(min_length=2, max_length=64)
 
 
 class ScenarioSelectResponse(BaseModel):
+    """Response schema for scenario select API results."""
     session_id: int
     mode: str
 
 
 class ScenarioScriptStep(BaseModel):
+    """Data model for scenario script step."""
     id: str
     coach_prompt: str
     expected_keywords: list[str]
@@ -268,6 +304,7 @@ class ScenarioScriptStep(BaseModel):
 
 
 class ScenarioScriptResponse(BaseModel):
+    """Response schema for scenario script API results."""
     scenario_id: str
     title: str
     description: str
@@ -275,6 +312,7 @@ class ScenarioScriptResponse(BaseModel):
 
 
 class ScenarioTurnRequest(BaseModel):
+    """Request schema for scenario turn API operations."""
     user_id: int = Field(ge=1)
     scenario_id: str = Field(min_length=2, max_length=64)
     step_id: str = Field(min_length=2, max_length=64)
@@ -282,6 +320,7 @@ class ScenarioTurnRequest(BaseModel):
 
 
 class ScenarioTurnResponse(BaseModel):
+    """Response schema for scenario turn API results."""
     scenario_id: str
     step_id: str
     score: float
@@ -294,6 +333,7 @@ class ScenarioTurnResponse(BaseModel):
 
 
 class CoachScenarioTrackStepItem(BaseModel):
+    """Schema item representing coach scenario track step."""
     order: int
     scenario_id: str
     title: str
@@ -301,6 +341,7 @@ class CoachScenarioTrackStepItem(BaseModel):
 
 
 class CoachScenarioTrackMilestone(BaseModel):
+    """Data model for coach scenario track milestone."""
     id: str
     title: str
     required_completed: int
@@ -308,6 +349,7 @@ class CoachScenarioTrackMilestone(BaseModel):
 
 
 class CoachScenarioTrackItem(BaseModel):
+    """Schema item representing coach scenario track."""
     track_id: str
     goal: str
     title: str
@@ -320,5 +362,6 @@ class CoachScenarioTrackItem(BaseModel):
 
 
 class CoachScenarioTracksResponse(BaseModel):
+    """Response schema for coach scenario tracks API results."""
     user_id: int
     items: list[CoachScenarioTrackItem]

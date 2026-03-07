@@ -69,6 +69,10 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 const REQUEST_TIMEOUT_MS = 15000;
 
 export class ApiError extends Error {
+  /**
+   * API-layer error with HTTP status and optional request identifier
+   * for correlating frontend failures with backend logs.
+   */
   status: number;
   requestId?: string;
 

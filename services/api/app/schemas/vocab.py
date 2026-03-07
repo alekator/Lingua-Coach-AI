@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class VocabAddRequest(BaseModel):
+    """Request schema for vocab add API operations."""
     user_id: int = Field(ge=1)
     word: str = Field(min_length=1, max_length=100)
     translation: str = Field(min_length=1, max_length=255)
@@ -14,6 +15,7 @@ class VocabAddRequest(BaseModel):
 
 
 class VocabItemResponse(BaseModel):
+    """Response schema for vocab item API results."""
     id: int
     user_id: int
     word: str
@@ -27,25 +29,30 @@ class VocabItemResponse(BaseModel):
 
 
 class VocabListResponse(BaseModel):
+    """Response schema for vocab list API results."""
     items: list[VocabItemResponse]
 
 
 class VocabReviewNextRequest(BaseModel):
+    """Request schema for vocab review next API operations."""
     user_id: int = Field(ge=1)
 
 
 class VocabReviewNextResponse(BaseModel):
+    """Response schema for vocab review next API results."""
     has_item: bool
     item: VocabItemResponse | None = None
 
 
 class VocabReviewSubmitRequest(BaseModel):
+    """Request schema for vocab review submit API operations."""
     user_id: int = Field(ge=1)
     vocab_item_id: int = Field(ge=1)
     rating: str = Field(pattern="^(again|hard|good|easy)$")
 
 
 class VocabReviewSubmitResponse(BaseModel):
+    """Response schema for vocab review submit API results."""
     vocab_item_id: int
     rating: str
     next_due_at: datetime

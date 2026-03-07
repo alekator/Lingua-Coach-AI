@@ -13,30 +13,36 @@ from pydantic import BaseModel, Field
 
 
 class HealthResponse(BaseModel):
+    """Response schema for health API results."""
     service: str
     status: str
 
 
 class TtsSpeakRequest(BaseModel):
+    """Request schema for tts speak API operations."""
     text: str = Field(min_length=1, max_length=4000)
     language: str = Field(default="en", min_length=2, max_length=32)
     voice: str = Field(default="alloy", min_length=2, max_length=32)
 
 
 class TtsSpeakResponse(BaseModel):
+    """Response schema for tts speak API results."""
     audio_url: str
     mime_type: str = "audio/mpeg"
 
 
 class ProviderSetRequest(BaseModel):
+    """Request schema for provider set API operations."""
     provider: str = Field(pattern="^(openai|local)$")
 
 
 class ProviderStatusResponse(BaseModel):
+    """Response schema for provider status API results."""
     provider: str
 
 
 class TtsDiagnosticsResponse(BaseModel):
+    """Response schema for tts diagnostics API results."""
     provider: str
     status: str
     message: str

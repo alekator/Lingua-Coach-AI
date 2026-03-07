@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class HomeworkCreateRequest(BaseModel):
+    """Request schema for homework create API operations."""
     user_id: int = Field(ge=1)
     title: str = Field(min_length=1, max_length=255)
     tasks: list[dict] = Field(default_factory=list)
@@ -13,6 +14,7 @@ class HomeworkCreateRequest(BaseModel):
 
 
 class HomeworkItem(BaseModel):
+    """Schema item representing homework."""
     id: int
     user_id: int
     title: str
@@ -27,15 +29,18 @@ class HomeworkItem(BaseModel):
 
 
 class HomeworkListResponse(BaseModel):
+    """Response schema for homework list API results."""
     items: list[HomeworkItem]
 
 
 class HomeworkSubmitRequest(BaseModel):
+    """Request schema for homework submit API operations."""
     homework_id: int = Field(ge=1)
     answers: dict = Field(default_factory=dict)
 
 
 class HomeworkUpdateRequest(BaseModel):
+    """Request schema for homework update API operations."""
     title: str = Field(min_length=1, max_length=255)
     tasks: list[dict] = Field(default_factory=list)
     due_at: datetime | None = None
@@ -43,6 +48,7 @@ class HomeworkUpdateRequest(BaseModel):
 
 
 class HomeworkSubmitResponse(BaseModel):
+    """Response schema for homework submit API results."""
     homework_id: int
     status: str
     grade: dict

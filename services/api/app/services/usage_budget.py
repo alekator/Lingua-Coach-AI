@@ -16,6 +16,7 @@ DEFAULT_WARNING_THRESHOLD = 0.8
 
 @dataclass(frozen=True)
 class UsageBudgetSnapshot:
+    """Aggregated token usage and limits for budget enforcement."""
     daily_token_cap: int
     weekly_token_cap: int
     warning_threshold: float

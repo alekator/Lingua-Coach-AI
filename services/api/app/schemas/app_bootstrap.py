@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class AppBootstrapResponse(BaseModel):
+    """Response schema for app bootstrap API results."""
     user_id: int
     has_profile: bool
     needs_onboarding: bool
@@ -18,10 +19,12 @@ class AppBootstrapResponse(BaseModel):
 
 
 class AppResetRequest(BaseModel):
+    """Request schema for app reset API operations."""
     confirmation: str = Field(min_length=1)
 
 
 class AppResetResponse(BaseModel):
+    """Response schema for app reset API results."""
     status: str
     deleted_users: int
     deleted_workspaces: int
@@ -32,16 +35,19 @@ class AppResetResponse(BaseModel):
 
 
 class AppBackupExportResponse(BaseModel):
+    """Response schema for app backup export API results."""
     version: int
     exported_at: str
     snapshot: dict[str, Any]
 
 
 class AppBackupRestoreRequest(BaseModel):
+    """Request schema for app backup restore API operations."""
     confirmation: str = Field(min_length=1)
     snapshot: dict[str, Any]
 
 
 class AppBackupRestoreResponse(BaseModel):
+    """Response schema for app backup restore API results."""
     status: str
     restored_tables: dict[str, int]

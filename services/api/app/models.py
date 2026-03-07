@@ -15,6 +15,7 @@ def json_type():
 
 
 class User(Base):
+    """Data model for user."""
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -30,6 +31,7 @@ class User(Base):
 
 
 class LearningWorkspace(Base):
+    """Data model for learning workspace."""
     __tablename__ = "learning_workspaces"
     __table_args__ = (UniqueConstraint("owner_user_id", "native_lang", "target_lang", name="uq_workspace_pair"),)
 
@@ -58,6 +60,7 @@ class LearningWorkspace(Base):
 
 
 class LearnerProfile(Base):
+    """Data model for learner profile."""
     __tablename__ = "learner_profiles"
     __table_args__ = (UniqueConstraint("user_id", name="uq_learner_profiles_user_id"),)
 
@@ -79,6 +82,7 @@ class LearnerProfile(Base):
 
 
 class PlacementSession(Base):
+    """Data model for placement session."""
     __tablename__ = "placement_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -100,6 +104,7 @@ class PlacementSession(Base):
 
 
 class PlacementAnswer(Base):
+    """Data model for placement answer."""
     __tablename__ = "placement_answers"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -118,6 +123,7 @@ class PlacementAnswer(Base):
 
 
 class SkillSnapshot(Base):
+    """Data model for skill snapshot."""
     __tablename__ = "skill_snapshots"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -134,6 +140,7 @@ class SkillSnapshot(Base):
 
 
 class ChatSession(Base):
+    """Data model for chat session."""
     __tablename__ = "sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -151,6 +158,7 @@ class ChatSession(Base):
 
 
 class Message(Base):
+    """Data model for message."""
     __tablename__ = "messages"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -165,6 +173,7 @@ class Message(Base):
 
 
 class Mistake(Base):
+    """Data model for mistake."""
     __tablename__ = "mistakes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -179,6 +188,7 @@ class Mistake(Base):
 
 
 class VocabItem(Base):
+    """Schema item representing vocab."""
     __tablename__ = "vocab_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -197,6 +207,7 @@ class VocabItem(Base):
 
 
 class SrsState(Base):
+    """Data model for srs state."""
     __tablename__ = "srs_state"
 
     vocab_item_id: Mapped[int] = mapped_column(
@@ -215,6 +226,7 @@ class SrsState(Base):
 
 
 class Homework(Base):
+    """Data model for homework."""
     __tablename__ = "homeworks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -235,6 +247,7 @@ class Homework(Base):
 
 
 class HomeworkSubmission(Base):
+    """Data model for homework submission."""
     __tablename__ = "homework_submissions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -251,6 +264,7 @@ class HomeworkSubmission(Base):
 
 
 class SessionStepProgress(Base):
+    """Data model for session step progress."""
     __tablename__ = "session_step_progress"
     __table_args__ = (UniqueConstraint("user_id", "session_date", "step_id", name="uq_session_step_progress"),)
 
@@ -270,6 +284,7 @@ class SessionStepProgress(Base):
 
 
 class AIUsageEvent(Base):
+    """Data model for aiusage event."""
     __tablename__ = "ai_usage_events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -285,6 +300,7 @@ class AIUsageEvent(Base):
 
 
 class AppSecret(Base):
+    """Data model for app secret."""
     __tablename__ = "app_secrets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -299,6 +315,7 @@ class AppSecret(Base):
 
 
 class GrammarAnalysisRecord(Base):
+    """Data model for grammar analysis record."""
     __tablename__ = "grammar_analysis_records"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

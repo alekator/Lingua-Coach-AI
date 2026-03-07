@@ -9,6 +9,7 @@ from app.config import settings
 
 
 class Base(DeclarativeBase):
+    """Declarative SQLAlchemy base class for ORM models."""
     pass
 
 

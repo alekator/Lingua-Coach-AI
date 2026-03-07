@@ -4,10 +4,12 @@ from pydantic import BaseModel, Field
 
 
 class OpenAIKeySetRequest(BaseModel):
+    """Request schema for open aikey set API operations."""
     api_key: str = Field(min_length=10, max_length=512)
 
 
 class OpenAIKeyStatusResponse(BaseModel):
+    """Response schema for open aikey status API results."""
     configured: bool
     source: str
     masked: str | None = None
@@ -16,6 +18,7 @@ class OpenAIKeyStatusResponse(BaseModel):
 
 
 class UsageBudgetSetRequest(BaseModel):
+    """Request schema for usage budget set API operations."""
     user_id: int = Field(ge=1)
     daily_token_cap: int = Field(default=12000, ge=0, le=2_000_000)
     weekly_token_cap: int = Field(default=60000, ge=0, le=10_000_000)
@@ -23,6 +26,7 @@ class UsageBudgetSetRequest(BaseModel):
 
 
 class UsageBudgetStatusResponse(BaseModel):
+    """Response schema for usage budget status API results."""
     user_id: int
     daily_token_cap: int
     weekly_token_cap: int
@@ -37,6 +41,7 @@ class UsageBudgetStatusResponse(BaseModel):
 
 
 class LanguageCapabilitiesResponse(BaseModel):
+    """Response schema for language capabilities API results."""
     native_lang: str
     target_lang: str
     text_supported: bool
@@ -47,12 +52,14 @@ class LanguageCapabilitiesResponse(BaseModel):
 
 
 class AIRuntimeSetRequest(BaseModel):
+    """Request schema for airuntime set API operations."""
     llm_provider: str = Field(default="openai", pattern="^(openai|local)$")
     asr_provider: str = Field(default="openai", pattern="^(openai|local)$")
     tts_provider: str = Field(default="openai", pattern="^(openai|local)$")
 
 
 class AIModuleDiagnostics(BaseModel):
+    """Data model for aimodule diagnostics."""
     provider: str
     status: str
     message: str
@@ -65,6 +72,7 @@ class AIModuleDiagnostics(BaseModel):
 
 
 class AIRuntimeStatusResponse(BaseModel):
+    """Response schema for airuntime status API results."""
     llm_provider: str
     asr_provider: str
     tts_provider: str

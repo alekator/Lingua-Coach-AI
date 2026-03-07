@@ -47,11 +47,13 @@ from app.services.voice import (
 
 
 class HealthResponse(BaseModel):
+    """Response schema for health API results."""
     service: str
     status: str
 
 
 class OpenAIDebugResponse(BaseModel):
+    """Response schema for open aidebug API results."""
     status: str
     detail: str
 

@@ -13,6 +13,7 @@ from app.models import AppSecret
 
 @dataclass(frozen=True)
 class StoredSecret:
+    """Container for encrypted and decrypted secret values."""
     value: str
     storage: Literal["dpapi", "plaintext"]
 
@@ -22,6 +23,7 @@ def _encrypt_windows_dpapi(plaintext: str) -> str:
     from ctypes import wintypes
 
     class DATA_BLOB(ctypes.Structure):
+        """Data model for data blob."""
         _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_byte))]
 
     crypt32 = ctypes.windll.crypt32  # type: ignore[attr-defined]
@@ -56,6 +58,7 @@ def _decrypt_windows_dpapi(ciphertext: str) -> str:
     from ctypes import wintypes
 
     class DATA_BLOB(ctypes.Structure):
+        """Data model for data blob."""
         _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_byte))]
 
     crypt32 = ctypes.windll.crypt32  # type: ignore[attr-defined]

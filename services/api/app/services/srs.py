@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, UTC
 
 @dataclass(frozen=True)
 class SrsResult:
+    """Result tuple for SRS scheduling after a review event."""
     interval_days: int
     ease: float
     due_at: datetime

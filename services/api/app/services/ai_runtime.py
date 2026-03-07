@@ -10,6 +10,7 @@ logger = logging.getLogger("linguacoach.ai")
 
 
 class SmallLRUCache:
+    """In-memory least-recently-used cache for short AI response fragments."""
     def __init__(self, max_items: int = 512) -> None:
         self.max_items = max(16, max_items)
         self._store: OrderedDict[Hashable, Any] = OrderedDict()

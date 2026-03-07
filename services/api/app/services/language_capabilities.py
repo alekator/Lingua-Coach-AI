@@ -60,6 +60,7 @@ def is_speech_language_supported(lang: str) -> bool:
 
 @dataclass(frozen=True)
 class LanguagePairCapabilities:
+    """Computed capability flags and recommendation for a language pair."""
     native_lang: str
     target_lang: str
     text_supported: bool
